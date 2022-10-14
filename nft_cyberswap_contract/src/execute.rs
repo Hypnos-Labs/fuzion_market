@@ -1,0 +1,1105 @@
+use cosmwasm_std::{DepsMut, Env, Response, Addr};
+use crate::msg::*;
+use crate::state::*;
+use crate::error::ContractError;
+use cw20::{Balance};
+use crate::utils::*;
+
+/////////////~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/////////////~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/////////////// Execute Abstractions
+/////////////~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+/////////////~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/////////////~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/////////////// Admin Only
+/////////////~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+pub fn add_to_whitelist(
+    deps: DepsMut,
+    _env: Env,
+    sender: &Addr,
+    new_denom: (String, String),
+    marker: Marker,
+) -> Result<Response, ContractError> {
+
+    // Admin check
+    let config = CONFIG.load(deps.storage)?;
+    if &config.admin != sender {
+        return Err(ContractError::Unauthorized {});
+    };
+
+    match marker {
+        Marker::Cw20 => {
+
+            let valid: (String, Addr) = (new_denom.0, deps.api.addr_validate(&new_denom.1)?);
+
+            let cap: usize = config.whitelist_cw20.capacity() + 1;
+
+            let old_wl = config.whitelist_cw20;
+
+            let new_wl = {
+                let mut empt: Vec<(String, Addr)> = Vec::with_capacity(cap);
+                empt.extend(old_wl);
+                empt.push(valid);
+                empt
+            };
+
+            CONFIG.update(
+                deps.storage,
+                |old| -> Result<Config, ContractError> {
+                    return Ok(Config {
+                        whitelist_cw20: new_wl,
+                        ..old
+                    });
+                }
+            )?;
+
+        },
+
+
+        Marker::Native => {
+
+            let cap: usize = config.whitelist_native.capacity() + 1;
+
+            let old_wl = config.whitelist_native;
+
+            let new_wl = {
+                let mut empt: Vec<(String, String)> = Vec::with_capacity(cap);
+                empt.extend(old_wl);
+                empt.push(new_denom);
+                empt
+            };
+
+            CONFIG.update(
+                deps.storage,
+                |old| -> Result<Config, ContractError> {
+                    return Ok(Config {
+                        whitelist_native: new_wl,
+                        ..old
+                    });
+                }
+            )?;
+        },
+    }
+
+    Ok(Response::new()
+        .add_attribute("execution", "edit_whitelist")
+        .add_attribute("method","add_pair")
+    )
+}
+
+pub fn add_to_removal_queue(
+    deps: DepsMut,
+    env: Env,
+    sender: &Addr,
+    denom: (String, String), // (NETA, juno1xxx) or (ATOM, ibc/123)
+    marker: Marker,
+) -> Result<Response, ContractError> {
+
+    // Admin check
+    let config = CONFIG.load(deps.storage)?;
+    if &config.admin != sender {
+        return Err(ContractError::Unauthorized {});
+    };
+
+    let current_timestamp = env.block.time;
+
+    match marker {
+        Marker::Cw20 => {
+            let valid: Addr = deps.api.addr_validate(&denom.1)?;
+
+            let removal_denom = Cw20RemovalDenom {
+                symbol: denom.0,
+                address: valid,
+            };
+
+            let cap: usize = config.clone().removal_queue_cw20.ok_or(ContractError::ToDo {})?.queued_denoms.capacity() + 1;
+
+            let new: Cw20RemovalQueue = {
+                let mut empt: Vec<(cosmwasm_std::Timestamp, Cw20RemovalDenom)> = Vec::with_capacity(cap);
+                empt.extend(config.clone().removal_queue_cw20.unwrap().queued_denoms);
+                empt.push((current_timestamp, removal_denom));
+                Cw20RemovalQueue {
+                    queued_denoms: empt,
+                }
+            };
+
+            CONFIG.update(
+                deps.storage, 
+                |old_config| -> Result<Config, ContractError> {
+                    return Ok(Config {
+                        removal_queue_cw20: Some(new),
+                        ..old_config
+                    });
+                }
+            )?;
+        },
+
+
+        Marker::Native => {
+            let removal_denom = NativeRemovalDenom {
+                symbol: denom.0,
+                denom: denom.1,
+            };
+
+            let cap: usize = config.clone().removal_queue_native.ok_or(ContractError::ToDo {})?.queued_denoms.capacity() + 1;
+
+            let new: NativeRemovalQueue = {
+                let mut empt: Vec<(cosmwasm_std::Timestamp, NativeRemovalDenom)> = Vec::with_capacity(cap);
+                empt.extend(config.clone().removal_queue_native.unwrap().queued_denoms);
+                empt.push((current_timestamp, removal_denom));
+                NativeRemovalQueue {
+                    queued_denoms: empt,
+                }
+            };
+
+            CONFIG.update(
+                deps.storage, 
+                |old_config| -> Result<Config, ContractError> {
+                    return Ok(Config {
+                        removal_queue_native: Some(new),
+                        ..old_config
+                    });
+                }
+            )?;
+        },
+    }
+
+    Ok(Response::default())
+}
+
+pub fn clear_removal_queue(
+    deps: DepsMut,
+    env: Env,
+    sender: &Addr,
+) -> Result<Response, ContractError> {
+
+    // Admin check
+    let config = CONFIG.load(deps.storage)?;
+    if &config.admin != sender {
+        return Err(ContractError::Unauthorized {});
+    };
+
+    let current_timestamp = env.block.time;
+
+    //~~~~~~~~~~~~~~~~~~~~
+    // Updating cw20s
+    //~~~~~~~~~~~~~~~~~~~~
+    
+    let addys_to_remove = {
+        let mut xyz = config.clone().removal_queue_cw20.ok_or(ContractError::ToDo {})?.queued_denoms;
+        xyz.retain(|qd| qd.0 >= current_timestamp);
+        let y: Vec<Addr> = xyz.iter().map(|yy| yy.1.address.clone()).collect();
+        y
+    };
+    
+    // Now I have a vector of Addr that are to be removed from the whitelist
+    // whitelist_addresses.iter().retain(|addy| !vek_addresses_to_remove.contains(addy))
+    let new_cw20_wl = {
+        let mut old = config.clone().whitelist_cw20;
+        old.retain(|old_addy| !addys_to_remove.contains(&old_addy.1));
+        old
+    };
+
+    // removing "expired" queues from cw20queue
+    let new_cw20_q = {
+        let mut cw20q = config.clone().removal_queue_cw20.unwrap().queued_denoms;
+        cw20q.retain(|qd| qd.0 < current_timestamp);
+        cw20q
+    };
+
+
+    //~~~~~~~~~~~~~~~~~~~~
+    // Updating natives
+    //~~~~~~~~~~~~~~~~~~~~
+
+    let denoms_to_remove = {
+        let mut xyz2 = config.clone().removal_queue_native.ok_or(ContractError::ToDo {})?.queued_denoms;
+        xyz2.retain(|qd| qd.0 >= current_timestamp);
+        let y: Vec<String> = xyz2.iter().map(|yy| yy.1.denom.clone()).collect();
+        y
+    };
+    
+    // Now I have a vector of Strings that are to be removed from the whitelist
+    // whitelist_addresses.iter().retain(|addy| !vek_addresses_to_remove.contains(addy))
+    let new_native_wl = {
+        let mut old = config.clone().whitelist_native;
+        old.retain(|old_denom| !denoms_to_remove.contains(&old_denom.1));
+        old
+    };
+
+    // removing "expired" queues from nativequeue
+    let new_native_q = {
+        let mut nativeq = config.clone().removal_queue_native.unwrap().queued_denoms;
+        nativeq.retain(|qd| qd.0 < current_timestamp);
+        nativeq
+    };
+
+    CONFIG.update(
+        deps.storage, 
+        |old_config| -> Result<Config, ContractError> { Ok(Config{
+            whitelist_native: new_native_wl,
+            whitelist_cw20: new_cw20_wl,
+            removal_queue_native: Some(NativeRemovalQueue {queued_denoms: new_native_q}),
+            removal_queue_cw20: Some(Cw20RemovalQueue {queued_denoms: new_cw20_q}),
+            ..old_config
+        })}
+    )?;
+
+    Ok(Response::new().add_attribute("method", "clear_removal_queue"))
+}
+
+/////////////~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/////////////~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/////////////// Marketplace
+/////////////~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+////~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+////~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+////////// BUCKETS
+////~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+pub fn execute_create_bucket(
+    deps: DepsMut,
+    funds: Balance,
+    creator: &Addr,
+    bucket_id: String,
+) -> Result<Response, ContractError> {
+
+    // Can't create an empty Bucket <help prevent ddos>
+    if funds.is_empty() {
+        return Err(ContractError::NoTokens {});
+    }
+
+    // Check that balance sent in is on whitelist
+    let config = CONFIG.load(deps.storage)?;
+    is_balance_whitelisted(&funds, &config)?;
+
+    // Check that bucket_id isn't used 
+    if BUCKETS.has(deps.storage, (creator.clone(), &bucket_id)) {
+        return Err(ContractError::ToDo {}); // bucket id taken
+    }
+
+    // Save bucket
+    BUCKETS.save(
+        deps.storage, 
+        (creator.clone(), &bucket_id), 
+        &Bucket {
+            funds: funds.to_generic(),
+            owner: creator.clone(),
+        },
+    )?;
+
+    Ok(Response::new()
+        .add_attribute("method", "create_bucket")
+        .add_attribute("bucket_id", &bucket_id)
+    )
+}
+
+//////////////////////////////////////////////////
+//////////////////////////////////////////////////
+////////////////////////////////
+pub fn execute_create_bucket_cw721(
+    deps: DepsMut,
+    user_wallet: &Addr,
+    nft: Nft,
+    bucket_id: String,
+) -> Result<Response, ContractError> {
+
+    // Check that bucket_id isn't used 
+    if BUCKETS.has(deps.storage, (user_wallet.clone(), &bucket_id)) {
+        return Err(ContractError::ToDo {}); // bucket id taken
+    }
+
+    // all NFT validation checks are handled in receiver wrapper
+
+    // Save bucket
+    BUCKETS.save(
+        deps.storage, 
+        (user_wallet.clone(), &bucket_id), 
+        &Bucket {
+            funds: genbal_from_nft(nft),
+            owner: user_wallet.clone(),
+        },
+    )?;
+
+    Ok(Response::default())
+}
+///////////////////////////////
+/////////////////////////////////////////////////////
+//////////////////////////////////////////////////
+
+
+
+pub fn execute_add_to_bucket(
+    deps: DepsMut,
+    funds: Balance,
+    sender: &Addr,
+    bucket_id: String,
+) -> Result<Response, ContractError> {
+
+    // Error if no funds sent
+    if funds.is_empty() {
+        return Err(ContractError::NoTokens {});
+    }
+
+    // Ensure bucket exists & Sender is owner
+    if let None = BUCKETS.may_load(deps.storage, (sender.clone(), &bucket_id))? {
+        return Err(ContractError::ToDo {});
+    }
+
+    // Ensure coins sent in are in whitelist
+    let config = CONFIG.load(deps.storage)?;
+    is_balance_whitelisted(&funds, &config)?;
+
+    // Get Bucket
+    let the_bucket = BUCKETS.load(deps.storage, (sender.clone(), &bucket_id))?;
+
+    // Authorized check
+    if sender != &the_bucket.owner {
+        return Err(ContractError::Unauthorized {});
+    }
+
+    // Add tokens to bucket
+    // old is current GenericBalance in bucket
+    let old = the_bucket.funds.clone();
+    // upd is current bucket
+    let mut upd = the_bucket;
+    // Mutate upd by adding sent in funds to GenericBalance
+    upd.funds.add_tokens(funds);
+    // Check that upd.funds have changed
+    if old == upd.funds {
+        // Balance not updated, can have cleaner logic here
+        return Err(ContractError::ToDo {});
+    }
+
+    // Save the updated bucket
+    BUCKETS.save(
+        deps.storage, 
+        (sender.clone(), &bucket_id),
+        &upd
+    )?;
+
+    Ok(Response::new()
+        .add_attribute("method", "add_funds_to_bucket")
+        .add_attribute("listing", &bucket_id)
+    )
+
+}
+
+//////////////////////////////////////////////////
+//////////////////////////////////////////////////
+//////////////////////////////////////////////////
+pub fn execute_add_to_bucket_cw721(
+    deps: DepsMut,
+    user_wallet: &Addr,
+    nft: Nft,
+    bucket_id: String,
+) -> Result<Response, ContractError> {
+
+    // Ensure bucket exists & Sender is owner
+    if let None = BUCKETS.may_load(deps.storage, (user_wallet.clone(), &bucket_id))? {
+        return Err(ContractError::ToDo {});
+    }
+
+    // Get Bucket
+    let the_bucket = BUCKETS.load(deps.storage, (user_wallet.clone(), &bucket_id))?;
+
+    // Authorized check
+    if user_wallet != &the_bucket.owner {
+        return Err(ContractError::Unauthorized {});
+    }
+
+    // Create updated bucket
+    let new_bucket = {
+        let old = the_bucket.funds.clone();
+        let mut x = the_bucket.clone();
+        x.funds.add_nft(nft);
+        if old == x.funds {
+            Err(ContractError::ToDo {})
+        } else {
+            Ok(x)
+        }
+    }?;
+
+    // Save updated bucket
+    BUCKETS.update(
+        deps.storage, 
+        (user_wallet.clone(), &bucket_id), 
+        {|o| match o {
+            Some(_) => Ok(new_bucket),
+            None => Err(ContractError::ToDo {})
+        }},
+    )?;
+
+    Ok(Response::default())
+}
+//////////////////////////////////////////////////
+//////////////////////////////////////////////////
+//////////////////////////////////////////////////
+
+
+pub fn execute_withdraw_bucket(
+    deps: DepsMut,
+    user: &Addr,
+    bucket_id: String,
+) -> Result<Response, ContractError> {
+
+    // Get Bucket
+    let the_bucket = BUCKETS.load(deps.storage, (user.clone(), &bucket_id))?;
+
+    // Check sender is owner
+    if &the_bucket.owner != user {
+        return Err(ContractError::Unauthorized {});
+    }
+
+    // Create Send Msgs
+    let msgs = send_tokens_cosmos(user, &the_bucket.funds)?;
+
+    // Remove Bucket
+    BUCKETS.remove(deps.storage, (user.clone(), &bucket_id));
+    // Possibly need to add replyon & verify funds sent successfully before removing bucket
+
+    Ok(Response::new()
+    .add_attribute("method", "empty_bucket")
+    .add_attribute("bucket_id", &bucket_id)
+    .add_messages(msgs)
+    )
+
+}
+
+////~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+////~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+////////// LISTINGS
+////~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+////~~~~~~~~~~~~~~~~~~~~~~~
+////~~~~~~~~~~~~~~~~~~~~~~~
+////// Creation
+////~~~~~~~~~~~~~~~~~~~~~~~
+
+// Combine with execute_create_listing_cw20 for better code quality
+pub fn execute_create_listing(
+    deps: DepsMut,
+    user_address: &Addr,
+    funds_sent: Balance,
+    createlistingmsg: CreateListingMsg,
+) -> Result<Response, ContractError> {
+
+    // Check that some tokens were sent with message
+    if funds_sent.is_empty() { 
+        return Err(ContractError::NoTokens {}); 
+    }
+
+    // Only 6 native in whitelist
+    if createlistingmsg.ask.native.len() > 6 {
+        return Err(ContractError::ToDo {});
+    }
+
+    // Only 3 cw20 in whitelist
+    if createlistingmsg.ask.cw20.len() > 3 {
+        return Err(ContractError::ToDo {});
+    }
+
+    // Check that funds sent are whitelisted
+    let config = CONFIG.load(deps.storage)?;
+    
+    is_balance_whitelisted(&funds_sent, &config)?;
+
+    // Check that funds in ask are whitelisted
+    is_genericbalance_whitelisted(&createlistingmsg.ask, &config)?;
+
+    // Check ID isn't taken
+    if let Some(_) = listingz().idx.id.item(deps.storage, createlistingmsg.id.clone())? {
+        return Err(ContractError::IdAlreadyExists {});
+    }
+
+    // Save listing
+    listingz().save(
+        deps.storage, 
+        (user_address, createlistingmsg.id.clone()),
+        &Listing {
+            creator: user_address.clone(),
+            id: createlistingmsg.id.clone(),
+            finalized_time: None,
+            expiration_time: None,
+            status: Status::BeingPrepared,
+            for_sale: funds_sent.to_generic(),
+            ask: createlistingmsg.ask.clone(),
+            claimant: None,
+        }
+    )?;
+
+    Ok(Response::new()
+    .add_attribute("method", "create native listing")
+    .add_attribute("listing id", &createlistingmsg.id)
+    )
+}
+
+// Combine with execute_create_listing for better code quality
+pub fn execute_create_listing_cw20(
+    deps: DepsMut, 
+    user_address: &Addr,
+    _contract_address: &Addr, 
+    funds_sent: Balance, 
+    createlistingmsg: CreateListingMsg
+) -> Result<Response, ContractError> {
+
+    // Check that some tokens were sent with message
+    if funds_sent.is_empty() { 
+        return Err(ContractError::NoTokens {}); 
+    }
+
+    // Only 3 cw20 in whitelist
+    if createlistingmsg.ask.cw20.len() > 3 {
+        return Err(ContractError::ToDo {});
+    };
+
+    // Check that funds sent are whitelisted
+    let config = CONFIG.load(deps.storage)?;
+    is_balance_whitelisted(&funds_sent, &config)?;
+
+    // Check that funds in ask are whitelisted
+    is_genericbalance_whitelisted(&createlistingmsg.ask, &config)?;
+
+    // Checking to make sure that listing_id isn't taken
+    // The goal here is to -ensure- that each listing_id is always unique,
+    // so a Buyer doesn't unintentionally attempt to purchase the wrong listing
+    if let Some(_) = listingz().idx.id.item(deps.storage, createlistingmsg.id.clone())? {
+        return Err(ContractError::IdAlreadyExists {});
+    }
+
+    listingz().save(
+        deps.storage, 
+        (user_address, createlistingmsg.id.clone()), 
+        &Listing {
+            creator: user_address.clone(),
+            id: createlistingmsg.id.clone(),
+            finalized_time: None,
+            expiration_time: None,
+            status: Status::BeingPrepared,
+            for_sale: funds_sent.to_generic(),
+            ask: createlistingmsg.ask,
+            claimant: None,
+        }
+    )?;
+
+    Ok(Response::new()
+        .add_attribute("method", "create cw20 listing")
+        .add_attribute("listing id", &createlistingmsg.id)
+        .add_attribute("creator", &user_address.to_string())
+    )
+}
+
+pub fn execute_create_listing_cw721(
+    deps: DepsMut,
+    user_wallet: &Addr,
+    nft: Nft,
+    createlistingmsg: CreateListingMsg
+) -> Result<Response, ContractError> {
+
+
+    // Checking to make sure that listing_id isn't taken
+    // The goal here is to -ensure- that each listing_id is always unique,
+    // so a Buyer doesn't unintentionally attempt to purchase the wrong listing
+    if let Some(_) = listingz().idx.id.item(deps.storage, createlistingmsg.id.clone())? {
+        return Err(ContractError::IdAlreadyExists {});
+    }
+
+    listingz().save(
+        deps.storage, 
+        (user_wallet, createlistingmsg.id.clone()), 
+        &Listing {
+            creator: user_wallet.clone(),
+            id: createlistingmsg.id.clone(),
+            finalized_time: None,
+            expiration_time: None,
+            status: Status::BeingPrepared,
+            for_sale: genbal_from_nft(nft),
+            ask: createlistingmsg.ask,
+            claimant: None,
+        }
+    )?;
+
+    Ok(Response::new()
+        .add_attribute("method", "create cw721 listing")
+        .add_attribute("listing id", &createlistingmsg.id)
+        .add_attribute("creator", &user_wallet.to_string())
+    )
+}
+
+////~~~~~~~~~~~~~~~~~~~~~~~
+////~~~~~~~~~~~~~~~~~~~~~~~
+////// Editing
+////~~~~~~~~~~~~~~~~~~~~~~~
+
+pub fn execute_change_ask(
+    deps: DepsMut, 
+    user_sender: &Addr, 
+    listing_id: String, 
+    new_ask: GenericBalance,
+) -> Result<Response, ContractError> {
+
+    // Ensure listing exists
+    if let None = listingz().may_load(deps.storage, (user_sender, listing_id.clone()))? {
+        return Err(ContractError::ToDo {});
+    }
+
+    // Get listing
+    let listing = listingz().load(deps.storage, (user_sender, listing_id.clone()))?;
+
+    // Ensure sender is owner
+    if user_sender != &listing.creator {
+        return Err(ContractError::Unauthorized {});
+    }
+
+    // Ensure no finalized time
+    if listing.finalized_time != None {
+        return Err(ContractError::ToDo {});
+    }
+
+    // Ensure being prepared
+    if listing.status != Status::BeingPrepared {
+        return Err(ContractError::ToDo {});
+    }
+
+    // Ensure no Claimant
+    if listing.claimant != None {
+        return Err(ContractError::Unauthorized {});
+    }
+
+    // Check that new_ask is whitelisted
+    let config = CONFIG.load(deps.storage)?;
+    is_genericbalance_whitelisted(&new_ask, &config)?;
+
+    listingz().replace(
+        deps.storage, 
+        (user_sender, listing_id.clone()), 
+        Some(&Listing {
+            ask: new_ask,
+            ..listing.clone()
+        }), 
+        Some(&listing),
+    )?;
+
+    Ok(Response::new()
+        .add_attribute("method", "update listing")
+        .add_attribute("listing ID", &listing_id)
+    )
+}
+
+// Can have better logic
+pub fn execute_add_funds_to_sale(
+    deps: DepsMut, 
+    balance: Balance, 
+    user_sender: &Addr, 
+    listing_id: String,
+) -> Result<Response, ContractError> {
+
+    // Error if no funds sent
+    if balance.is_empty() {
+        return Err(ContractError::NoTokens {});
+    }
+
+    // Ensure listing exists
+    if let None = listingz().may_load(deps.storage, (user_sender, listing_id.clone()))? {
+        return Err(ContractError::ToDo {});
+    }
+
+    // Get listing
+    let listing = listingz().load(deps.storage, (user_sender, listing_id.clone()))?;
+
+    // Ensure sender is Creator
+    if user_sender != &listing.creator {
+        return Err(ContractError::Unauthorized {});
+    }
+
+    // Ensure status is InPreperation
+    if listing.status != Status::BeingPrepared {
+        return Err(ContractError::ToDo {}); // better error name
+    }
+
+    // Ensure no claimant <not already purchased>
+    if listing.claimant != None {
+        return Err(ContractError::Unauthorized {}); // better error name
+    }
+
+    // Ensure coins sent in are in whitelist
+    let config = CONFIG.load(deps.storage)?;
+    is_balance_whitelisted(&balance, &config)?;
+
+    // Add tokens to listing
+    // old is old listing's for_sale
+    let old = listing.for_sale.clone();
+    // upd is clone of old listing to be updated
+    let mut upd = listing.clone();
+    // add tokens sent in to upd.for_sale
+    upd.for_sale.add_tokens(balance);
+    // check that upd.for_sale has changed
+    if old == upd.for_sale {
+        return Err(ContractError::ToDo {});
+        // Balance not updated/no funds, can have cleaner logic here
+    };
+
+    listingz().replace(
+        deps.storage, 
+        (user_sender, listing_id.clone()), 
+        Some(&upd), 
+        Some(&listing)
+    )?;
+
+    Ok(Response::new()
+        .add_attribute("method", "add_funds")
+        .add_attribute("listing", &listing_id)
+    )
+}
+
+pub fn execute_add_to_sale_cw721(
+    deps: DepsMut,
+    user_wallet: &Addr,
+    nft: Nft,
+    listing_id: String,
+) -> Result<Response, ContractError> {
+
+    // Ensure listing exists
+    if let None = listingz().may_load(deps.storage, (user_wallet, listing_id.clone()))? {
+        return Err(ContractError::ToDo {});
+    }
+
+    // Get listing
+    let old_listing = listingz().load(deps.storage, (user_wallet, listing_id.clone()))?;
+
+    // Ensure sender is Creator
+    if user_wallet != &old_listing.creator {
+        return Err(ContractError::Unauthorized {});
+    }
+
+    // Ensure status is InPreperation
+    if old_listing.status != Status::BeingPrepared {
+        return Err(ContractError::ToDo {}); // better error name
+    }
+
+    // Ensure no claimant <not already purchased>
+    if old_listing.claimant != None {
+        return Err(ContractError::Unauthorized {}); // better error name
+    }
+
+    // Create updated listing
+    let new_listing = {
+        let old = old_listing.for_sale.clone();
+        let mut x = old_listing.clone();
+        x.for_sale.add_nft(nft);
+        if old == x.for_sale {
+            Err(ContractError::ToDo {})
+        } else {
+            Ok(x)
+        }
+    }?;
+
+    // Replace old listing with new listing
+    listingz().replace(
+        deps.storage, 
+        (user_wallet, listing_id.clone()), 
+        Some(&old_listing), 
+        Some(&new_listing)
+    )?;
+
+    Ok(Response::default())
+}
+
+pub fn execute_remove_listing(
+    deps: DepsMut, 
+    user_sender: &Addr, 
+    listing_id: String
+) -> Result<Response, ContractError> {
+
+    // Check listing exists
+    if let None = listingz().may_load(deps.storage, (user_sender, listing_id.clone()))? {
+        return Err(ContractError::ToDo {}); // listing doesn't exist
+    }
+
+    // Get listing
+    let listing = listingz().load(deps.storage, (user_sender, listing_id.clone()))?;
+
+    // Only listing creator can remove listing
+    if &listing.creator != user_sender {
+        return Err(ContractError::Unauthorized {});
+    }
+
+    // Only can be removed if status is BeingPrepared
+    if listing.status != Status::BeingPrepared {
+        return Err(ContractError::ToDo {});
+    }
+
+    // Only can be removed if has not yet been purchased
+    if listing.claimant != None {
+        return Err(ContractError::ToDo {});
+    }
+
+    // Delete listing & send funds back to user
+    let msgs = send_tokens_cosmos(&listing.creator, &listing.for_sale)?;
+
+    listingz().remove(deps.storage, (user_sender, listing_id.clone()))?;
+
+    Ok(Response::new()
+        .add_attribute("method", "remove_listing")
+        .add_messages(msgs)
+    )
+}
+
+////~~~~~~~~~~~~~~~~~~~~~~~
+////~~~~~~~~~~~~~~~~~~~~~~~
+////// Finalize
+////~~~~~~~~~~~~~~~~~~~~~~~
+
+pub fn execute_finalize(
+    deps: DepsMut,
+    env: Env,
+    sender: &Addr,
+    listing_id: String,
+    seconds: u64,
+) -> Result<Response, ContractError> {
+
+    // Ensure listing exists
+    if let None = listingz().may_load(deps.storage, (sender, listing_id.clone()))? {
+        return Err(ContractError::ToDo {});
+    }
+
+    // Get listing
+    let listing = listingz().load(deps.storage, (sender, listing_id.clone()))?;
+
+    // Ensure sender is owner
+    if sender != &listing.creator {
+        return Err(ContractError::Unauthorized {});
+    }
+
+    // Ensure no finalized time
+    if listing.finalized_time != None {
+        return Err(ContractError::ToDo {});
+    }
+
+    // Ensure being prepared
+    if listing.status != Status::BeingPrepared {
+        return Err(ContractError::ToDo {});
+    }
+
+    // Ensure no Claimant
+    if listing.claimant != None {
+        return Err(ContractError::Unauthorized {});
+    }
+    
+    // max expiration is 1209600 seconds <14 days>
+    // min expiration is 600 seconds <10 minutes>
+    if !(600..=1209600).contains(&seconds) {
+        return Err(ContractError::ToDo {}); // Invalid expiration time
+    }
+
+    let finalized_at = env.block.time;
+    let expiration = env.block.time.plus_seconds(seconds);
+
+    listingz().replace(
+        deps.storage, 
+        (sender, listing_id.clone()),
+        Some(&Listing {
+            finalized_time: Some(finalized_at),
+            expiration_time: Some(expiration),
+            status: Status::FinalizedReady,
+            ..listing.clone()
+        }),
+        Some(&listing),
+    )?;
+
+    Ok(Response::new()
+        .add_attribute("method", "finalize")
+        .add_attribute("listing ID", &listing_id)
+        .add_attribute("expiration time", &expiration.to_string())
+    )
+}
+
+////~~~~~~~~~~~~~~~~~~~~~~~
+////~~~~~~~~~~~~~~~~~~~~~~~
+////// Refund Expired
+////~~~~~~~~~~~~~~~~~~~~~~~
+
+pub fn execute_refund(
+    deps: DepsMut, 
+    env: Env, 
+    user_sender: &Addr, 
+    listing_id: String
+) -> Result<Response, ContractError> {
+
+    // Check listing exists
+    if let None = listingz().may_load(deps.storage, (user_sender, listing_id.clone()))? {
+        return Err(ContractError::ToDo {}); // listing doesn't exist
+    }
+
+    // Get listing
+    let listing = listingz().load(deps.storage, (user_sender, listing_id.clone()))?;
+
+    // Check sender is creator
+    if user_sender.clone() != listing.creator {
+        return Err(ContractError::Unauthorized {});
+    }
+
+    // If listing.claimant != None then listing already purchased
+    if listing.claimant != None {
+        return Err(ContractError::ToDo {});
+    }
+
+    // Is listing.status == BeingPrepared
+    if listing.status == Status::BeingPrepared {
+        return Err(ContractError::ToDo {}); 
+        // "Please use close function instead", or just process Refund anyway?
+    }
+
+    // Check if listing is expired
+    match listing.expiration_time {
+
+        None => { // Means status = BeingPrepared
+            return Err(ContractError::ToDo {}); 
+            // "Please use close function instead".. or just process anyway?
+        },
+
+        Some(timestamp) => {
+            if env.block.time < timestamp {
+                return Err(ContractError::ToDo {}); // "Listing not yet expired"
+            }
+        },
+    };
+
+    // Checks pass, send refund & delete listing
+    let refundee = listing.creator;
+    let funds = listing.for_sale;
+    let send_msgs = send_tokens_cosmos(&refundee, &funds)?;
+
+    // Delete Listing
+    listingz().remove(deps.storage, (user_sender, listing_id.clone()))?;
+
+    Ok(Response::new()
+        .add_attribute("method", "refund")
+        .add_messages(send_msgs)
+    )
+}
+
+////~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+////~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+////////// PURCHASING
+////~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+pub fn execute_buy_listing(
+    deps: DepsMut, 
+    env: Env, 
+    buyer: &Addr,
+    listing_id: String,
+    bucket_id: String,
+) -> Result<Response, ContractError> {
+
+    // Get bucket (will error if no bucket found)
+    let the_bucket = match BUCKETS.load(deps.storage, (buyer.clone(), &bucket_id)) {
+        Ok(buck) => buck,
+        Err(_) => return Err(ContractError::LoadBucketError {}),
+    };
+
+    // Check that listing exists
+    if listingz().idx.id.item(deps.storage, listing_id.clone())? == None {
+        return Err(ContractError::NoListing {});
+    }
+
+    // Unwrap should never hit as previous line checked for None
+    let (_my_bytes, the_listing) = listingz().idx.id.item(deps.storage, listing_id.clone())?.unwrap();
+
+    let listing_owner = the_listing.creator;
+
+    // Check that sender is bucket owner (redundant check)
+    if buyer != &the_bucket.owner {
+        return Err(ContractError::Unauthorized {});
+    }
+    // Check that bucket contains required purchase price
+    if the_bucket.funds != the_listing.ask {
+        return Err(ContractError::ToDo {});
+    }
+    // Check that listing is ready for purchase
+    if the_listing.status != Status::FinalizedReady {
+        return Err(ContractError::ToDo {});
+    }
+    // Check that there's no existing claimant on listing
+    if the_listing.claimant != None {
+        return Err(ContractError::ToDo {});
+    }
+    // Check that listing isn't expired
+    if let Some(exp) = the_listing.expiration_time {
+        if env.block.time > exp {
+            return Err(ContractError::Expired {});
+        }
+    }
+
+    // Delete Old Listing -> Save new listing with listing_buyer in key
+    listingz().remove(deps.storage, (&listing_owner, listing_id.clone()))?;
+    listingz().save(
+        deps.storage, 
+        (&buyer, listing_id.clone()), 
+        &Listing {
+            creator: buyer.clone(),
+            claimant: Some(buyer.clone()),
+            status: Status::Closed,
+            ..the_listing
+        }
+    )?;
+
+    // Delete Old Bucket -> Save new Bucket with listing_seller in key
+    BUCKETS.remove(deps.storage, (buyer.clone(), &bucket_id));
+    BUCKETS.save(
+        deps.storage, 
+        (listing_owner.clone(), &bucket_id), 
+        &Bucket {
+            owner: listing_owner,
+            ..the_bucket
+        }
+    )?;
+
+
+    Ok(Response::new()
+        .add_attribute("method", "buy listing")
+        .add_attribute("Bucket Used:", &bucket_id)
+    )
+}
+
+pub fn execute_withdraw_purchased(
+    deps: DepsMut,
+    withdrawer: &Addr,
+    listing_id: String
+) -> Result<Response, ContractError> {
+
+    // Get listing
+    let (_m, the_listing) = listingz().idx.id.item(deps.storage, listing_id.clone())?.unwrap();
+
+    // Check there is claimant
+    if the_listing.claimant.is_none() {
+        return Err(ContractError::ToDo {});
+    };
+
+    let listing_claimr: Addr = the_listing.claimant.unwrap();
+
+    // Check that withdrawer is the claimant
+    if withdrawer != &listing_claimr {
+        return Err(ContractError::Unauthorized {});
+    };
+
+    // Check that status is Closed
+    if the_listing.status != Status::Closed {
+        return Err(ContractError::ToDo {});
+    };
+
+    // Delete Listing
+    listingz().remove(deps.storage, (&listing_claimr, listing_id.clone()))?;
+
+    // Send balance to claimant (use directly from listing.claimant not message sender)
+    let msgs = send_tokens_cosmos(&listing_claimr, &the_listing.for_sale)?;
+
+    Ok(Response::new()
+        .add_attribute("method", "withdraw purchased")
+        .add_attribute("listing_id", format!("{}", listing_id))
+        .add_messages(msgs)
+    )
+}
