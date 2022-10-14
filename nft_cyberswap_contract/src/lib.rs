@@ -6,6 +6,5 @@ pub mod state;
 pub mod utils;
 pub mod execute;
 pub mod query;
-pub mod mymap;
 
 pub use crate::error::ContractError;
