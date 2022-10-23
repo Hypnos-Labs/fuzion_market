@@ -188,9 +188,9 @@ pub struct Listing {
 pub struct Nft {
     pub contract_address: Addr,
     pub token_id: String,
-    pub token_uri: Option<String>,
-    // ignore metadata for now
-    //pub metadata_extension: Option<Binary>,
+    // ignore metadata/uri for time being,
+    // don't see a scenario where it will be needed
+    //pub metadata: Option<Binary>,
 }
 
 #[cw_serde]

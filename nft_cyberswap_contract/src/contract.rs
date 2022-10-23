@@ -201,6 +201,7 @@ pub fn execute_receive_nft<T: DeserializeOwned>(
     // wrapper.token_id = token_id of the NFT
     // wrapper.msg = binary message sent with NFT
     // wrapper.sender = user wallet that sent NFT
+    // info.sender = cw721 contract of the NFT
 
     // Query the sending contract to gather information about the NFT sent
     let all_res: AllNftInfoResponse<T> = deps
@@ -210,7 +211,7 @@ pub fn execute_receive_nft<T: DeserializeOwned>(
             &cw721::Cw721QueryMsg::AllNftInfo {token_id: wrapper.token_id.clone(), include_expired: None},
         )?;
 
-    let (owner_res, nft_info_res) = (all_res.access, all_res.info);
+    let owner_res = all_res.access;
 
     // Check that wrapper.sender is the owner of this Token ID according to the NFT sending contract
     if deps.api.addr_validate(&wrapper.sender)? != deps.api.addr_validate(&owner_res.owner)? {
@@ -255,9 +256,6 @@ pub fn execute_receive_nft<T: DeserializeOwned>(
     let incoming_nft: Nft = Nft {
         contract_address: info.sender,
         token_id: wrapper.token_id,
-        token_uri: nft_info_res.token_uri,
-        // ignore metadata for now
-        //metadata_extension: to_binary(&nft_info_res.extension)?,
     };
 
     match msg {
