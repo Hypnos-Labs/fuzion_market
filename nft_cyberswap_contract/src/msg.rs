@@ -1,8 +1,9 @@
 //use cosmwasm_std::{Addr, Api, Coin, StdResult, Binary};
 use cw20::{Cw20ReceiveMsg}; // Cw20Coin
 use cw721::{Cw721ReceiveMsg};
-use crate::state::{GenericBalance, Listing, Bucket, Config};
 use cosmwasm_schema::{cw_serde, QueryResponses};
+use crate::state::{GenericBalance};
+use crate::query::*;
 
 //////~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ///////////~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -97,7 +98,6 @@ pub struct CreateListingMsg {
     pub id: String,
 
     pub ask: GenericBalance,
-
 }
 
 //////~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -124,42 +124,6 @@ pub enum QueryMsg {
     GetConfig {},
 }
 
-////~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-////// Query Responses
-////~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-#[cw_serde]
-pub struct AdminResponse {
-    pub admin: String,
-}
-
-#[cw_serde]
-pub struct ConfigResponse {
-    pub config: Config,
-}
-
-
-
-#[cw_serde]
-pub struct GetBucketsResponse {
-    pub buckets: Vec<(String, Bucket)>,
-
-}
-
-#[cw_serde]
-pub struct MultiListingResponse {
-    pub listings: Vec<Listing>,
-}
-
-#[cw_serde]
-pub struct ListingInfoResponse {
-    pub creator: String,
-    pub status: String,
-    pub for_sale: Vec<(String, u128)>,
-    pub ask: Vec<(String, u128)>,
-    pub expiration: String,
-}
-
 //////~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ///////////~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ////////////// Migrate
@@ -173,12 +137,13 @@ pub struct ListingInfoResponse {
 
 //////~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ///////////~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-////////////// One off types
+////////////// Misc
 ///////////~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 #[cw_serde]
 pub enum Marker {
     Cw20,
     Native,
+    Nft
 }
 

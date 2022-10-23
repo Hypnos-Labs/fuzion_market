@@ -1,10 +1,10 @@
-use cosmwasm_std::{to_binary, Binary, Deps, Env, StdResult, StdError, Order}; // coin, Coin, Uint128
-use cw_storage_plus::{PrefixBound, Bound, CwIntKey, Key};
+use cosmwasm_std::{to_binary, Binary, Deps, Env, StdResult, Order}; // coin, Coin, Uint128
+use cw_storage_plus::{PrefixBound};
 use std::convert::{TryInto};
 use std::marker::PhantomData;
-use crate::msg::*;
 use crate::state::*;
 use crate::utils::*;
+use cosmwasm_schema::{cw_serde};
 
 
 /////////////~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -207,3 +207,39 @@ pub fn get_listings_for_market(
 ////~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ////// External
 ////~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+////~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+////// Query Responses
+////~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+#[cw_serde]
+pub struct AdminResponse {
+    pub admin: String,
+}
+
+#[cw_serde]
+pub struct ConfigResponse {
+    pub config: Config,
+}
+
+
+#[cw_serde]
+pub struct GetBucketsResponse {
+    pub buckets: Vec<(String, Bucket)>,
+
+}
+
+#[cw_serde]
+pub struct MultiListingResponse {
+    pub listings: Vec<Listing>,
+}
+
+// Unused / needs update
+#[cw_serde]
+pub struct ListingInfoResponse {
+    pub creator: String,
+    pub status: String,
+    pub for_sale: Vec<(String, u128)>,
+    pub ask: Vec<(String, u128)>,
+    pub expiration: String,
+}

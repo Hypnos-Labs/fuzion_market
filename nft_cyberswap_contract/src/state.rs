@@ -1,14 +1,8 @@
-use cosmwasm_std::{Addr, Coin, Timestamp, Binary};
+use cosmwasm_std::{Addr, Coin, Timestamp};
 use cw_storage_plus::{
     Item, Map, 
     UniqueIndex, IndexList, Index, IndexedMap, MultiIndex};
 use cw20::{Balance, Cw20CoinVerified};
-use schemars::JsonSchema;
-use serde::de::DeserializeOwned;
-use serde::Serialize;
-use cw721::{Cw721, Cw721Execute, Cw721ExecuteMsg, Cw721Query, Cw721QueryMsg};
-
-use std::marker::PhantomData;
 
 use cosmwasm_schema::{cw_serde};
 
@@ -27,6 +21,8 @@ pub struct Config {
     pub whitelist_native: Vec<(String, String)>,
     // "Neta", "juno1xxx"
     pub whitelist_cw20: Vec<(String, Addr)>,
+    // "CYBERPEEPS", "juno1xxx"
+    pub whitelist_nft: Vec<(String, Addr)>,
 
     pub removal_queue_native: Option<NativeRemovalQueue>,
 

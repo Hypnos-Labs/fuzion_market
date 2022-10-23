@@ -3,7 +3,7 @@ use crate::error::*;
 use crate::msg::{Marker};
 use cosmwasm_std::{Addr, Timestamp, StdError, Empty};
 use crate::state::GenericBalance;
-use cosmwasm_std::{StdResult, to_binary, WasmMsg, BankMsg, CosmosMsg, wasm_execute};
+use cosmwasm_std::{StdResult, to_binary, WasmMsg, BankMsg, CosmosMsg};
 use cw20::{Cw20ExecuteMsg, Balance};
 use cw721::Cw721ExecuteMsg;
 use chrono::{NaiveDateTime, Datelike, Timelike};
@@ -57,73 +57,73 @@ impl EzTime for cosmwasm_std::Timestamp {
             match dt.month() {
                 1 => {
                     return Ok(format!(
-                        "January {}, {} | {}:{}:{}", 
+                        "January {}, {} | {}:{}:{} UTC", 
                         dt.day(), dt.year(), dt.hour(), dt.minute(), dt.second()
                     ));
                 },
                 2 => {
                     return Ok(format!(
-                        "February {}, {} | {}:{}:{}", 
+                        "February {}, {} | {}:{}:{} UTC", 
                         dt.day(), dt.year(), dt.hour(), dt.minute(), dt.second()
                     ));
                 },
                 3 => {
                     return Ok(format!(
-                        "March {}, {} | {}:{}:{}", 
+                        "March {}, {} | {}:{}:{} UTC", 
                         dt.day(), dt.year(), dt.hour(), dt.minute(), dt.second()
                     ));
                 },
                 4 => {
                     return Ok(format!(
-                        "April {}, {} | {}:{}:{}", 
+                        "April {}, {} | {}:{}:{} UTC", 
                         dt.day(), dt.year(), dt.hour(), dt.minute(), dt.second()
                     ));
                 },
                 5 => {
                     return Ok(format!(
-                        "May {}, {} | {}:{}:{}", 
+                        "May {}, {} | {}:{}:{} UTC", 
                         dt.day(), dt.year(), dt.hour(), dt.minute(), dt.second()
                     ));
                 },
                 6 => {
                     return Ok(format!(
-                        "June {}, {} | {}:{}:{}", 
+                        "June {}, {} | {}:{}:{} UTC", 
                         dt.day(), dt.year(), dt.hour(), dt.minute(), dt.second()
                     ));
                 },
                 7 => {
                     return Ok(format!(
-                        "July {}, {} | {}:{}:{}", 
+                        "July {}, {} | {}:{}:{} UTC", 
                         dt.day(), dt.year(), dt.hour(), dt.minute(), dt.second()
                     ));
                 },
                 8 => {
                     return Ok(format!(
-                        "August {}, {} | {}:{}:{}", 
+                        "August {}, {} | {}:{}:{} UTC", 
                         dt.day(), dt.year(), dt.hour(), dt.minute(), dt.second()
                     ));
                 },
                 9 => {
                     return Ok(format!(
-                        "September {}, {} | {}:{}:{}", 
+                        "September {}, {} | {}:{}:{} UTC", 
                         dt.day(), dt.year(), dt.hour(), dt.minute(), dt.second()
                     ));
                 },
                 10 => {
                     return Ok(format!(
-                        "October {}, {} | {}:{}:{}", 
+                        "October {}, {} | {}:{}:{} UTC", 
                         dt.day(), dt.year(), dt.hour(), dt.minute(), dt.second()
                     ));
                 },
                 11 => {
                     return Ok(format!(
-                        "November {}, {} | {}:{}:{}", 
+                        "November {}, {} | {}:{}:{} UTC", 
                         dt.day(), dt.year(), dt.hour(), dt.minute(), dt.second()
                     ));
                 },
                 12 => {
                     return Ok(format!(
-                        "December {}, {} | {}:{}:{}", 
+                        "December {}, {} | {}:{}:{} UTC", 
                         dt.day(), dt.year(), dt.hour(), dt.minute(), dt.second()
                     ));
                 },
@@ -282,7 +282,38 @@ pub fn is_genericbalance_whitelisted(
         }
     }
 
+    let wl_nft_addys: Vec<_> = config.whitelist_nft
+    .iter()
+    .map(|double3| double3.1.clone())
+    .collect();
+
+    if genericbalance.nfts.len() > 0 as usize {
+        for nft in genericbalance.nfts.clone() {
+            if !wl_nft_addys.contains(&nft.contract_address) {
+                return Err(ContractError::NotWhitelist {which: nft.contract_address.into_string()});
+            };
+        }
+    }
+
     Ok(())
+}
+
+pub fn is_nft_whitelisted(
+    nft_addr: &Addr,
+    config: &Config
+) -> Result<(), ContractError> {
+
+    let wl_nfts: Vec<_> = config.whitelist_nft
+    .iter()
+    .map(|double| double.1.clone())
+    .collect();
+
+    if !wl_nfts.contains(nft_addr) {
+        return Err(ContractError::NotWhitelist {which: nft_addr.to_string()});
+    };
+
+    Ok(())
+
 }
 
 ///////////~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -298,26 +329,38 @@ pub fn is_denom_in_removal_queue(
 
     match marker {
         Marker::Cw20 => {
-            let cw20queue = config.clone().removal_queue_cw20.ok_or(ContractError::ToDo {})?.queued_denoms;
+            let cw20queue = config
+                .clone()
+                .removal_queue_cw20
+                .ok_or(ContractError::NoRemovalQueue {x: "Cw20".to_string()})?
+                .queued_denoms;
 
             let check: Vec<bool> = cw20queue
                 .iter()
                 .map(|q| if q.1.address.to_string() == denom {true} else {false})
                 .collect();
             if check.contains(&true) {
-                return Err(ContractError::ToDo {});
+                return Err(ContractError::InRemovalQueue {});
             };
         },
         Marker::Native => {
-            let nativequeue = config.clone().removal_queue_native.ok_or(ContractError::ToDo {})?.queued_denoms;
+            let nativequeue = config
+                .clone()
+                .removal_queue_native
+                .ok_or(ContractError::NoRemovalQueue {x: "Native".to_string()})?
+                .queued_denoms;
 
             let check: Vec<bool> = nativequeue
                 .iter()
                 .map(|qq| if qq.1.denom == denom {true} else {false})
                 .collect();
             if check.contains(&true) {
-                return Err(ContractError::ToDo {});
+                return Err(ContractError::InRemovalQueue {});
             };
+        },
+        Marker::Nft => {
+            return Err(ContractError::ToDoTwo{x: "NFTs havent been implemented yet".to_string()});
+
         },
     };
 

@@ -12,16 +12,19 @@ pub enum ContractError {
     #[error("To Do Error")]
     ToDo {},
 
-    #[error("To Do Error")]
+    #[error("To Do Error: {x}")]
     ToDoTwo {x: String},
 
     #[error("No Tokens have been sent")]
     NoTokens {},
 
+    #[error("Listing already finalized")]
+    AlreadyFinalized {},
+
     #[error("Listing length must be at least 10 minutes")]
     NotLongEnough {},
 
-    #[error("Listing ID already exists. Try another")]
+    #[error("ID already taken")]
     IdAlreadyExists {},
 
     #[error("Listing is expired")]
@@ -33,8 +36,8 @@ pub enum ContractError {
     #[error("Tokens in ask are not in whitelist")]
     NotWhitelist {which: String},
 
-    #[error("Listing not found")]
-    NotFound {listing_id: String},
+    #[error("{typ} {id} not found")]
+    NotFound {typ: String, id: String},
 
     #[error("Load bucket error")]
     LoadBucketError {},
@@ -53,5 +56,23 @@ pub enum ContractError {
 
     #[error("Strip Suffix Error")]
     StripSuffixError {},
+
+    #[error("Doesn't have enough cw20 tokens")]
+    NotEnoughCw20 {},
+
+    #[error("Removal queue non-existent | Type: {x}")]
+    NoRemovalQueue {x: String},
+
+    #[error("Denom is in removal queue")]
+    InRemovalQueue {},
+
+    #[error("Invalid Expiration")]
+    InvalidExpiration {},
+
+    #[error("Listing not expired | Expiration: {x}")]
+    NotExpired {x: String},
+
+    #[error("Listing not purchasable")]
+    NotPurchasable {},
 
 }

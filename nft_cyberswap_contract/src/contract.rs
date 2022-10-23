@@ -3,11 +3,10 @@
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
     to_binary, from_binary, Binary, Deps, DepsMut, Env, 
-    MessageInfo, Response, StdResult, Addr, QuerierWrapper// coin, Coin, Uint128
+    MessageInfo, Response, StdResult, Addr, //QuerierWrapper, coin, Coin, Uint128
 };
 use cw2::set_contract_version;
 use serde::de::DeserializeOwned;
-use serde::Serialize;
 
 // The Commons
 use crate::msg::*;
@@ -15,13 +14,13 @@ use crate::state::*;
 use crate::error::ContractError;
 use crate::execute::*;
 use crate::query::*;
+use crate::utils::is_nft_whitelisted;
 use std::str;
 
 // The Personals
-use cw20::{Balance, Cw20CoinVerified, Cw20ReceiveMsg, BalanceResponse}; //Cw20ExecuteMsg, BalanceResponse}; // Cw20Coin
-use cw721::{
-    Cw721ReceiveMsg, Cw721QueryMsg, AllNftInfoResponse, 
-    OwnerOfResponse, NftInfoResponse, Expiration};
+use cw20::{Balance, Cw20CoinVerified, Cw20ReceiveMsg, BalanceResponse}; //Cw20ExecuteMsg, BalanceResponse, Cw20Coin
+use cw721::{Cw721ReceiveMsg};
+//Cw721QueryMsg, AllNftInfoResponse, OwnerOfResponse, NftInfoResponse, Expiration};
 //use cw721_base::Extension;
 //use cosmwasm_std::{SubMsg, WasmMsg, BankMsg, CosmosMsg};
 //use cosmwasm_std::{QueryRequest, WasmQuery};
@@ -76,11 +75,21 @@ pub fn instantiate(
         cw20_wl.reserve(2);
         cw20_wl
     };
+    let nft_whitelist: Vec<(String, Addr)> = {
+        let mut nft_wl = vec![
+            // Fake NFTs for tests
+            ("NEONPEEPZ".to_string(), deps.api.addr_validate("XXX")?),
+            ("SHITKIT".to_string(), deps.api.addr_validate("XXX")?),
+        ];
+        nft_wl.reserve(2);
+        nft_wl
+    };
         
     CONFIG.save(deps.storage, &Config{
         admin: validated,
         whitelist_native: native_whitelist,
         whitelist_cw20: cw20_whitelist,
+        whitelist_nft: nft_whitelist,
         removal_queue_native: None,
         removal_queue_cw20: None,
     })?;
@@ -114,7 +123,7 @@ pub fn execute<T: DeserializeOwned>(
 
         // ~~~~~~~~~~~~~~~~~~~~~~~~~ Wrapper cw20/cw721
         ExecuteMsg::Receive(receive_msg) => execute_receive(deps, env, info, receive_msg),
-        ExecuteMsg::ReceiveNft(receive_nft_msg) => execute_receive_nft::<T>(deps, env, info, receive_nft_msg),
+        ExecuteMsg::ReceiveNft(receive_nft_msg) => execute_receive_nft(deps, info, receive_nft_msg),
 
         // ~~~~~~~~~~~~~~~~~~~~~~~~~ Create Listing
         ExecuteMsg::CreateListing { create_msg } => execute_create_listing(deps, &info.sender, Balance::from(info.funds), create_msg),        
@@ -168,7 +177,7 @@ pub fn execute_receive(
         )?;
     
     if bal_res.balance <= wrapper.amount {
-        return Err(ContractError::ToDo {});
+        return Err(ContractError::NotEnoughCw20 {});
     };
 
     let balance = Balance::Cw20(Cw20CoinVerified {
@@ -191,9 +200,8 @@ pub fn execute_receive(
 }
 
 // "Filter" for NFTs
-pub fn execute_receive_nft<T: DeserializeOwned>(
+pub fn execute_receive_nft(
     deps: DepsMut, 
-    env: Env, 
     info: MessageInfo, 
     wrapper: Cw721ReceiveMsg, 
 ) -> Result<Response, ContractError> {
@@ -203,56 +211,15 @@ pub fn execute_receive_nft<T: DeserializeOwned>(
     // wrapper.sender = user wallet that sent NFT
     // info.sender = cw721 contract of the NFT
 
-    // Query the sending contract to gather information about the NFT sent
-    let all_res: AllNftInfoResponse<T> = deps
-        .querier
-        .query_wasm_smart(
-            &info.sender, 
-            &cw721::Cw721QueryMsg::AllNftInfo {token_id: wrapper.token_id.clone(), include_expired: None},
-        )?;
+    // Whitelist check
+    let config = CONFIG.load(deps.storage)?;
+    is_nft_whitelisted(&info.sender, &config)?;
 
-    let owner_res = all_res.access;
-
-    // Check that wrapper.sender is the owner of this Token ID according to the NFT sending contract
-    if deps.api.addr_validate(&wrapper.sender)? != deps.api.addr_validate(&owner_res.owner)? {
-        return Err(ContractError::Unauthorized {});
-    }
-
-    // Check for no non-expired approvals on NFT
-    // Unneeded since approvals are wiped on transfer?
-    let approval_check = {
-        let mut x = owner_res.approvals.clone();
-        x.retain(|approval| 
-            // return false (remove) approvals that are expired
-            match approval.expires {
-                Expiration::AtHeight(intg) => {
-                    // if expired false, if not expired true
-                    intg > env.block.height
-                },
-                Expiration::AtTime(stamp) => {
-                    // if expired false, if not expired true
-                    stamp > env.block.time
-                },
-                Expiration::Never {} => {
-                    // not expired so true
-                    true
-                },
-            }
-        );
-        // if x.len > 0, then x contains an unexpired approval so return error
-        if x.len() > 0 {
-            Err(ContractError::Unauthorized {})
-        } else {
-            Ok(())
-        }
-    };
-
-    approval_check?;
-
+    // Pull message and wallet to avoid clone in NFT construction
     let msg: ReceiveNftMsg = from_binary(&wrapper.msg)?;
-    
     let user_wallet = &deps.api.addr_validate(&wrapper.sender)?;
 
+    // Construct NFT
     let incoming_nft: Nft = Nft {
         contract_address: info.sender,
         token_id: wrapper.token_id,

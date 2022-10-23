@@ -57,6 +57,33 @@ pub fn add_to_whitelist(
 
         },
 
+        Marker::Nft => {
+
+            let valid: (String, Addr) = (new_denom.0, deps.api.addr_validate(&new_denom.1)?);
+
+            let cap: usize = config.whitelist_nft.capacity() + 1;
+
+            let old_wl = config.whitelist_nft;
+
+            let new_wl = {
+                let mut empt: Vec<(String, Addr)> = Vec::with_capacity(cap);
+                empt.extend(old_wl);
+                empt.push(valid);
+                empt
+            };
+
+            CONFIG.update(
+                deps.storage,
+                |old| -> Result<Config, ContractError> {
+                    return Ok(Config {
+                        whitelist_nft: new_wl,
+                        ..old
+                    });
+                }
+            )?;
+
+        },
+
 
         Marker::Native => {
 
@@ -114,7 +141,11 @@ pub fn add_to_removal_queue(
                 address: valid,
             };
 
-            let cap: usize = config.clone().removal_queue_cw20.ok_or(ContractError::ToDo {})?.queued_denoms.capacity() + 1;
+            let cap: usize = config
+                .clone()
+                .removal_queue_cw20
+                .ok_or(ContractError::NoRemovalQueue {x: "Cw20".to_string()})?
+                .queued_denoms.capacity() + 1;
 
             let new: Cw20RemovalQueue = {
                 let mut empt: Vec<(cosmwasm_std::Timestamp, Cw20RemovalDenom)> = Vec::with_capacity(cap);
@@ -143,7 +174,11 @@ pub fn add_to_removal_queue(
                 denom: denom.1,
             };
 
-            let cap: usize = config.clone().removal_queue_native.ok_or(ContractError::ToDo {})?.queued_denoms.capacity() + 1;
+            let cap: usize = config
+                .clone()
+                .removal_queue_native
+                .ok_or(ContractError::NoRemovalQueue {x: "Native".to_string()})?
+                .queued_denoms.capacity() + 1;
 
             let new: NativeRemovalQueue = {
                 let mut empt: Vec<(cosmwasm_std::Timestamp, NativeRemovalDenom)> = Vec::with_capacity(cap);
@@ -164,6 +199,10 @@ pub fn add_to_removal_queue(
                 }
             )?;
         },
+
+        _ => {
+            return Err(ContractError::ToDoTwo{x: "Add NFT to removal hasnt been implemented".to_string()});
+        }
     }
 
     Ok(Response::default())
@@ -188,7 +227,11 @@ pub fn clear_removal_queue(
     //~~~~~~~~~~~~~~~~~~~~
     
     let addys_to_remove = {
-        let mut xyz = config.clone().removal_queue_cw20.ok_or(ContractError::ToDo {})?.queued_denoms;
+        let mut xyz = config
+            .clone()
+            .removal_queue_cw20
+            .ok_or(ContractError::NoRemovalQueue {x: "Cw20".to_string()})?
+            .queued_denoms;
         xyz.retain(|qd| qd.0 >= current_timestamp);
         let y: Vec<Addr> = xyz.iter().map(|yy| yy.1.address.clone()).collect();
         y
@@ -215,7 +258,11 @@ pub fn clear_removal_queue(
     //~~~~~~~~~~~~~~~~~~~~
 
     let denoms_to_remove = {
-        let mut xyz2 = config.clone().removal_queue_native.ok_or(ContractError::ToDo {})?.queued_denoms;
+        let mut xyz2 = config
+            .clone()
+            .removal_queue_native
+            .ok_or(ContractError::NoRemovalQueue {x: "Native".to_string()})?
+            .queued_denoms;
         xyz2.retain(|qd| qd.0 >= current_timestamp);
         let y: Vec<String> = xyz2.iter().map(|yy| yy.1.denom.clone()).collect();
         y
@@ -278,7 +325,7 @@ pub fn execute_create_bucket(
 
     // Check that bucket_id isn't used 
     if BUCKETS.has(deps.storage, (creator.clone(), &bucket_id)) {
-        return Err(ContractError::ToDo {}); // bucket id taken
+        return Err(ContractError::IdAlreadyExists {});
     }
 
     // Save bucket
@@ -309,7 +356,7 @@ pub fn execute_create_bucket_cw721(
 
     // Check that bucket_id isn't used 
     if BUCKETS.has(deps.storage, (user_wallet.clone(), &bucket_id)) {
-        return Err(ContractError::ToDo {}); // bucket id taken
+        return Err(ContractError::IdAlreadyExists {});
     }
 
     // all NFT validation checks are handled in receiver wrapper
@@ -346,7 +393,7 @@ pub fn execute_add_to_bucket(
 
     // Ensure bucket exists & Sender is owner
     if let None = BUCKETS.may_load(deps.storage, (sender.clone(), &bucket_id))? {
-        return Err(ContractError::ToDo {});
+        return Err(ContractError::NotFound {typ: "Bucket".to_string(), id: bucket_id});
     }
 
     // Ensure coins sent in are in whitelist
@@ -400,7 +447,7 @@ pub fn execute_add_to_bucket_cw721(
 
     // Ensure bucket exists & Sender is owner
     if let None = BUCKETS.may_load(deps.storage, (user_wallet.clone(), &bucket_id))? {
-        return Err(ContractError::ToDo {});
+        return Err(ContractError::NotFound {typ: "Bucket".to_string(), id: bucket_id});
     }
 
     // Get Bucket
@@ -413,13 +460,13 @@ pub fn execute_add_to_bucket_cw721(
 
     // Create updated bucket
     let new_bucket = {
-        let old = the_bucket.funds.clone();
-        let mut x = the_bucket.clone();
-        x.funds.add_nft(nft);
-        if old == x.funds {
+        let old_funds = the_bucket.funds.clone();
+        let mut new_bucket = the_bucket.clone();
+        new_bucket.funds.add_nft(nft);
+        if old_funds == new_bucket.funds {
             Err(ContractError::ToDo {})
         } else {
-            Ok(x)
+            Ok(new_bucket)
         }
     }?;
 
@@ -433,7 +480,9 @@ pub fn execute_add_to_bucket_cw721(
         }},
     )?;
 
-    Ok(Response::default())
+    Ok(Response::new()
+        .add_attribute("Add NFT to bucket", format!("Bucket ID: {}", bucket_id))
+    )
 }
 //////////////////////////////////////////////////
 //////////////////////////////////////////////////
@@ -599,7 +648,6 @@ pub fn execute_create_listing_cw721(
     createlistingmsg: CreateListingMsg
 ) -> Result<Response, ContractError> {
 
-
     // Checking to make sure that listing_id isn't taken
     // The goal here is to -ensure- that each listing_id is always unique,
     // so a Buyer doesn't unintentionally attempt to purchase the wrong listing
@@ -634,6 +682,7 @@ pub fn execute_create_listing_cw721(
 ////// Editing
 ////~~~~~~~~~~~~~~~~~~~~~~~
 
+
 pub fn execute_change_ask(
     deps: DepsMut, 
     user_sender: &Addr, 
@@ -643,7 +692,7 @@ pub fn execute_change_ask(
 
     // Ensure listing exists
     if let None = listingz().may_load(deps.storage, (user_sender, listing_id.clone()))? {
-        return Err(ContractError::ToDo {});
+        return Err(ContractError::NotFound {typ: "Listing".to_string(), id: listing_id});
     }
 
     // Get listing
@@ -656,12 +705,12 @@ pub fn execute_change_ask(
 
     // Ensure no finalized time
     if listing.finalized_time != None {
-        return Err(ContractError::ToDo {});
+        return Err(ContractError::AlreadyFinalized {});
     }
 
     // Ensure being prepared
     if listing.status != Status::BeingPrepared {
-        return Err(ContractError::ToDo {});
+        return Err(ContractError::AlreadyFinalized {});
     }
 
     // Ensure no Claimant
@@ -684,7 +733,7 @@ pub fn execute_change_ask(
     )?;
 
     Ok(Response::new()
-        .add_attribute("method", "update listing")
+        .add_attribute("Change Ask", "Change listing ask")
         .add_attribute("listing ID", &listing_id)
     )
 }
@@ -704,7 +753,7 @@ pub fn execute_add_funds_to_sale(
 
     // Ensure listing exists
     if let None = listingz().may_load(deps.storage, (user_sender, listing_id.clone()))? {
-        return Err(ContractError::ToDo {});
+        return Err(ContractError::NotFound {typ: "Listing".to_string(), id: listing_id});
     }
 
     // Get listing
@@ -717,7 +766,7 @@ pub fn execute_add_funds_to_sale(
 
     // Ensure status is InPreperation
     if listing.status != Status::BeingPrepared {
-        return Err(ContractError::ToDo {}); // better error name
+        return Err(ContractError::AlreadyFinalized {});
     }
 
     // Ensure no claimant <not already purchased>
@@ -729,28 +778,27 @@ pub fn execute_add_funds_to_sale(
     let config = CONFIG.load(deps.storage)?;
     is_balance_whitelisted(&balance, &config)?;
 
-    // Add tokens to listing
-    // old is old listing's for_sale
-    let old = listing.for_sale.clone();
-    // upd is clone of old listing to be updated
-    let mut upd = listing.clone();
-    // add tokens sent in to upd.for_sale
-    upd.for_sale.add_tokens(balance);
-    // check that upd.for_sale has changed
-    if old == upd.for_sale {
-        return Err(ContractError::ToDo {});
-        // Balance not updated/no funds, can have cleaner logic here
-    };
+    // Update old listing by adding tokens
+    let new_listing = {
+        let old_listing = listing.for_sale.clone();
+        let mut x = listing.clone();
+        x.for_sale.add_tokens(balance);
+        if old_listing == x.for_sale {
+            Err(ContractError::ToDo {})
+        } else {
+            Ok(x)
+        }
+    }?;
 
     listingz().replace(
         deps.storage, 
         (user_sender, listing_id.clone()), 
-        Some(&upd), 
+        Some(&new_listing), 
         Some(&listing)
     )?;
 
     Ok(Response::new()
-        .add_attribute("method", "add_funds")
+        .add_attribute("method", "add funds to listing")
         .add_attribute("listing", &listing_id)
     )
 }
@@ -764,7 +812,7 @@ pub fn execute_add_to_sale_cw721(
 
     // Ensure listing exists
     if let None = listingz().may_load(deps.storage, (user_wallet, listing_id.clone()))? {
-        return Err(ContractError::ToDo {});
+        return Err(ContractError::NotFound {typ: "Listing".to_string(), id: listing_id});
     }
 
     // Get listing
@@ -777,7 +825,7 @@ pub fn execute_add_to_sale_cw721(
 
     // Ensure status is InPreperation
     if old_listing.status != Status::BeingPrepared {
-        return Err(ContractError::ToDo {}); // better error name
+        return Err(ContractError::AlreadyFinalized {});
     }
 
     // Ensure no claimant <not already purchased>
@@ -801,8 +849,8 @@ pub fn execute_add_to_sale_cw721(
     listingz().replace(
         deps.storage, 
         (user_wallet, listing_id.clone()), 
-        Some(&old_listing), 
-        Some(&new_listing)
+        Some(&new_listing), 
+        Some(&old_listing)
     )?;
 
     Ok(Response::default())
@@ -816,7 +864,7 @@ pub fn execute_remove_listing(
 
     // Check listing exists
     if let None = listingz().may_load(deps.storage, (user_sender, listing_id.clone()))? {
-        return Err(ContractError::ToDo {}); // listing doesn't exist
+        return Err(ContractError::NotFound {typ: "Listing".to_string(), id: listing_id});
     }
 
     // Get listing
@@ -829,12 +877,12 @@ pub fn execute_remove_listing(
 
     // Only can be removed if status is BeingPrepared
     if listing.status != Status::BeingPrepared {
-        return Err(ContractError::ToDo {});
+        return Err(ContractError::AlreadyFinalized {});
     }
 
     // Only can be removed if has not yet been purchased
     if listing.claimant != None {
-        return Err(ContractError::ToDo {});
+        return Err(ContractError::Unauthorized {});
     }
 
     // Delete listing & send funds back to user
@@ -863,7 +911,7 @@ pub fn execute_finalize(
 
     // Ensure listing exists
     if let None = listingz().may_load(deps.storage, (sender, listing_id.clone()))? {
-        return Err(ContractError::ToDo {});
+        return Err(ContractError::NotFound {typ: "Listing".to_string(), id: listing_id});
     }
 
     // Get listing
@@ -876,12 +924,12 @@ pub fn execute_finalize(
 
     // Ensure no finalized time
     if listing.finalized_time != None {
-        return Err(ContractError::ToDo {});
+        return Err(ContractError::AlreadyFinalized {});
     }
 
     // Ensure being prepared
     if listing.status != Status::BeingPrepared {
-        return Err(ContractError::ToDo {});
+        return Err(ContractError::AlreadyFinalized {});
     }
 
     // Ensure no Claimant
@@ -892,7 +940,7 @@ pub fn execute_finalize(
     // max expiration is 1209600 seconds <14 days>
     // min expiration is 600 seconds <10 minutes>
     if !(600..=1209600).contains(&seconds) {
-        return Err(ContractError::ToDo {}); // Invalid expiration time
+        return Err(ContractError::InvalidExpiration {});
     }
 
     let finalized_at = env.block.time;
@@ -931,7 +979,7 @@ pub fn execute_refund(
 
     // Check listing exists
     if let None = listingz().may_load(deps.storage, (user_sender, listing_id.clone()))? {
-        return Err(ContractError::ToDo {}); // listing doesn't exist
+        return Err(ContractError::NotFound {typ: "Listing".to_string(), id: listing_id});
     }
 
     // Get listing
@@ -944,12 +992,12 @@ pub fn execute_refund(
 
     // If listing.claimant != None then listing already purchased
     if listing.claimant != None {
-        return Err(ContractError::ToDo {});
+        return Err(ContractError::Unauthorized {});
     }
 
     // Is listing.status == BeingPrepared
     if listing.status == Status::BeingPrepared {
-        return Err(ContractError::ToDo {}); 
+        return Err(ContractError::Unauthorized {}); 
         // "Please use close function instead", or just process Refund anyway?
     }
 
@@ -957,13 +1005,13 @@ pub fn execute_refund(
     match listing.expiration_time {
 
         None => { // Means status = BeingPrepared
-            return Err(ContractError::ToDo {}); 
+            return Err(ContractError::Unauthorized {}); 
             // "Please use close function instead".. or just process anyway?
         },
 
         Some(timestamp) => {
             if env.block.time < timestamp {
-                return Err(ContractError::ToDo {}); // "Listing not yet expired"
+                return Err(ContractError::NotExpired {x: timestamp.eztime_string()?});
             }
         },
     };
@@ -1007,7 +1055,7 @@ pub fn execute_buy_listing(
     }
 
     // Unwrap should never hit as previous line checked for None
-    let (_my_bytes, the_listing) = listingz().idx.id.item(deps.storage, listing_id.clone())?.unwrap();
+    let (_pk, the_listing) = listingz().idx.id.item(deps.storage, listing_id.clone())?.unwrap();
 
     let listing_owner = the_listing.creator;
 
@@ -1017,15 +1065,15 @@ pub fn execute_buy_listing(
     }
     // Check that bucket contains required purchase price
     if the_bucket.funds != the_listing.ask {
-        return Err(ContractError::ToDo {});
+        return Err(ContractError::FundsSentNotFundsAsked {which: format!("Bucket ID: {}", bucket_id)});
     }
     // Check that listing is ready for purchase
     if the_listing.status != Status::FinalizedReady {
-        return Err(ContractError::ToDo {});
+        return Err(ContractError::NotPurchasable {});
     }
     // Check that there's no existing claimant on listing
     if the_listing.claimant != None {
-        return Err(ContractError::ToDo {});
+        return Err(ContractError::NotPurchasable {});
     }
     // Check that listing isn't expired
     if let Some(exp) = the_listing.expiration_time {
@@ -1034,7 +1082,7 @@ pub fn execute_buy_listing(
         }
     }
 
-    // Delete Old Listing -> Save new listing with listing_buyer in key
+    // Delete Old Listing -> Save new listing with listing_buyer in key & creator
     listingz().remove(deps.storage, (&listing_owner, listing_id.clone()))?;
     listingz().save(
         deps.storage, 
@@ -1047,7 +1095,7 @@ pub fn execute_buy_listing(
         }
     )?;
 
-    // Delete Old Bucket -> Save new Bucket with listing_seller in key
+    // Delete Old Bucket -> Save new Bucket with listing_seller in key & owner
     BUCKETS.remove(deps.storage, (buyer.clone(), &bucket_id));
     BUCKETS.save(
         deps.storage, 
@@ -1062,6 +1110,7 @@ pub fn execute_buy_listing(
     Ok(Response::new()
         .add_attribute("method", "buy listing")
         .add_attribute("Bucket Used:", &bucket_id)
+        .add_attribute("Listing Purchased:", listing_id)
     )
 }
 
@@ -1072,14 +1121,10 @@ pub fn execute_withdraw_purchased(
 ) -> Result<Response, ContractError> {
 
     // Get listing
-    let (_m, the_listing) = listingz().idx.id.item(deps.storage, listing_id.clone())?.unwrap();
+    let (_pk, the_listing) = listingz().idx.id.item(deps.storage, listing_id.clone())?.unwrap();
 
-    // Check there is claimant
-    if the_listing.claimant.is_none() {
-        return Err(ContractError::ToDo {});
-    };
-
-    let listing_claimr: Addr = the_listing.claimant.unwrap();
+    // Check and pull out claimant
+    let listing_claimr = the_listing.claimant.ok_or(ContractError::Unauthorized {})?;
 
     // Check that withdrawer is the claimant
     if withdrawer != &listing_claimr {
@@ -1088,7 +1133,7 @@ pub fn execute_withdraw_purchased(
 
     // Check that status is Closed
     if the_listing.status != Status::Closed {
-        return Err(ContractError::ToDo {});
+        return Err(ContractError::Unauthorized {});
     };
 
     // Delete Listing
@@ -1099,7 +1144,7 @@ pub fn execute_withdraw_purchased(
 
     Ok(Response::new()
         .add_attribute("method", "withdraw purchased")
-        .add_attribute("listing_id", format!("{}", listing_id))
+        .add_attribute("listing_id", listing_id)
         .add_messages(msgs)
     )
 }
