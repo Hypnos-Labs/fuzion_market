@@ -344,9 +344,6 @@ pub fn execute_create_bucket(
     )
 }
 
-//////////////////////////////////////////////////
-//////////////////////////////////////////////////
-////////////////////////////////
 pub fn execute_create_bucket_cw721(
     deps: DepsMut,
     user_wallet: &Addr,
@@ -373,11 +370,6 @@ pub fn execute_create_bucket_cw721(
 
     Ok(Response::default())
 }
-///////////////////////////////
-/////////////////////////////////////////////////////
-//////////////////////////////////////////////////
-
-
 
 pub fn execute_add_to_bucket(
     deps: DepsMut,
@@ -435,9 +427,6 @@ pub fn execute_add_to_bucket(
 
 }
 
-//////////////////////////////////////////////////
-//////////////////////////////////////////////////
-//////////////////////////////////////////////////
 pub fn execute_add_to_bucket_cw721(
     deps: DepsMut,
     user_wallet: &Addr,
@@ -484,10 +473,6 @@ pub fn execute_add_to_bucket_cw721(
         .add_attribute("Add NFT to bucket", format!("Bucket ID: {}", bucket_id))
     )
 }
-//////////////////////////////////////////////////
-//////////////////////////////////////////////////
-//////////////////////////////////////////////////
-
 
 pub fn execute_withdraw_bucket(
     deps: DepsMut,
@@ -832,6 +817,8 @@ pub fn execute_add_to_sale_cw721(
     if old_listing.claimant != None {
         return Err(ContractError::Unauthorized {}); // better error name
     }
+
+    // Whitelist check handled in cw721 wrapper
 
     // Create updated listing
     let new_listing = {

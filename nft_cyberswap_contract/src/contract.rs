@@ -6,7 +6,6 @@ use cosmwasm_std::{
     MessageInfo, Response, StdResult, Addr, //QuerierWrapper, coin, Coin, Uint128
 };
 use cw2::set_contract_version;
-use serde::de::DeserializeOwned;
 
 // The Commons
 use crate::msg::*;
@@ -14,11 +13,11 @@ use crate::state::*;
 use crate::error::ContractError;
 use crate::execute::*;
 use crate::query::*;
-use crate::utils::is_nft_whitelisted;
+use crate::utils::*;
 use std::str;
 
 // The Personals
-use cw20::{Balance, Cw20CoinVerified, Cw20ReceiveMsg, BalanceResponse}; //Cw20ExecuteMsg, BalanceResponse, Cw20Coin
+use cw20::{Balance, Cw20CoinVerified, Cw20ReceiveMsg}; //Cw20ExecuteMsg, BalanceResponse, Cw20Coin
 use cw721::{Cw721ReceiveMsg};
 //Cw721QueryMsg, AllNftInfoResponse, OwnerOfResponse, NftInfoResponse, Expiration};
 //use cw721_base::Extension;
@@ -68,9 +67,9 @@ pub fn instantiate(
         let mut cw20_wl = vec![
             // Fake cw20's for tests
             //("your superbizdevalphamarketingvcsuperiorburncoin here".to_string(), deps.api.addr_validate("")?),
-            ("CSUNO".to_string(), deps.api.addr_validate("juno18zy5ywkkpqlfpjc2mz8fr5jlqvwktc9sz6avlqly5e9qqwmde7tsg8efad")?),
-            ("CSTWO".to_string(), deps.api.addr_validate("juno1p3ge77f9kf5hwng09s2qggldkf7rn5yvu4vwvctykf05p8krzu9q25235j")?),
-            ("CSTRE".to_string(), deps.api.addr_validate("juno1cm4etasezlaqlr4vltju5s3sr7m588j0tqj8le58ny78j0v3suwqhcjs3l")?),
+            ("CSONE".to_string(), deps.api.addr_validate("juno16eq9aytfr9d3vux9lwlmx2ahmwc0g5xzj7ycru9rhwz7yt68htvs4l966p")?),
+            ("CSTWO".to_string(), deps.api.addr_validate("juno1s3yyfq464l8ppur5euv0j28yw83cxwr0cztuhczq9nhxjqv6545s5fyfhe")?),
+            ("CSTRE".to_string(), deps.api.addr_validate("juno1n74teggv6stach25y930lydj2rr4frxjqxvyjskkz5sddlmfd7ws5rf8g4")?),
         ];
         cw20_wl.reserve(2);
         cw20_wl
@@ -78,8 +77,8 @@ pub fn instantiate(
     let nft_whitelist: Vec<(String, Addr)> = {
         let mut nft_wl = vec![
             // Fake NFTs for tests
-            ("NEONPEEPZ".to_string(), deps.api.addr_validate("XXX")?),
-            ("SHITKIT".to_string(), deps.api.addr_validate("XXX")?),
+            ("NEONPEEPZ".to_string(), deps.api.addr_validate("juno1td3trhte35pxyjg8jveyyl7mc4d9pv77pn9fx94t0lhsq2gqfzhqr26g8k")?),
+            ("SHITKIT".to_string(), deps.api.addr_validate("juno1qw7hmylmmudec2t06ln96nn2wlnv5tha8324kfrfan93mhag43zsj3n748")?),
         ];
         nft_wl.reserve(2);
         nft_wl
@@ -107,7 +106,7 @@ pub fn instantiate(
 ///////////~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn execute<T: DeserializeOwned>(
+pub fn execute(
     deps: DepsMut,
     env: Env,
     info: MessageInfo,
@@ -168,17 +167,18 @@ pub fn execute_receive(
     
     let user_wallet = &deps.api.addr_validate(&wrapper.sender)?;
 
+    // Not needed as cw20 contract will fail, plus this is processed after simulating user_wallet send
     // Query the sending contract to get user's balance & verify it's >= wrapper.amount
-    let bal_res: BalanceResponse = deps
-        .querier
-        .query_wasm_smart(
-            &info.sender, 
-            &cw20::Cw20QueryMsg::Balance {address: wrapper.sender},
-        )?;
-    
-    if bal_res.balance <= wrapper.amount {
-        return Err(ContractError::NotEnoughCw20 {});
-    };
+    //let bal_res: BalanceResponse = deps
+    //    .querier
+    //    .query_wasm_smart(
+    //        &info.sender, 
+    //        &cw20::Cw20QueryMsg::Balance {address: wrapper.sender},
+    //    )?;
+    //
+    //if bal_res.balance <= wrapper.amount {
+    //    return Err(ContractError::NotEnoughCw20 {});
+    //};
 
     let balance = Balance::Cw20(Cw20CoinVerified {
         //cw20 contract this message was sent from
