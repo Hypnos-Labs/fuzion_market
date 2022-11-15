@@ -170,6 +170,12 @@ pub fn get_listings_for_market(
 
     let to_skip = page_num * 20 - 20;
 
+    // prefix_range is iterating over the primary keys, not the index key as I have here
+
+    // but in the docs "while range over prefix fixes the prefix to 1 element and iterates over the remaining,
+    // prefix_range allows iterating over the prefix itself"
+    // so I think this is correct & there's some kind of syntax bug I'm missing 
+
     let listings_in_range: StdResult<Vec<_>> = listingz()
         .idx
         .finalized_date
@@ -198,6 +204,85 @@ pub fn get_listings_for_market(
 
     to_binary(&MultiListingResponse {listings: listing_data})
 }
+
+// changed to_skip.try_into().unwrap() --to--> usize::from(to_skip)
+pub fn get_listings_for_market_two(
+    deps: Deps,
+    env: Env,
+    page_num: u8, 
+) -> StdResult<Binary> {
+    // Only returns Listings that have been finalized within the last 2 weeks
+    // page_num = 1 get first 20, page_num = 2 get second 20...
+    // UI handles sorting by Coins
+
+    let current_time = env.block.time.seconds();
+    let two_weeks_ago_in_seconds = current_time - 1209600;
+
+    let to_skip = page_num * 20 - 20;
+
+    let listings_in_range: StdResult<Vec<_>> = listingz()
+        .idx
+        .finalized_date
+        .prefix_range(
+            deps.storage, 
+            Some(PrefixBound::Exclusive((two_weeks_ago_in_seconds, PhantomData))), 
+            None, 
+            Order::Ascending
+        )
+        .skip(usize::from(to_skip))
+        .take(20)
+        .collect();
+
+    // Try deleting this a I don't remember what I was doing when I made it
+    let listing_data: Vec<Listing> = listings_in_range?
+    .iter()
+    .map(|entry|
+        entry.1.clone()
+    )
+    .collect();
+
+    to_binary(&MultiListingResponse {listings: listing_data})
+}
+
+// removed listing_data = listings_in_range.iter().map(|entry| entry.1.clone())
+pub fn get_listings_for_market_three(
+    deps: Deps,
+    env: Env,
+    page_num: u8, 
+) -> StdResult<Binary> {
+    // Only returns Listings that have been finalized within the last 2 weeks
+    // page_num = 1 get first 20, page_num = 2 get second 20...
+    // UI handles sorting by Coins
+
+    let current_time = env.block.time.seconds();
+    let two_weeks_ago_in_seconds = current_time - 1209600;
+
+    let to_skip = page_num * 20 - 20;
+
+    // Try changing Skip
+    let listings_in_range: StdResult<Vec<_>> = listingz()
+        .idx
+        .finalized_date
+        .prefix_range(
+            deps.storage, 
+            Some(PrefixBound::Exclusive((two_weeks_ago_in_seconds, PhantomData))), 
+            None, 
+            Order::Ascending
+        )
+        .skip(to_skip.try_into().unwrap())
+        .take(20)
+        .collect();
+
+    let listing_data: Vec<Listing> = listings_in_range?
+    .iter()
+    .map(|entry|
+        entry.1.clone()
+    )
+    .collect();
+
+    to_binary(&MultiListingResponse {listings: listing_data})
+}
+
 
 // 32	00000000…FFFFFFFF
 //      0…4,294,967,295
