@@ -51,6 +51,7 @@ pub fn instantiate(
     let validated = deps.api.addr_validate(&admin)?;
 
     // Hardcoded whitelist
+    // Reserves prob unneeded since memory is wiped in vm
     let native_whitelist: Vec<(String, String)> = {
         let mut nw = vec![
             ("JUNO".to_string(), "ujunox".to_string()),
@@ -167,19 +168,6 @@ pub fn execute_receive(
     
     let user_wallet = &deps.api.addr_validate(&wrapper.sender)?;
 
-    // Not needed as cw20 contract will fail, plus this is processed after simulating user_wallet send
-    // Query the sending contract to get user's balance & verify it's >= wrapper.amount
-    //let bal_res: BalanceResponse = deps
-    //    .querier
-    //    .query_wasm_smart(
-    //        &info.sender, 
-    //        &cw20::Cw20QueryMsg::Balance {address: wrapper.sender},
-    //    )?;
-    //
-    //if bal_res.balance <= wrapper.amount {
-    //    return Err(ContractError::NotEnoughCw20 {});
-    //};
-
     let balance = Balance::Cw20(Cw20CoinVerified {
         //cw20 contract this message was sent from
         address: info.sender.clone(),
@@ -205,11 +193,6 @@ pub fn execute_receive_nft(
     info: MessageInfo, 
     wrapper: Cw721ReceiveMsg, 
 ) -> Result<Response, ContractError> {
-
-    // wrapper.token_id = token_id of the NFT
-    // wrapper.msg = binary message sent with NFT
-    // wrapper.sender = user wallet that sent NFT
-    // info.sender = cw721 contract of the NFT
 
     // Whitelist check
     let config = CONFIG.load(deps.storage)?;

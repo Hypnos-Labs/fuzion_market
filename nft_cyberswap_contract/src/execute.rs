@@ -237,8 +237,6 @@ pub fn clear_removal_queue(
         y
     };
     
-    // Now I have a vector of Addr that are to be removed from the whitelist
-    // whitelist_addresses.iter().retain(|addy| !vek_addresses_to_remove.contains(addy))
     let new_cw20_wl = {
         let mut old = config.clone().whitelist_cw20;
         old.retain(|old_addy| !addys_to_remove.contains(&old_addy.1));
@@ -268,8 +266,6 @@ pub fn clear_removal_queue(
         y
     };
     
-    // Now I have a vector of Strings that are to be removed from the whitelist
-    // whitelist_addresses.iter().retain(|addy| !vek_addresses_to_remove.contains(addy))
     let new_native_wl = {
         let mut old = config.clone().whitelist_native;
         old.retain(|old_denom| !denoms_to_remove.contains(&old_denom.1));
@@ -314,7 +310,7 @@ pub fn execute_create_bucket(
     bucket_id: String,
 ) -> Result<Response, ContractError> {
 
-    // Can't create an empty Bucket <help prevent ddos>
+    // Can't create an empty Bucket
     if funds.is_empty() {
         return Err(ContractError::NoTokens {});
     }
@@ -357,7 +353,6 @@ pub fn execute_create_bucket_cw721(
     }
 
     // all NFT validation checks are handled in receiver wrapper
-
     // Save bucket
     BUCKETS.save(
         deps.storage, 
@@ -598,8 +593,6 @@ pub fn execute_create_listing_cw20(
     is_genericbalance_whitelisted(&createlistingmsg.ask, &config)?;
 
     // Checking to make sure that listing_id isn't taken
-    // The goal here is to -ensure- that each listing_id is always unique,
-    // so a Buyer doesn't unintentionally attempt to purchase the wrong listing
     if let Some(_) = listingz().idx.id.item(deps.storage, createlistingmsg.id.clone())? {
         return Err(ContractError::IdAlreadyExists {});
     }
@@ -634,8 +627,6 @@ pub fn execute_create_listing_cw721(
 ) -> Result<Response, ContractError> {
 
     // Checking to make sure that listing_id isn't taken
-    // The goal here is to -ensure- that each listing_id is always unique,
-    // so a Buyer doesn't unintentionally attempt to purchase the wrong listing
     if let Some(_) = listingz().idx.id.item(deps.storage, createlistingmsg.id.clone())? {
         return Err(ContractError::IdAlreadyExists {});
     }
@@ -819,7 +810,6 @@ pub fn execute_add_to_sale_cw721(
     }
 
     // Whitelist check handled in cw721 wrapper
-
     // Create updated listing
     let new_listing = {
         let old = old_listing.for_sale.clone();
