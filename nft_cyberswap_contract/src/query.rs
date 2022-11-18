@@ -165,54 +165,7 @@ pub fn get_listings_for_market(
     let current_time = env.block.time.seconds();
     let two_weeks_ago_in_seconds = current_time - 1209600;
 
-    let to_skip = page_num * 20 - 20;
-
-    let listings_in_range: StdResult<Vec<_>> = listingz()
-        .idx
-        .finalized_date
-        .prefix_range(
-            deps.storage, 
-            Some(PrefixBound::Exclusive((two_weeks_ago_in_seconds, PhantomData))), 
-            None, 
-            Order::Ascending
-        )
-        .skip(to_skip.try_into().unwrap())
-        .take(20)
-        .collect();
-
-    let listing_data: Vec<Listing> = listings_in_range?
-    .iter()
-    .map(|entry|
-        entry.1.clone()
-    )
-    .collect();
-
-    to_binary(&MultiListingResponse {listings: listing_data})
-}
-
-pub fn get_listings_for_market_two(
-    deps: Deps,
-    env: Env,
-    page_num: u8, 
-) -> StdResult<Binary> {
-
-    let current_time = env.block.time.seconds();
-    let two_weeks_ago_in_seconds = current_time - 1209600;
-
     let to_skip_usize = usize::from(page_num * 20 - 20);
-
-    // let listings_in_range: StdResult<Vec<_>> = listingz()
-    //     .idx
-    //     .finalized_date
-    //     .prefix_range_raw(
-    //         deps.storage, 
-    //         Some(PrefixBound::inclusive(two_weeks_ago_in_seconds)), 
-    //         None, 
-    //         Order::Ascending
-    //     )
-    //     .skip(to_skip_usize)
-    //     .take(20)
-    //     .collect();
 
     let listings_in_range: Vec<_> = listingz()
         .idx
@@ -230,28 +183,6 @@ pub fn get_listings_for_market_two(
         .take(20)
         .map(|entry| entry.1.clone())
         .collect();
-
-    // let paginated_listings: Vec<_> = listings_in_range
-    //     .iter()
-    //     .skip(to_skip_usize)
-    //     .take(20)
-    //     .map(|entry| entry.1.clone())
-    //     .collect();
-
-    // let paginated_listings_data: Vec<_> = paginated_listings
-    //     .iter()
-    //     .map(|entry|
-    //         entry.1.clone()
-    //     )
-    //     .collect();
-
-    // let listing_data: Vec<Listing> = listings_in_range
-    // .iter()
-    // .map(|entry|
-    //     // entry = ((addr, listing_id), Listing)
-    //     entry.1.clone()
-    // )
-    // .collect();
 
     to_binary(&MultiListingResponse {listings: listings_in_range})
 }

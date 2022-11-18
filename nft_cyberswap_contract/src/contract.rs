@@ -3,7 +3,7 @@
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
     to_binary, from_binary, Binary, Deps, DepsMut, Env, 
-    MessageInfo, Response, StdResult, Addr, //QuerierWrapper, coin, Coin, Uint128
+    MessageInfo, Response, StdResult, Addr
 };
 use cw2::set_contract_version;
 
@@ -17,12 +17,8 @@ use crate::utils::*;
 use std::str;
 
 // The Personals
-use cw20::{Balance, Cw20CoinVerified, Cw20ReceiveMsg}; //Cw20ExecuteMsg, BalanceResponse, Cw20Coin
+use cw20::{Balance, Cw20CoinVerified, Cw20ReceiveMsg};
 use cw721::{Cw721ReceiveMsg};
-//Cw721QueryMsg, AllNftInfoResponse, OwnerOfResponse, NftInfoResponse, Expiration};
-//use cw721_base::Extension;
-//use cosmwasm_std::{SubMsg, WasmMsg, BankMsg, CosmosMsg};
-//use cosmwasm_std::{QueryRequest, WasmQuery};
 
 // Contract name used for migration
 const CONTRACT_NAME: &str = "crates.io:cyberswap_nft";
@@ -244,8 +240,6 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
         QueryMsg::GetBuckets {bucket_owner} => to_binary(&get_buckets(deps, bucket_owner)?),
         // Get listings finalized within 2 weeks & paginate for page
         QueryMsg::GetListingsForMarket {page_num} => to_binary(&get_listings_for_market(deps, env, page_num)?),
-
-        QueryMsg::GetListingsForMarketTwo { page_num } => to_binary(&get_listings_for_market_two(deps, env, page_num)?),
     }
 }
 
