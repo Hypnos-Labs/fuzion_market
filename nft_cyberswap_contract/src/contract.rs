@@ -244,6 +244,8 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
         QueryMsg::GetBuckets {bucket_owner} => to_binary(&get_buckets(deps, bucket_owner)?),
         // Get listings finalized within 2 weeks & paginate for page
         QueryMsg::GetListingsForMarket {page_num} => to_binary(&get_listings_for_market(deps, env, page_num)?),
+
+        QueryMsg::GetListingsForMarketTwo { page_num } => to_binary(&get_listings_for_market_two(deps, env, page_num)?),
     }
 }
 

@@ -120,6 +120,8 @@ pub enum QueryMsg {
     GetBuckets {bucket_owner: String},
     #[returns(MultiListingResponse)]
     GetListingsForMarket {page_num: u8},
+    #[returns(MultiListingResponse)]
+    GetListingsForMarketTwo {page_num: u8},
     #[returns(ConfigResponse)]
     GetConfig {},
 }
