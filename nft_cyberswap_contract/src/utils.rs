@@ -1,6 +1,5 @@
 use crate::state::*;
 use crate::error::*;
-use crate::msg::{Marker};
 use cosmwasm_std::{Addr, Timestamp, StdError, Empty};
 use crate::state::GenericBalance;
 use cosmwasm_std::{StdResult, to_binary, WasmMsg, BankMsg, CosmosMsg};
@@ -9,14 +8,9 @@ use cw721::Cw721ExecuteMsg;
 use chrono::{NaiveDateTime, Datelike, Timelike};
 use cosmwasm_schema::{cw_serde};
 
-
-//////////////////////////////////////////////////////////////////////////////////
-// Utilities/Helpers
-
-///////////~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-///////////~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-////////////// "EzTime" : Timestamp -> Formatted dates 
-///////////~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+////~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+////// EzTime
+////~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 #[cw_serde]
 pub struct EzTimeStruct {
@@ -133,10 +127,9 @@ impl EzTime for cosmwasm_std::Timestamp {
     }
 }
 
-///////////~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-///////////~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-////////////// Send Tokens::CosmosMsgs - Create fire & forget send token msgs
-///////////~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+////~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+////// Create CosmosMsgs to send tokens
+////~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 // Needs update to enable sending to a contract or DAO address
 pub fn send_tokens_cosmos(
@@ -195,11 +188,9 @@ pub fn send_tokens_cosmos(
     Ok(msgs)
 }
 
-///////////~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-///////////~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-////////////// Check if a Balance contains only tokens on the whitelists in Config
-////////////// If any token in the Balance is not, contract error is returned
-///////////~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+////~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+////// Whitelist checks
+////~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 // Works for both Native and CW20 tokens
 pub fn is_balance_whitelisted(
@@ -315,58 +306,52 @@ pub fn is_nft_whitelisted(
 
 }
 
-///////////~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-///////////~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-////////////// Check if a whitelisted denom is currently in the removal queue
-///////////~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+////~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+////// Removal queue check
+////~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-pub fn is_denom_in_removal_queue(
-    denom: String,
-    marker: Marker,
-    config: &Config,
-) -> Result<(), ContractError> {
+// pub fn is_denom_in_removal_queue(
+//     denom: String,
+//     marker: Marker,
+//     config: &Config,
+// ) -> Result<(), ContractError> {
 
-    match marker {
-        Marker::Cw20 => {
-            let cw20queue = config
-                .clone()
-                .removal_queue_cw20
-                .ok_or(ContractError::NoRemovalQueue {x: "Cw20".to_string()})?
-                .queued_denoms;
+//     match marker {
+//         Marker::Cw20 => {
+//             let cw20queue = config
+//                 .clone()
+//                 .removal_queue_cw20
+//                 .ok_or(ContractError::NoRemovalQueue {x: "Cw20".to_string()})?
+//                 .queued_denoms;
 
-            let check: Vec<bool> = cw20queue
-                .iter()
-                .map(|q| if q.1.address.to_string() == denom {true} else {false})
-                .collect();
-            if check.contains(&true) {
-                return Err(ContractError::InRemovalQueue {});
-            };
-        },
-        Marker::Native => {
-            let nativequeue = config
-                .clone()
-                .removal_queue_native
-                .ok_or(ContractError::NoRemovalQueue {x: "Native".to_string()})?
-                .queued_denoms;
+//             let check: Vec<bool> = cw20queue
+//                 .iter()
+//                 .map(|q| if q.1.address.to_string() == denom {true} else {false})
+//                 .collect();
+//             if check.contains(&true) {
+//                 return Err(ContractError::InRemovalQueue {});
+//             };
+//         },
+//         Marker::Native => {
+//             let nativequeue = config
+//                 .clone()
+//                 .removal_queue_native
+//                 .ok_or(ContractError::NoRemovalQueue {x: "Native".to_string()})?
+//                 .queued_denoms;
 
-            let check: Vec<bool> = nativequeue
-                .iter()
-                .map(|qq| if qq.1.denom == denom {true} else {false})
-                .collect();
-            if check.contains(&true) {
-                return Err(ContractError::InRemovalQueue {});
-            };
-        },
-        Marker::Nft => {
-            return Err(ContractError::ToDoTwo{x: "NFTs havent been implemented yet".to_string()});
+//             let check: Vec<bool> = nativequeue
+//                 .iter()
+//                 .map(|qq| if qq.1.denom == denom {true} else {false})
+//                 .collect();
+//             if check.contains(&true) {
+//                 return Err(ContractError::InRemovalQueue {});
+//             };
+//         },
+//         Marker::Nft => {
+//             return Err(ContractError::ToDoTwo{x: "NFTs havent been implemented yet".to_string()});
 
-        },
-    };
+//         },
+//     };
 
-    Ok(())
-}
-
-///////////~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-///////////~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-////////////// Misc NFT helpers
-///////////~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+//     Ok(())
+// }

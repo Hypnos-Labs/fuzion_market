@@ -28,11 +28,10 @@ pub enum ExecuteMsg {
     ReceiveNft(Cw721ReceiveMsg),
 
     //// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ SUDO
-    AddToWhitelist {new_denom: (String, String), marker: Marker },
-    AddToRemovalQueue {denom: (String, String), marker: Marker},
-    ClearRemovalQueue {},
+    // AddToWhitelist {new_denom: (String, String), marker: Marker },
+    // AddToRemovalQueue {denom: (String, String), marker: Marker},
+    // ClearRemovalQueue {},
     
-
     //// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ LISTINGS
     // Create Listing
     CreateListing { create_msg: CreateListingMsg },

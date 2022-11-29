@@ -46,48 +46,24 @@ pub fn instantiate(
 
     let validated = deps.api.addr_validate(&admin)?;
 
-    // Hardcoded whitelist
-    // Reserves prob unneeded since memory is wiped in vm
-    let native_whitelist: Vec<(String, String)> = {
-        let mut nw = vec![
-            ("JUNO".to_string(), "ujunox".to_string()),
-            ("ATOM".to_string(), "ibc/C4CFF46FD6DE35CA4CF4CE031E643C8FDC9BA4B99AE598E9B0ED98FE3A2319F9".to_string()),
-            ("USDC".to_string(), "ibc/EAC38D55372F38F1AFD68DF7FE9EF762DCF69F26520643CF3F9D292A738D8034".to_string()),
-            ("OSMO".to_string(), "ibc/ED07A3391A112B175915CD8FAF43A2DA8E4790EDE12566649D0C2F97716B8518".to_string()),
-            ("STARS".to_string(), "ibc/F6B367385300865F654E110976B838502504231705BAC0849B0651C226385885".to_string()),
-            ("SCRT".to_string(), "ibc/B55B08EF3667B0C6F029C2CC9CAA6B00788CF639EBB84B34818C85CBABA33ABD".to_string()),
-        ];
-        nw.reserve(2);
-        nw
-    };
-    let cw20_whitelist: Vec<(String, Addr)> = {
-        let mut cw20_wl = vec![
-            // Fake cw20's for tests
-            //("your superbizdevalphamarketingvcsuperiorburncoin here".to_string(), deps.api.addr_validate("")?),
-            ("CSONE".to_string(), deps.api.addr_validate("juno16eq9aytfr9d3vux9lwlmx2ahmwc0g5xzj7ycru9rhwz7yt68htvs4l966p")?),
-            ("CSTWO".to_string(), deps.api.addr_validate("juno1s3yyfq464l8ppur5euv0j28yw83cxwr0cztuhczq9nhxjqv6545s5fyfhe")?),
-            ("CSTRE".to_string(), deps.api.addr_validate("juno1n74teggv6stach25y930lydj2rr4frxjqxvyjskkz5sddlmfd7ws5rf8g4")?),
-        ];
-        cw20_wl.reserve(2);
-        cw20_wl
-    };
-    let nft_whitelist: Vec<(String, Addr)> = {
-        let mut nft_wl = vec![
-            // Fake NFTs for tests
-            ("NEONPEEPZ".to_string(), deps.api.addr_validate("juno1td3trhte35pxyjg8jveyyl7mc4d9pv77pn9fx94t0lhsq2gqfzhqr26g8k")?),
-            ("SHITKIT".to_string(), deps.api.addr_validate("juno1qw7hmylmmudec2t06ln96nn2wlnv5tha8324kfrfan93mhag43zsj3n748")?),
-        ];
-        nft_wl.reserve(2);
-        nft_wl
-    };
+    let native_whitelist: Vec<(String, String)> = vec![
+        ("JUNO".to_string(), "ujunox".to_string()),
+    ];
+    let cw20_whitelist: Vec<(String, Addr)> = vec![
+        ("JVONE".to_string(), deps.api.addr_validate("juno1klu02klsxznmmf6yr4jrnyslhqnz2hsp5t7396hzck5m5xzt9aeq8gxgh4")?),
+        ("JVTWO".to_string(), deps.api.addr_validate("juno1c95jn83hujzqtp92lnx5q6jnpcy9q2yw952gc6pwlffskc2ezypsw48c2g")?),
+        ("JVTRE".to_string(), deps.api.addr_validate("juno1t7krx3wp7fxhzg4e47rhuy79m2xk4hazukkuyet4mp7l5xndza3slsl23t")?)
+    ];
+    let nft_whitelist: Vec<(String, Addr)> = vec![
+        ("NEONPEEPZ".to_string(), deps.api.addr_validate("juno1xdtd9knr34juzjzw4ulmcv9p2tshvuajpx9rlmfwsak5ld7548yqdz0wp5")?),
+        ("SHITKIT".to_string(), deps.api.addr_validate("juno12n7qca7m0hxg4x57m9fk8hp7km5s70jpppma96ws4krvf4ayqwlq7jwqqx")?)
+    ];
         
     CONFIG.save(deps.storage, &Config{
         admin: validated,
         whitelist_native: native_whitelist,
         whitelist_cw20: cw20_whitelist,
         whitelist_nft: nft_whitelist,
-        removal_queue_native: None,
-        removal_queue_cw20: None,
     })?;
 
     Ok(Response::new()
@@ -111,11 +87,6 @@ pub fn execute(
 ) -> Result<Response, ContractError> {
 
     match msg {
-
-        // ~~~~~~~~~~~~~~~~~~~~~~~~~ Sudo
-        ExecuteMsg::AddToWhitelist { new_denom, marker } => add_to_whitelist(deps, env, &info.sender, new_denom, marker),
-        ExecuteMsg::AddToRemovalQueue { denom, marker } => add_to_removal_queue(deps, env, &info.sender, denom, marker),
-        ExecuteMsg::ClearRemovalQueue {} => clear_removal_queue(deps, env, &info.sender),
 
         // ~~~~~~~~~~~~~~~~~~~~~~~~~ Wrapper cw20/cw721
         ExecuteMsg::Receive(receive_msg) => execute_receive(deps, env, info, receive_msg),
@@ -170,6 +141,7 @@ pub fn execute_receive(
         amount: wrapper.amount,
     });
 
+    // is_balance_whitelisted check in each message individually 
     match msg {
         // Create listing with Cw20's initially
         ReceiveMsg::CreateListingCw20 { create_msg } => execute_create_listing_cw20(deps, user_wallet, &info.sender, balance, create_msg),

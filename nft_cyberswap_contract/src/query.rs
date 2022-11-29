@@ -1,29 +1,20 @@
-use cosmwasm_std::{to_binary, Binary, Deps, Env, StdResult, Order}; // coin, Coin, Uint128
+use cosmwasm_std::{to_binary, Binary, Deps, Env, StdResult, Order};
 use cw_storage_plus::{PrefixBound};
-use std::convert::{TryInto};
-use std::marker::PhantomData;
 use crate::state::*;
 use crate::utils::*;
 use cosmwasm_schema::{cw_serde};
 
-
-/////////////~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-/////////////~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-/////////////// Query Abstractions
-/////////////~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
 ////~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-////~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-////// Internal
+////// Query Abstractions
 ////~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-// Get admin of contract
+// Get contract admin
 pub fn get_admin(deps: Deps) -> StdResult<Binary> {
     let storage = CONFIG.load(deps.storage)?;
     to_binary(&AdminResponse {admin: storage.admin.into_string()})
 }
 
-// Honestly just get entire config
+// Get config
 pub fn get_config(deps: Deps) -> StdResult<Binary> {
     let config = CONFIG.load(deps.storage)?;
     to_binary(&ConfigResponse {config})
@@ -52,7 +43,7 @@ pub fn get_listing_info(deps: Deps, listing_id: String) -> StdResult<Binary> {
 
     // If listing doesn't exist the unwrap panics which is
     // handled on front end by manually checking error code
-    let (_listing_owner, listing) = listingz().idx.id.item(deps.storage, listing_id.clone())?.unwrap();
+    let (_k, listing) = listingz().idx.id.item(deps.storage, listing_id.clone())?.unwrap();
 
     let status = match listing.status {
         Status::BeingPrepared => "Being Prepared".to_string(),
@@ -188,11 +179,6 @@ pub fn get_listings_for_market(
 }
 
 ////~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-////~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-////// External
-////~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-////~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ////// Query Responses
 ////~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -206,11 +192,9 @@ pub struct ConfigResponse {
     pub config: Config,
 }
 
-
 #[cw_serde]
 pub struct GetBucketsResponse {
     pub buckets: Vec<(String, Bucket)>,
-
 }
 
 #[cw_serde]
@@ -218,7 +202,6 @@ pub struct MultiListingResponse {
     pub listings: Vec<Listing>,
 }
 
-// Unused / needs update
 #[cw_serde]
 pub struct ListingInfoResponse {
     pub creator: String,

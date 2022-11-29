@@ -23,38 +23,7 @@ pub struct Config {
     pub whitelist_cw20: Vec<(String, Addr)>,
     // "CYBERPEEPS", "juno1xxx"
     pub whitelist_nft: Vec<(String, Addr)>,
-
-    pub removal_queue_native: Option<NativeRemovalQueue>,
-
-    pub removal_queue_cw20: Option<Cw20RemovalQueue>,
 }
-
-#[cw_serde]
-pub struct NativeRemovalQueue {
-    pub queued_denoms: Vec<(Timestamp, NativeRemovalDenom)>
-}
-
-#[cw_serde]
-pub struct NativeRemovalDenom {
-    pub symbol: String,
-    pub denom: String,
-}
-
-
-
-
-#[cw_serde]
-pub struct Cw20RemovalQueue {
-    pub queued_denoms: Vec<(Timestamp, Cw20RemovalDenom)>,
-}
-
-#[cw_serde]
-pub struct Cw20RemovalDenom {
-    pub symbol: String,
-    pub address: Addr,
-}
-
-
 
 //////~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ///////////~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -270,7 +239,6 @@ pub fn genbal_from_nft(nft: Nft) -> GenericBalance {
 ////~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 pub trait ToGenericBalance {
-
     fn to_generic(&self) -> GenericBalance;
 }
 
@@ -295,9 +263,4 @@ impl ToGenericBalance for Balance {
         }
     }
 }
-
-
-////~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-////// For my Nft struct
-////~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
