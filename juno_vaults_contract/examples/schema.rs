@@ -1,5 +1,5 @@
 use cosmwasm_schema::write_api;
-use cyberswap_nft::msg::{ExecuteMsg, InstantiateMsg, QueryMsg};
+use juno_vaults::msg::{ExecuteMsg, InstantiateMsg, QueryMsg};
 
 fn main() {
     write_api! {

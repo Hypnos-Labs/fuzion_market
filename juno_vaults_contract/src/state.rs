@@ -1,15 +1,12 @@
 use cosmwasm_std::{Addr, Coin, Timestamp};
-use cw_storage_plus::{
-    Item, Map, 
-    UniqueIndex, IndexList, Index, IndexedMap, MultiIndex};
 use cw20::{Balance, Cw20CoinVerified};
+use cw_storage_plus::{Index, IndexList, IndexedMap, Item, Map, MultiIndex, UniqueIndex};
 
-use cosmwasm_schema::{cw_serde};
+use cosmwasm_schema::cw_serde;
 
-//////~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-///////////~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-////////////// Config
-///////////~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// Config
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 pub const CONFIG: Item<Config> = Item::new("cyberswap_config");
 
@@ -19,20 +16,15 @@ pub struct Config {
     pub admin: Addr,
     // "Osmo", "ibc/4X5Y6Z"
     pub whitelist_native: Vec<(String, String)>,
-    // "Neta", "juno1xxx"
+    // "Shitcoin", "juno1xxx"
     pub whitelist_cw20: Vec<(String, Addr)>,
-    // "CYBERPEEPS", "juno1xxx"
+    // "NeonPeepz", "juno1xxx"
     pub whitelist_nft: Vec<(String, Addr)>,
 }
 
-//////~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-///////////~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-////////////// State
-///////////~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-////~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-////// Listingz IndexedMap
-////~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// Listings IndexedMap
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 pub struct ListingIndexes<'a> {
     pub id: UniqueIndex<'a, String, Listing, (&'a Addr, String)>,
@@ -51,18 +43,14 @@ impl IndexList<Listing> for ListingIndexes<'_> {
 // Addr is creator, String is the Listing ID aka UniqueIndex
 // Note - ListingID is stored as suffix in PK to enable prefix.range on Addr and ensure uniqueness of each PK
 pub fn listingz<'a>() -> IndexedMap<'a, (&'a Addr, String), Listing, ListingIndexes<'a>> {
-
     let indexes = ListingIndexes {
-        id: UniqueIndex::new(
-            |a_listing| a_listing.id.clone(), 
-            "listing__id",
-        ),
+        id: UniqueIndex::new(|a_listing| a_listing.id.clone(), "listing__id"),
         finalized_date: MultiIndex::new(
             |a_listing| match a_listing.finalized_time {
                 None => 0 as u64,
                 Some(x) => x.seconds() as u64,
-            }, 
-            "listings_im", 
+            },
+            "listings_im",
             "listing__finalized__date",
         ),
         // Unused rn
@@ -103,7 +91,7 @@ pub fn listingz<'a>() -> IndexedMap<'a, (&'a Addr, String), Listing, ListingInde
         //            return strangx.as_bytes().to_vec();
         //        } else {
         //            // If both types in ask are empty, return index as Vec[String; 1]
-        //            let nonex = "None".to_string(); 
+        //            let nonex = "None".to_string();
         //            return nonex.as_bytes().to_vec();
         //        };
         //    },
@@ -115,18 +103,16 @@ pub fn listingz<'a>() -> IndexedMap<'a, (&'a Addr, String), Listing, ListingInde
     IndexedMap::new("listings_im", indexes)
 }
 
-////~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-////// Buckets Map
-////~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// Buckets Map
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 // Addr = owner, &str = UUID
 pub const BUCKETS: Map<(Addr, &str), Bucket> = Map::new("buckets");
 
-
-//////~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-///////////~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-////////////// State items
-///////////~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// Types
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 #[cw_serde]
 pub struct GenericBalance {
@@ -171,15 +157,9 @@ pub enum Status {
     Closed,
 }
 
-
-//////~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-///////////~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-////////////// Traits
-///////////~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-////~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-////// For my types
-////~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// Traits - for my types
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 pub trait GenericBalanceUtil {
     fn add_tokens(&mut self, add: Balance);
@@ -204,7 +184,7 @@ impl GenericBalanceUtil for GenericBalance {
                         None => self.native.push(token),
                     }
                 }
-            },
+            }
             Balance::Cw20(token) => {
                 let index = self.cw20.iter().enumerate().find_map(|(i, exist)| {
                     if exist.address == token.address {
@@ -217,7 +197,7 @@ impl GenericBalanceUtil for GenericBalance {
                     Some(idx) => self.cw20[idx].amount += token.amount,
                     None => self.cw20.push(token),
                 }
-            },
+            }
         };
     }
 
@@ -234,9 +214,9 @@ pub fn genbal_from_nft(nft: Nft) -> GenericBalance {
     }
 }
 
-////~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-////// For CosmWasm types
-////~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// Traits - external types
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 pub trait ToGenericBalance {
     fn to_generic(&self) -> GenericBalance;
@@ -246,21 +226,16 @@ impl ToGenericBalance for Balance {
     // Convert a Balance to a GenericBalance
     fn to_generic(&self) -> GenericBalance {
         match self {
-            Balance::Native(balance) => {
-                GenericBalance {
-                    native: balance.clone().into_vec(),
-                    cw20: vec![],
-                    nfts: vec![],
-                }
+            Balance::Native(balance) => GenericBalance {
+                native: balance.clone().into_vec(),
+                cw20: vec![],
+                nfts: vec![],
             },
-            Balance::Cw20(token) => {
-                GenericBalance {
-                    native: vec![],
-                    cw20: vec![token.clone()],
-                    nfts: vec![],
-                }
+            Balance::Cw20(token) => GenericBalance {
+                native: vec![],
+                cw20: vec![token.clone()],
+                nfts: vec![],
             },
         }
     }
 }
-

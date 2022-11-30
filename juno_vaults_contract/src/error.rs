@@ -13,7 +13,7 @@ pub enum ContractError {
     ToDo {},
 
     #[error("To Do Error: {x}")]
-    ToDoTwo {x: String},
+    ToDoTwo { x: String },
 
     #[error("No Tokens have been sent")]
     NoTokens {},
@@ -31,13 +31,13 @@ pub enum ContractError {
     Expired {},
 
     #[error("Funds sent in are not the required funds to purchase")]
-    FundsSentNotFundsAsked {which: String},
+    FundsSentNotFundsAsked { which: String },
 
     #[error("Tokens in ask are not in whitelist")]
-    NotWhitelist {which: String},
+    NotWhitelist { which: String },
 
     #[error("{typ} {id} not found")]
-    NotFound {typ: String, id: String},
+    NotFound { typ: String, id: String },
 
     #[error("Load bucket error")]
     LoadBucketError {},
@@ -49,7 +49,14 @@ pub enum ContractError {
     FromUtfError {},
 
     #[error("Error validt address- mybytes: {}, trash: {}, keep: {}, id_as_bytes: {}, keep_address_bytes: {}, listing_owner_string: {}", mybytes, trash, keep, id_as_bytes, keep_address_bytes, listing_owner_string)]
-    AddrValidateError {mybytes: String, trash: String, keep: String, id_as_bytes: String, keep_address_bytes: String, listing_owner_string: String},
+    AddrValidateError {
+        mybytes: String,
+        trash: String,
+        keep: String,
+        id_as_bytes: String,
+        keep_address_bytes: String,
+        listing_owner_string: String,
+    },
 
     #[error("Splitting Bytes Error")]
     SplitBytesError {},
@@ -61,7 +68,7 @@ pub enum ContractError {
     NotEnoughCw20 {},
 
     #[error("Removal queue non-existent | Type: {x}")]
-    NoRemovalQueue {x: String},
+    NoRemovalQueue { x: String },
 
     #[error("Denom is in removal queue")]
     InRemovalQueue {},
@@ -70,9 +77,8 @@ pub enum ContractError {
     InvalidExpiration {},
 
     #[error("Listing not expired | Expiration: {x}")]
-    NotExpired {x: String},
+    NotExpired { x: String },
 
     #[error("Listing not purchasable")]
     NotPurchasable {},
-
 }

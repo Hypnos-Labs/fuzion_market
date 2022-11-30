@@ -1,49 +1,52 @@
-use cosmwasm_std::{to_binary, Binary, Deps, Env, StdResult, Order};
-use cw_storage_plus::{PrefixBound};
 use crate::state::*;
 use crate::utils::*;
-use cosmwasm_schema::{cw_serde};
+use cosmwasm_schema::cw_serde;
+use cosmwasm_std::{to_binary, Binary, Deps, Env, Order, StdResult};
+use cw_storage_plus::PrefixBound;
 
-////~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-////// Query Abstractions
-////~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// Queries
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 // Get contract admin
 pub fn get_admin(deps: Deps) -> StdResult<Binary> {
     let storage = CONFIG.load(deps.storage)?;
-    to_binary(&AdminResponse {admin: storage.admin.into_string()})
+    to_binary(&AdminResponse {
+        admin: storage.admin.into_string(),
+    })
 }
 
 // Get config
 pub fn get_config(deps: Deps) -> StdResult<Binary> {
     let config = CONFIG.load(deps.storage)?;
-    to_binary(&ConfigResponse {config})
+    to_binary(&ConfigResponse { config })
 }
 
 // Get all buckets owned by an address
 pub fn get_buckets(deps: Deps, bucket_owner: String) -> StdResult<Binary> {
-
     let bucket_ownerx = deps.api.addr_validate(&bucket_owner)?;
 
     let user_bucks: StdResult<Vec<_>> = BUCKETS
         .prefix(bucket_ownerx)
         .range(deps.storage, None, None, Order::Ascending)
         .collect();
-    
+
     let rez = GetBucketsResponse {
         buckets: user_bucks?,
     };
 
     to_binary(&rez)
-
 }
 
 // Get a single listing by a Listing ID
 pub fn get_listing_info(deps: Deps, listing_id: String) -> StdResult<Binary> {
-
     // If listing doesn't exist the unwrap panics which is
     // handled on front end by manually checking error code
-    let (_k, listing) = listingz().idx.id.item(deps.storage, listing_id.clone())?.unwrap();
+    let (_k, listing) = listingz()
+        .idx
+        .id
+        .item(deps.storage, listing_id.clone())?
+        .unwrap();
 
     let status = match listing.status {
         Status::BeingPrepared => "Being Prepared".to_string(),
@@ -54,32 +57,32 @@ pub fn get_listing_info(deps: Deps, listing_id: String) -> StdResult<Binary> {
     // Getting the sale
     let mut the_sale: Vec<(String, u128)> = vec![];
 
-    listing.for_sale.native
-    .iter()
-    .for_each(|the_coin|
-        the_sale.push((the_coin.denom.clone(), the_coin.amount.u128()))
-    );
+    listing
+        .for_sale
+        .native
+        .iter()
+        .for_each(|the_coin| the_sale.push((the_coin.denom.clone(), the_coin.amount.u128())));
 
-    listing.for_sale.cw20
-    .iter()
-    .for_each(|the_coin|
-        the_sale.push((the_coin.address.to_string(), the_coin.amount.u128()))
-    );
+    listing
+        .for_sale
+        .cw20
+        .iter()
+        .for_each(|the_coin| the_sale.push((the_coin.address.to_string(), the_coin.amount.u128())));
 
     // Getting the ask
     let mut the_ask: Vec<(String, u128)> = vec![];
 
-    listing.ask.native
-    .iter()
-    .for_each(|the_coin|
-        the_ask.push((the_coin.denom.clone(), the_coin.amount.u128()))
-    );
+    listing
+        .ask
+        .native
+        .iter()
+        .for_each(|the_coin| the_ask.push((the_coin.denom.clone(), the_coin.amount.u128())));
 
-    listing.ask.cw20
-    .iter()
-    .for_each(|the_coin|
-        the_ask.push((the_coin.address.to_string(), the_coin.amount.u128()))
-    );
+    listing
+        .ask
+        .cw20
+        .iter()
+        .for_each(|the_coin| the_ask.push((the_coin.address.to_string(), the_coin.amount.u128())));
 
     if let Some(x) = listing.expiration_time {
         let res = ListingInfoResponse {
@@ -100,59 +103,42 @@ pub fn get_listing_info(deps: Deps, listing_id: String) -> StdResult<Binary> {
         };
         return to_binary(&ress);
     };
-
 }
 
 // Get all listings owned by an Address
 pub fn get_listings_by_owner(deps: Deps, owner: String) -> StdResult<Binary> {
-
     let owner = deps.api.addr_validate(&owner)?;
 
-    let all_listings: StdResult<Vec<_>> = listingz().prefix(&owner).range(
-        deps.storage,
-        None,
-        None,
-        Order::Ascending
-    ).collect();
+    let all_listings: StdResult<Vec<_>> = listingz()
+        .prefix(&owner)
+        .range(deps.storage, None, None, Order::Ascending)
+        .collect();
 
-    let listing_data: Vec<Listing> = all_listings?
-    .iter()
-    .map(|tup| tup.1.clone())
-    .collect();
-    
-    to_binary(&MultiListingResponse {listings: listing_data})
+    let listing_data: Vec<Listing> = all_listings?.iter().map(|tup| tup.1.clone()).collect();
+
+    to_binary(&MultiListingResponse {
+        listings: listing_data,
+    })
 }
 
 // Get most recent 100 Listings that exist
 pub fn get_all_listings(deps: Deps) -> StdResult<Binary> {
-
-    let all_listings: StdResult<Vec<_>> = listingz().range( 
-        deps.storage, 
-        None, 
-        None, 
-        Order::Ascending
-    ).take(100).collect();
+    let all_listings: StdResult<Vec<_>> = listingz()
+        .range(deps.storage, None, None, Order::Ascending)
+        .take(100)
+        .collect();
     // prob limit this in future to .take(x), shouldn't get that high with removal but ynk
     // to-do:  determine how many to take based on gas usage
 
-    let listing_data: Vec<Listing> = all_listings?
-    .iter()
-    .map(|entry|
-        entry.1.clone()
-    )
-    .collect();
+    let listing_data: Vec<Listing> = all_listings?.iter().map(|entry| entry.1.clone()).collect();
 
-    to_binary(&MultiListingResponse {listings: listing_data})
-
+    to_binary(&MultiListingResponse {
+        listings: listing_data,
+    })
 }
 
 // Query w filter & pagination
-pub fn get_listings_for_market(
-    deps: Deps,
-    env: Env,
-    page_num: u8, 
-) -> StdResult<Binary> {
-
+pub fn get_listings_for_market(deps: Deps, env: Env, page_num: u8) -> StdResult<Binary> {
     let current_time = env.block.time.seconds();
     let two_weeks_ago_in_seconds = current_time - 1209600;
 
@@ -162,10 +148,10 @@ pub fn get_listings_for_market(
         .idx
         .finalized_date
         .prefix_range_raw(
-            deps.storage, 
-            Some(PrefixBound::inclusive(two_weeks_ago_in_seconds)), 
-            None, 
-            Order::Ascending
+            deps.storage,
+            Some(PrefixBound::inclusive(two_weeks_ago_in_seconds)),
+            None,
+            Order::Ascending,
         )
         .collect::<StdResult<Vec<_>>>()
         .unwrap()
@@ -175,12 +161,14 @@ pub fn get_listings_for_market(
         .map(|entry| entry.1.clone())
         .collect();
 
-    to_binary(&MultiListingResponse {listings: listings_in_range})
+    to_binary(&MultiListingResponse {
+        listings: listings_in_range,
+    })
 }
 
-////~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-////// Query Responses
-////~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// Responses
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 #[cw_serde]
 pub struct AdminResponse {

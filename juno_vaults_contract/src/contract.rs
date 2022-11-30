@@ -1,36 +1,26 @@
 #[cfg(not(feature = "library"))]
-// The Essentials
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    to_binary, from_binary, Binary, Deps, DepsMut, Env, 
-    MessageInfo, Response, StdResult, Addr
+    from_binary, to_binary, Addr, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdResult,
 };
 use cw2::set_contract_version;
+use cw20::{Balance, Cw20CoinVerified, Cw20ReceiveMsg};
+use cw721::Cw721ReceiveMsg;
 
-// The Commons
-use crate::msg::*;
-use crate::state::*;
 use crate::error::ContractError;
 use crate::execute::*;
+use crate::msg::*;
 use crate::query::*;
+use crate::state::*;
 use crate::utils::*;
 use std::str;
 
-// The Personals
-use cw20::{Balance, Cw20CoinVerified, Cw20ReceiveMsg};
-use cw721::{Cw721ReceiveMsg};
-
-// Contract name used for migration
 const CONTRACT_NAME: &str = "crates.io:cyberswap_nft";
-// Contract version thats used for migration
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
-////////////////////////////////////////////////////////////////////////////////////////
-
-//////~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-///////////~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-////////////// Instantiate
-///////////~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// Instantiate
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn instantiate(
@@ -39,44 +29,61 @@ pub fn instantiate(
     info: MessageInfo,
     msg: InstantiateMsg,
 ) -> Result<Response, ContractError> {
-
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
 
     let admin = msg.admin.unwrap_or_else(|| info.sender.to_string());
 
     let validated = deps.api.addr_validate(&admin)?;
 
-    let native_whitelist: Vec<(String, String)> = vec![
-        ("JUNO".to_string(), "ujunox".to_string()),
-    ];
+    let native_whitelist: Vec<(String, String)> = vec![("JUNO".to_string(), "ujunox".to_string())];
     let cw20_whitelist: Vec<(String, Addr)> = vec![
-        ("JVONE".to_string(), deps.api.addr_validate("juno1klu02klsxznmmf6yr4jrnyslhqnz2hsp5t7396hzck5m5xzt9aeq8gxgh4")?),
-        ("JVTWO".to_string(), deps.api.addr_validate("juno1c95jn83hujzqtp92lnx5q6jnpcy9q2yw952gc6pwlffskc2ezypsw48c2g")?),
-        ("JVTRE".to_string(), deps.api.addr_validate("juno1t7krx3wp7fxhzg4e47rhuy79m2xk4hazukkuyet4mp7l5xndza3slsl23t")?)
+        (
+            "JVONE".to_string(),
+            deps.api
+                .addr_validate("juno1klu02klsxznmmf6yr4jrnyslhqnz2hsp5t7396hzck5m5xzt9aeq8gxgh4")?,
+        ),
+        (
+            "JVTWO".to_string(),
+            deps.api
+                .addr_validate("juno1c95jn83hujzqtp92lnx5q6jnpcy9q2yw952gc6pwlffskc2ezypsw48c2g")?,
+        ),
+        (
+            "JVTRE".to_string(),
+            deps.api
+                .addr_validate("juno1t7krx3wp7fxhzg4e47rhuy79m2xk4hazukkuyet4mp7l5xndza3slsl23t")?,
+        ),
     ];
     let nft_whitelist: Vec<(String, Addr)> = vec![
-        ("NEONPEEPZ".to_string(), deps.api.addr_validate("juno1xdtd9knr34juzjzw4ulmcv9p2tshvuajpx9rlmfwsak5ld7548yqdz0wp5")?),
-        ("SHITKIT".to_string(), deps.api.addr_validate("juno12n7qca7m0hxg4x57m9fk8hp7km5s70jpppma96ws4krvf4ayqwlq7jwqqx")?)
+        (
+            "NEONPEEPZ".to_string(),
+            deps.api
+                .addr_validate("juno1xdtd9knr34juzjzw4ulmcv9p2tshvuajpx9rlmfwsak5ld7548yqdz0wp5")?,
+        ),
+        (
+            "SHITKIT".to_string(),
+            deps.api
+                .addr_validate("juno12n7qca7m0hxg4x57m9fk8hp7km5s70jpppma96ws4krvf4ayqwlq7jwqqx")?,
+        ),
     ];
-        
-    CONFIG.save(deps.storage, &Config{
-        admin: validated,
-        whitelist_native: native_whitelist,
-        whitelist_cw20: cw20_whitelist,
-        whitelist_nft: nft_whitelist,
-    })?;
+
+    CONFIG.save(
+        deps.storage,
+        &Config {
+            admin: validated,
+            whitelist_native: native_whitelist,
+            whitelist_cw20: cw20_whitelist,
+            whitelist_nft: nft_whitelist,
+        },
+    )?;
 
     Ok(Response::new()
         .add_attribute("method", "instantiate")
-        .add_attribute("admin", admin)
-    )
+        .add_attribute("admin", admin))
 }
 
-
-//////~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-///////////~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-////////////// Execute
-///////////~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// Execute
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn execute(
@@ -85,54 +92,74 @@ pub fn execute(
     info: MessageInfo,
     msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
-
     match msg {
-
         // ~~~~~~~~~~~~~~~~~~~~~~~~~ Wrapper cw20/cw721
         ExecuteMsg::Receive(receive_msg) => execute_receive(deps, env, info, receive_msg),
         ExecuteMsg::ReceiveNft(receive_nft_msg) => execute_receive_nft(deps, info, receive_nft_msg),
 
         // ~~~~~~~~~~~~~~~~~~~~~~~~~ Create Listing
-        ExecuteMsg::CreateListing { create_msg } => execute_create_listing(deps, &info.sender, Balance::from(info.funds), create_msg),        
+        ExecuteMsg::CreateListing { create_msg } => {
+            execute_create_listing(deps, &info.sender, Balance::from(info.funds), create_msg)
+        }
 
         // ~~~~~~~~~~~~~~~~~~~~~~~~~ Edit Listing
         // Adding native tokens to a sale
-        ExecuteMsg::AddFundsToSaleNative { listing_id } => execute_add_funds_to_sale(deps, Balance::from(info.funds), &info.sender, listing_id),
+        ExecuteMsg::AddFundsToSaleNative { listing_id } => {
+            execute_add_funds_to_sale(deps, Balance::from(info.funds), &info.sender, listing_id)
+        }
         // Changing price of a sale
-        ExecuteMsg::ChangeAsk { listing_id, new_ask } => execute_change_ask(deps, &info.sender, listing_id, new_ask),
+        ExecuteMsg::ChangeAsk {
+            listing_id,
+            new_ask,
+        } => execute_change_ask(deps, &info.sender, listing_id, new_ask),
         // Can only remove if listing has not yet been finalized
-        ExecuteMsg::RemoveListing { listing_id } => execute_remove_listing(deps, &info.sender, listing_id),
+        ExecuteMsg::RemoveListing { listing_id } => {
+            execute_remove_listing(deps, &info.sender, listing_id)
+        }
         // Finalizes listing for sale w/ expiration
-        ExecuteMsg::Finalize { listing_id, seconds } => execute_finalize(deps, env, &info.sender, listing_id, seconds),
+        ExecuteMsg::Finalize {
+            listing_id,
+            seconds,
+        } => execute_finalize(deps, env, &info.sender, listing_id, seconds),
         // Refunds unpurchased listing if expired
-        ExecuteMsg::RefundExpired { listing_id } => execute_refund(deps, env, &info.sender, listing_id),
+        ExecuteMsg::RefundExpired { listing_id } => {
+            execute_refund(deps, env, &info.sender, listing_id)
+        }
 
         // ~~~~~~~~~~~~~~~~~~~~~~~~~ Buckets
         // Create a bucket
-        ExecuteMsg::CreateBucket { bucket_id } => execute_create_bucket(deps, Balance::from(info.funds), &info.sender, bucket_id),
+        ExecuteMsg::CreateBucket { bucket_id } => {
+            execute_create_bucket(deps, Balance::from(info.funds), &info.sender, bucket_id)
+        }
         // Add funds to bucket
-        ExecuteMsg::AddToBucket { bucket_id } => execute_add_to_bucket(deps, Balance::from(info.funds), &info.sender, bucket_id),
+        ExecuteMsg::AddToBucket { bucket_id } => {
+            execute_add_to_bucket(deps, Balance::from(info.funds), &info.sender, bucket_id)
+        }
         // Remove and delete a bucket
-        ExecuteMsg::RemoveBucket { bucket_id } => execute_withdraw_bucket(deps, &info.sender, bucket_id),
+        ExecuteMsg::RemoveBucket { bucket_id } => {
+            execute_withdraw_bucket(deps, &info.sender, bucket_id)
+        }
 
         // ~~~~~~~~~~~~~~~~~~~~~~~~~ Purchasing
-        ExecuteMsg::BuyListing { listing_id, bucket_id } => execute_buy_listing(deps, env, &info.sender, listing_id, bucket_id),
-        ExecuteMsg::WithdrawPurchased { listing_id } => execute_withdraw_purchased(deps, &info.sender, listing_id),
-
+        ExecuteMsg::BuyListing {
+            listing_id,
+            bucket_id,
+        } => execute_buy_listing(deps, env, &info.sender, listing_id, bucket_id),
+        ExecuteMsg::WithdrawPurchased { listing_id } => {
+            execute_withdraw_purchased(deps, &info.sender, listing_id)
+        }
     }
-
 }
 
-// "Filter" for cw20 tokens
+// cw20 filter
 pub fn execute_receive(
-    deps: DepsMut, 
-    _env: Env, 
-    info: MessageInfo, 
-    wrapper: Cw20ReceiveMsg, 
+    deps: DepsMut,
+    _env: Env,
+    info: MessageInfo,
+    wrapper: Cw20ReceiveMsg,
 ) -> Result<Response, ContractError> {
-
     let msg: ReceiveMsg = from_binary(&wrapper.msg)?;
-    
+
     let user_wallet = &deps.api.addr_validate(&wrapper.sender)?;
 
     let balance = Balance::Cw20(Cw20CoinVerified {
@@ -141,27 +168,33 @@ pub fn execute_receive(
         amount: wrapper.amount,
     });
 
-    // is_balance_whitelisted check in each message individually 
+    // is_balance_whitelisted check in each message individually
     match msg {
         // Create listing with Cw20's initially
-        ReceiveMsg::CreateListingCw20 { create_msg } => execute_create_listing_cw20(deps, user_wallet, &info.sender, balance, create_msg),
+        ReceiveMsg::CreateListingCw20 { create_msg } => {
+            execute_create_listing_cw20(deps, user_wallet, &info.sender, balance, create_msg)
+        }
         // Add Cw20's to sale
-        ReceiveMsg::AddFundsToSaleCw20 { listing_id } => execute_add_funds_to_sale(deps, balance, user_wallet, listing_id),
+        ReceiveMsg::AddFundsToSaleCw20 { listing_id } => {
+            execute_add_funds_to_sale(deps, balance, user_wallet, listing_id)
+        }
         // Create Bucket with Cw20's initially
-        ReceiveMsg::CreateBucketCw20 { bucket_id } => execute_create_bucket(deps, balance, user_wallet, bucket_id),
+        ReceiveMsg::CreateBucketCw20 { bucket_id } => {
+            execute_create_bucket(deps, balance, user_wallet, bucket_id)
+        }
         // Add Cw20's to bucket
-        ReceiveMsg::AddToBucketCw20 { bucket_id } => execute_add_to_bucket(deps, balance, user_wallet, bucket_id),
-
+        ReceiveMsg::AddToBucketCw20 { bucket_id } => {
+            execute_add_to_bucket(deps, balance, user_wallet, bucket_id)
+        }
     }
 }
 
-// "Filter" for NFTs
+// cw721 filter
 pub fn execute_receive_nft(
-    deps: DepsMut, 
-    info: MessageInfo, 
-    wrapper: Cw721ReceiveMsg, 
+    deps: DepsMut,
+    info: MessageInfo,
+    wrapper: Cw721ReceiveMsg,
 ) -> Result<Response, ContractError> {
-
     // Whitelist check
     let config = CONFIG.load(deps.storage)?;
     is_nft_whitelisted(&info.sender, &config)?;
@@ -177,23 +210,27 @@ pub fn execute_receive_nft(
     };
 
     match msg {
+        ReceiveNftMsg::CreateListingCw721 { create_msg } => {
+            execute_create_listing_cw721(deps, user_wallet, incoming_nft, create_msg)
+        }
 
-        ReceiveNftMsg::CreateListingCw721 { create_msg } => execute_create_listing_cw721(deps, user_wallet, incoming_nft, create_msg),
+        ReceiveNftMsg::AddToListingCw721 { listing_id } => {
+            execute_add_to_sale_cw721(deps, user_wallet, incoming_nft, listing_id)
+        }
 
-        ReceiveNftMsg::AddToListingCw721 { listing_id } => execute_add_to_sale_cw721(deps, user_wallet, incoming_nft, listing_id),
+        ReceiveNftMsg::CreateBucketCw721 { bucket_id } => {
+            execute_create_bucket_cw721(deps, user_wallet, incoming_nft, bucket_id)
+        }
 
-        ReceiveNftMsg::CreateBucketCw721 { bucket_id } => execute_create_bucket_cw721(deps, user_wallet, incoming_nft, bucket_id),
-
-        ReceiveNftMsg::AddToBucketCw721 { bucket_id } => execute_add_to_bucket_cw721(deps, user_wallet, incoming_nft, bucket_id),
-
+        ReceiveNftMsg::AddToBucketCw721 { bucket_id } => {
+            execute_add_to_bucket_cw721(deps, user_wallet, incoming_nft, bucket_id)
+        }
     }
 }
 
-
-//////~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-///////////~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-////////////// Query
-///////////~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// Query
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
@@ -203,23 +240,19 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
         // Get Config
         QueryMsg::GetConfig {} => to_binary(&get_config(deps)?),
         // Get a specific listing info
-        QueryMsg::GetListingInfo {listing_id} => to_binary(&get_listing_info(deps, listing_id)?),
+        QueryMsg::GetListingInfo { listing_id } => to_binary(&get_listing_info(deps, listing_id)?),
         // Get listings by owner
-        QueryMsg::GetListingsByOwner {owner} => to_binary(&get_listings_by_owner(deps, owner)?),
+        QueryMsg::GetListingsByOwner { owner } => to_binary(&get_listings_by_owner(deps, owner)?),
         // Get all listings (take 100)
         QueryMsg::GetAllListings {} => to_binary(&get_all_listings(deps)?),
         // Get buckets owned by 1 address
-        QueryMsg::GetBuckets {bucket_owner} => to_binary(&get_buckets(deps, bucket_owner)?),
+        QueryMsg::GetBuckets { bucket_owner } => to_binary(&get_buckets(deps, bucket_owner)?),
         // Get listings finalized within 2 weeks & paginate for page
-        QueryMsg::GetListingsForMarket {page_num} => to_binary(&get_listings_for_market(deps, env, page_num)?),
+        QueryMsg::GetListingsForMarket { page_num } => {
+            to_binary(&get_listings_for_market(deps, env, page_num)?)
+        }
     }
 }
-
-
-//////~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-///////////~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-////////////// Tests
-///////////~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 #[cfg(test)]
 mod tests {
