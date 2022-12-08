@@ -1145,18 +1145,6 @@ fn remove_a_listing() -> Result<(), anyhow::Error> {
     assert_eq!(jvtwo.balance(&router.wrap(), sam.address.clone()), Ok(Uint128::from(90u32)));
     assert_eq!(jvtwo.balance(&router.wrap(), junovaults.clone()), Ok(Uint128::from(20u32)));
 
-
-    // ensure John's balance updated
-    // let q = cw20_base::msg::QueryMsg::Balance { address: john.address.clone().to_string() };
-    // let john_jvone_balance: cw20::BalanceResponse = router.wrap().query_wasm_smart(jvone.addr(), &q).unwrap();
-    // ensure!((john_jvone_balance.balance == Uint128::from(99u32)), here(format!("John JVONE balance: {}", john_jvone_balance.balance), line!(), column!()));
-
-    // // ensure contract balance updated
-    // let q = cw20_base::msg::QueryMsg::Balance { address: junovaults.to_string() };
-    // let contract_jvone_balance: cw20::BalanceResponse = router.wrap().query_wasm_smart(jvone.addr(), &q).unwrap();
-    // ensure!((contract_jvone_balance.balance == Uint128::from(1u32)), here(format!("Contract JVONE balance: {}", contract_jvone_balance.balance), line!(), column!()));
-
-
     //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     // Adding 1 NeonPeep, 1 ShittyKitty to each listing
@@ -1806,13 +1794,6 @@ fn expiration_checks() -> Result<(), anyhow::Error> {
     //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     // Fast forward to listing is expired
     //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    // let (height, time, chain_id) = {
-    //     let z: cosmwasm_std::BlockInfo = router.block_info();
-    //     (z.height, z.time, z.chain_id)
-    // };
-    //height: 12345 | time: 1571797419.879305533 | chain_id: cosmos-testnet-14002 
-    //height: 16345 | time: 1571897419.879305533 | chain_id: cosmos-testnet-14002
-    //ensure!((1 > 5), here(format!("height: {} | time: {} | chain_id: {}",height, time, chain_id ), line!(), column!()));
 
     // Can't refund a listing that's not expired | 1 second before listing expires, should fail
     router.update_block(
@@ -2512,9 +2493,7 @@ fn marketplace_sale() -> Result<(), anyhow::Error> {
     );
     ensure!(res.is_ok(), here("John remove bucket after purchase", line!(), column!()));
 
-    //
-    // Balance check for John
-    //
+    // Balance check for John at end of function
 
     // Can't remove twice
     let res: Result<AppResponse> = router.execute_contract(

@@ -113,10 +113,6 @@ pub fn instantiate(
         },
     )?;
 
-    // Ok(Response::new()
-    //     .add_attribute("method", "instantiate")
-    //     //.add_attribute("admin", admin)
-    // )
     Ok(Response::default())
 }
 
