@@ -6,6 +6,93 @@ use cosmwasm_std::{Addr, DepsMut, Env, Response};
 use cw20::Balance;
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// Admin only
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+pub fn add_to_whitelist(
+    deps: DepsMut,
+    sender: Addr,
+    // 1 = Native, 2 = CW20, 3 = NFT
+    type_adding: u8,
+    to_add: (String, String),
+) -> Result<Response, ContractError> {
+    let config: Config = CONFIG.load(deps.storage)?;
+
+    if config.admin != sender {
+        return Err(ContractError::Unauthorized {});
+    }
+
+    match type_adding {
+        1 => {
+            // Native
+            CONFIG.update(
+                deps.storage, 
+                |old_config: Config| -> Result<Config, ContractError> {
+
+                    let new_config = {
+                        let mut old_wl = old_config.whitelist_native;
+                        old_wl.push(to_add);
+                        Config {
+                            whitelist_native: old_wl,
+                            ..old_config
+                        }
+                    };
+
+                    Ok(new_config)
+                }
+            )?;
+        }
+        2 => {
+            // CW20
+            let cw20_addr = deps.api.addr_validate(&to_add.1)?;
+
+            CONFIG.update(
+                deps.storage,
+                |old_config: Config| -> Result<Config, ContractError> {
+
+                    let new_config = {
+                        let mut old_wl = old_config.whitelist_cw20;
+                        old_wl.push((to_add.0, cw20_addr));
+                        Config {
+                            whitelist_cw20: old_wl,
+                            ..old_config
+                        }
+                    };
+
+                    Ok(new_config)
+                }
+            )?;
+        }
+        3 => {
+            //NFT
+            let nft_addr = deps.api.addr_validate(&to_add.1)?;
+
+            CONFIG.update(
+                deps.storage,
+                |old_config: Config| -> Result<Config, ContractError> {
+
+                    let new_config = {
+                        let mut old_wl = old_config.whitelist_nft;
+                        old_wl.push((to_add.0, nft_addr));
+                        Config {
+                            whitelist_nft: old_wl,
+                            ..old_config
+                        }
+                    };
+
+                    Ok(new_config)
+                }
+            )?;
+        }
+        _ => return Err(ContractError::ToDo {}),
+    }
+
+    Ok(Response::default())
+}
+
+
+
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // Buckets
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 pub fn execute_create_bucket(
@@ -783,11 +870,10 @@ pub fn execute_withdraw_purchased(
     listing_id: String,
 ) -> Result<Response, ContractError> {
     // Get listing
-    let (_pk, the_listing) = listingz()
-        .idx
-        .id
-        .item(deps.storage, listing_id.clone())?
-        .unwrap();
+
+    let Some((_pk, the_listing)): Option<(_, Listing)> = listingz().idx.id.item(deps.storage, listing_id.clone())? else {
+        return Err(ContractError::NoListing {  });
+    };
 
     // Check and pull out claimant
     let listing_claimr = the_listing.claimant.ok_or(ContractError::Unauthorized {})?;

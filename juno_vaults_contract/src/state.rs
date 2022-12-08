@@ -8,7 +8,7 @@ use cosmwasm_schema::cw_serde;
 // Config
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-pub const CONFIG: Item<Config> = Item::new("cyberswap_config");
+pub const CONFIG: Item<Config> = Item::new("junovaults_config");
 
 #[cw_serde]
 pub struct Config {
@@ -46,7 +46,7 @@ pub fn listingz<'a>() -> IndexedMap<'a, (&'a Addr, String), Listing, ListingInde
     let indexes = ListingIndexes {
         id: UniqueIndex::new(|a_listing| a_listing.id.clone(), "listing__id"),
         finalized_date: MultiIndex::new(
-            |a_listing| match a_listing.finalized_time {
+            |_pk, a_listing| match a_listing.finalized_time {
                 None => 0 as u64,
                 Some(x) => x.seconds() as u64,
             },

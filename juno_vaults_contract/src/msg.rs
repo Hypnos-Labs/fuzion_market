@@ -12,6 +12,9 @@ use cw721::Cw721ReceiveMsg;
 #[cw_serde]
 pub struct InstantiateMsg {
     pub admin: Option<String>,
+    pub native_whitelist: Option<Vec<(String, String)>>,
+    pub cw20_whitelist: Option<Vec<(String, String)>>,
+    pub nft_whitelist: Option<Vec<(String, String)>>,
 }
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -20,6 +23,13 @@ pub struct InstantiateMsg {
 
 #[cw_serde]
 pub enum ExecuteMsg {
+
+    // Admin Only
+    AddToWhitelist {
+        type_adding: u8,
+        to_add: (String, String)
+    },
+
     // Receive Filters
     Receive(Cw20ReceiveMsg),
     ReceiveNft(Cw721ReceiveMsg),

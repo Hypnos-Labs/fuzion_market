@@ -47,6 +47,12 @@ pub enum ContractError {
 
     #[error("Error parsing from Utf8")]
     FromUtfError {},
+    
+    #[error("Canonicalize Address Error")]
+    CanonAddrError,
+
+    #[error("Validate Address Error")]
+    ValidateAddrError,
 
     #[error("Error validt address- mybytes: {}, trash: {}, keep: {}, id_as_bytes: {}, keep_address_bytes: {}, listing_owner_string: {}", mybytes, trash, keep, id_as_bytes, keep_address_bytes, listing_owner_string)]
     AddrValidateError {
@@ -81,4 +87,7 @@ pub enum ContractError {
 
     #[error("Listing not purchasable")]
     NotPurchasable {},
+
+    #[error("Missing Instantiate Option {0}")]
+    MissingInit(String)
 }

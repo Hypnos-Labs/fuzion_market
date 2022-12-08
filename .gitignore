@@ -1,6 +1,8 @@
 /target
 
-/nft_cyberswap_contract/artifacts
+/juno_vaults_contract/artifacts
+/ts_codegen
+
 
 .cargo-ok
 **/*.rs.bk

@@ -31,40 +31,77 @@ pub fn instantiate(
 ) -> Result<Response, ContractError> {
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
 
-    let admin = msg.admin.unwrap_or_else(|| info.sender.to_string());
+    //let admin = msg.admin.unwrap_or_else(|| info.sender.to_string());
 
-    let validated = deps.api.addr_validate(&admin)?;
+    //let validated = deps.api.addr_validate(&admin)?;
 
-    let native_whitelist: Vec<(String, String)> = vec![("JUNO".to_string(), "ujunox".to_string())];
-    let cw20_whitelist: Vec<(String, Addr)> = vec![
-        (
-            "JVONE".to_string(),
-            deps.api
-                .addr_validate("juno1klu02klsxznmmf6yr4jrnyslhqnz2hsp5t7396hzck5m5xzt9aeq8gxgh4")?,
-        ),
-        (
-            "JVTWO".to_string(),
-            deps.api
-                .addr_validate("juno1c95jn83hujzqtp92lnx5q6jnpcy9q2yw952gc6pwlffskc2ezypsw48c2g")?,
-        ),
-        (
-            "JVTRE".to_string(),
-            deps.api
-                .addr_validate("juno1t7krx3wp7fxhzg4e47rhuy79m2xk4hazukkuyet4mp7l5xndza3slsl23t")?,
-        ),
-    ];
-    let nft_whitelist: Vec<(String, Addr)> = vec![
-        (
-            "NEONPEEPZ".to_string(),
-            deps.api
-                .addr_validate("juno1xdtd9knr34juzjzw4ulmcv9p2tshvuajpx9rlmfwsak5ld7548yqdz0wp5")?,
-        ),
-        (
-            "SHITKIT".to_string(),
-            deps.api
-                .addr_validate("juno12n7qca7m0hxg4x57m9fk8hp7km5s70jpppma96ws4krvf4ayqwlq7jwqqx")?,
-        ),
-    ];
+    // let validated = match msg.admin {
+    //     Some(a) => deps.api.addr_validate(&a)?,
+    //     None => info.sender
+    // };
+
+    let validated = info.sender;
+
+
+    //let native_whitelist: Vec<(String, String)> = vec![("JUNO".to_string(), "ujunox".to_string())];
+    let Some(native_whitelist): Option<Vec<(String, String)>> = msg.native_whitelist else {
+        return Err(ContractError::MissingInit("Native Whitelist Missing".to_string()));
+    };
+
+    //let msg_cw20_whitelist = msg.cw20_whitelist;
+    let Some(cw20_wl) = msg.cw20_whitelist else {
+        return Err(ContractError::MissingInit("CW20 Whitelist Missing".to_string()));
+    };
+
+    let Some(nft_wl) = msg.nft_whitelist else {
+        return Err(ContractError::MissingInit("NFT Whitelist Missing".to_string()));
+    };
+
+    let cw20_whitelist = cw20_wl
+        .iter()
+        .map(|cw20| (cw20.0.clone(), Addr::unchecked(cw20.1.clone())))
+        .collect();
+
+    let nft_whitelist = nft_wl
+        .iter()
+        .map(|nft| (nft.0.clone(), Addr::unchecked(nft.1.clone())))
+        .collect();
+
+    // let cw20_whitelist: Vec<(String, Addr)> = vec![
+    //     (
+    //         "JVONE".to_string(),
+    //         //deps.api.addr_validate(&"juno1klu02klsxznmmf6yr4jrnyslhqnz2hsp5t7396hzck5m5xzt9aeq8gxgh4")?
+    //         Addr::unchecked("juno1klu02klsxznmmf6yr4jrnyslhqnz2hsp5t7396hzck5m5xzt9aeq8gxgh4"),
+    //         //z
+    //         // deps.api.addr_canonicalize(
+    //         //     "juno1klu02klsxznmmf6yr4jrnyslhqnz2hsp5t7396hzck5m5xzt9aeq8gxgh4"
+    //         // )
+    //         // .map_err(ContractError::CanonAddrError)
+    //         // .addr_humanize()
+    //     ),
+    //     (
+    //         "JVTWO".to_string(),
+    //         //deps.api.addr_validate("juno1c95jn83hujzqtp92lnx5q6jnpcy9q2yw952gc6pwlffskc2ezypsw48c2g")?,
+    //         Addr::unchecked("juno1c95jn83hujzqtp92lnx5q6jnpcy9q2yw952gc6pwlffskc2ezypsw48c2g"),
+    //     ),
+    //     (
+    //         "JVTRE".to_string(),
+    //         //deps.api.addr_validate("juno1t7krx3wp7fxhzg4e47rhuy79m2xk4hazukkuyet4mp7l5xndza3slsl23t")?,
+    //         Addr::unchecked("juno1t7krx3wp7fxhzg4e47rhuy79m2xk4hazukkuyet4mp7l5xndza3slsl23t")
+    //     ),
+    // ];
+    // let nft_whitelist: Vec<(String, Addr)> = vec![
+    //     (
+    //         "NEONPEEPZ".to_string(),
+    //         //deps.api.addr_validate("juno1xdtd9knr34juzjzw4ulmcv9p2tshvuajpx9rlmfwsak5ld7548yqdz0wp5")?,
+    //         Addr::unchecked("juno1xdtd9knr34juzjzw4ulmcv9p2tshvuajpx9rlmfwsak5ld7548yqdz0wp5")
+    //     ),
+    //     (
+    //         "SHITKIT".to_string(),
+    //         //deps.api.addr_validate("juno12n7qca7m0hxg4x57m9fk8hp7km5s70jpppma96ws4krvf4ayqwlq7jwqqx")?,
+    //         Addr::unchecked("juno12n7qca7m0hxg4x57m9fk8hp7km5s70jpppma96ws4krvf4ayqwlq7jwqqx")
+    //     ),
+    // ];
 
     CONFIG.save(
         deps.storage,
@@ -76,9 +113,11 @@ pub fn instantiate(
         },
     )?;
 
-    Ok(Response::new()
-        .add_attribute("method", "instantiate")
-        .add_attribute("admin", admin))
+    // Ok(Response::new()
+    //     .add_attribute("method", "instantiate")
+    //     //.add_attribute("admin", admin)
+    // )
+    Ok(Response::default())
 }
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -93,6 +132,9 @@ pub fn execute(
     msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
     match msg {
+
+        ExecuteMsg::AddToWhitelist { type_adding, to_add } => add_to_whitelist(deps, info.sender, type_adding, to_add),
+
         // ~~~~~~~~~~~~~~~~~~~~~~~~~ Wrapper cw20/cw721
         ExecuteMsg::Receive(receive_msg) => execute_receive(deps, env, info, receive_msg),
         ExecuteMsg::ReceiveNft(receive_nft_msg) => execute_receive_nft(deps, info, receive_nft_msg),
