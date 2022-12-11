@@ -753,9 +753,6 @@ fn create_listing_should_fail() -> Result<(), anyhow::Error> {
         here("Cant create with same ID failure", line!(), column!())
     );
 
-
-
-
     Ok(())
 }
 

@@ -202,7 +202,6 @@ pub fn execute_add_to_bucket_cw721(
     nft: Nft,
     bucket_id: String,
 ) -> Result<Response, ContractError> {
-
     // Ensure bucket exists & Sender is owner
     let Some(the_bucket) = BUCKETS.may_load(deps.storage, (user_wallet.clone(), &bucket_id))? else {
         return Err(ContractError::NotFound { typ: "Bucket".to_string(), id: bucket_id })
@@ -299,7 +298,8 @@ pub fn execute_create_listing(
     if (listingz()
         .idx
         .id
-        .item(deps.storage, createlistingmsg.id.clone())?).is_some()
+        .item(deps.storage, createlistingmsg.id.clone())?)
+    .is_some()
     {
         return Err(ContractError::IdAlreadyExists {});
     }
@@ -353,7 +353,8 @@ pub fn execute_create_listing_cw20(
     if (listingz()
         .idx
         .id
-        .item(deps.storage, createlistingmsg.id.clone())?).is_some()
+        .item(deps.storage, createlistingmsg.id.clone())?)
+    .is_some()
     {
         return Err(ContractError::IdAlreadyExists {});
     }
@@ -389,7 +390,8 @@ pub fn execute_create_listing_cw721(
     if (listingz()
         .idx
         .id
-        .item(deps.storage, createlistingmsg.id.clone())?).is_some()
+        .item(deps.storage, createlistingmsg.id.clone())?)
+    .is_some()
     {
         return Err(ContractError::IdAlreadyExists {});
     }
@@ -536,7 +538,6 @@ pub fn execute_add_to_sale_cw721(
     nft: Nft,
     listing_id: String,
 ) -> Result<Response, ContractError> {
-
     // Ensure listing exists & get listing
     let Some(old_listing) = listingz().may_load(deps.storage, (user_wallet, listing_id.clone()))? else {
         return Err(ContractError::NotFound {

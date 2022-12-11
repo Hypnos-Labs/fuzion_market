@@ -77,9 +77,7 @@ pub fn is_balance_whitelisted(balance: &Balance, config: &Config) -> Result<(), 
             let bool_vec: Vec<bool> = natives_sent_in
                 .0
                 .iter()
-                .map(|native| {
-                    wl_native_denoms.contains(&native.denom)
-                })
+                .map(|native| wl_native_denoms.contains(&native.denom))
                 .collect();
             if bool_vec.contains(&false) {
                 return Err(ContractError::NotWhitelist {
@@ -213,131 +211,105 @@ impl EzTime for cosmwasm_std::Timestamp {
         };
 
         match dt.month() {
-            1 => {
-                Ok(format!(
-                    "January {}, {} | {}:{}:{} UTC",
-                    dt.day(),
-                    dt.year(),
-                    dt.hour(),
-                    dt.minute(),
-                    dt.second()
-                ))
-            }
-            2 => {
-                Ok(format!(
-                    "February {}, {} | {}:{}:{} UTC",
-                    dt.day(),
-                    dt.year(),
-                    dt.hour(),
-                    dt.minute(),
-                    dt.second()
-                ))
-            }
-            3 => {
-                Ok(format!(
-                    "March {}, {} | {}:{}:{} UTC",
-                    dt.day(),
-                    dt.year(),
-                    dt.hour(),
-                    dt.minute(),
-                    dt.second()
-                ))
-            }
-            4 => {
-                Ok(format!(
-                    "April {}, {} | {}:{}:{} UTC",
-                    dt.day(),
-                    dt.year(),
-                    dt.hour(),
-                    dt.minute(),
-                    dt.second()
-                ))
-            }
-            5 => {
-                Ok(format!(
-                    "May {}, {} | {}:{}:{} UTC",
-                    dt.day(),
-                    dt.year(),
-                    dt.hour(),
-                    dt.minute(),
-                    dt.second()
-                ))
-            }
-            6 => {
-                Ok(format!(
-                    "June {}, {} | {}:{}:{} UTC",
-                    dt.day(),
-                    dt.year(),
-                    dt.hour(),
-                    dt.minute(),
-                    dt.second()
-                ))
-            }
-            7 => {
-                Ok(format!(
-                    "July {}, {} | {}:{}:{} UTC",
-                    dt.day(),
-                    dt.year(),
-                    dt.hour(),
-                    dt.minute(),
-                    dt.second()
-                ))
-            }
-            8 => {
-                Ok(format!(
-                    "August {}, {} | {}:{}:{} UTC",
-                    dt.day(),
-                    dt.year(),
-                    dt.hour(),
-                    dt.minute(),
-                    dt.second()
-                ))
-            }
-            9 => {
-                Ok(format!(
-                    "September {}, {} | {}:{}:{} UTC",
-                    dt.day(),
-                    dt.year(),
-                    dt.hour(),
-                    dt.minute(),
-                    dt.second()
-                ))
-            }
-            10 => {
-                Ok(format!(
-                    "October {}, {} | {}:{}:{} UTC",
-                    dt.day(),
-                    dt.year(),
-                    dt.hour(),
-                    dt.minute(),
-                    dt.second()
-                ))
-            }
-            11 => {
-                Ok(format!(
-                    "November {}, {} | {}:{}:{} UTC",
-                    dt.day(),
-                    dt.year(),
-                    dt.hour(),
-                    dt.minute(),
-                    dt.second()
-                ))
-            }
-            12 => {
-                Ok(format!(
-                    "December {}, {} | {}:{}:{} UTC",
-                    dt.day(),
-                    dt.year(),
-                    dt.hour(),
-                    dt.minute(),
-                    dt.second()
-                ))
-            }
-            _ => {
-                Err(StdError::GenericErr {
-                    msg: "Invalid Timestamp".to_string(),
-                })
-            }
+            1 => Ok(format!(
+                "January {}, {} | {}:{}:{} UTC",
+                dt.day(),
+                dt.year(),
+                dt.hour(),
+                dt.minute(),
+                dt.second()
+            )),
+            2 => Ok(format!(
+                "February {}, {} | {}:{}:{} UTC",
+                dt.day(),
+                dt.year(),
+                dt.hour(),
+                dt.minute(),
+                dt.second()
+            )),
+            3 => Ok(format!(
+                "March {}, {} | {}:{}:{} UTC",
+                dt.day(),
+                dt.year(),
+                dt.hour(),
+                dt.minute(),
+                dt.second()
+            )),
+            4 => Ok(format!(
+                "April {}, {} | {}:{}:{} UTC",
+                dt.day(),
+                dt.year(),
+                dt.hour(),
+                dt.minute(),
+                dt.second()
+            )),
+            5 => Ok(format!(
+                "May {}, {} | {}:{}:{} UTC",
+                dt.day(),
+                dt.year(),
+                dt.hour(),
+                dt.minute(),
+                dt.second()
+            )),
+            6 => Ok(format!(
+                "June {}, {} | {}:{}:{} UTC",
+                dt.day(),
+                dt.year(),
+                dt.hour(),
+                dt.minute(),
+                dt.second()
+            )),
+            7 => Ok(format!(
+                "July {}, {} | {}:{}:{} UTC",
+                dt.day(),
+                dt.year(),
+                dt.hour(),
+                dt.minute(),
+                dt.second()
+            )),
+            8 => Ok(format!(
+                "August {}, {} | {}:{}:{} UTC",
+                dt.day(),
+                dt.year(),
+                dt.hour(),
+                dt.minute(),
+                dt.second()
+            )),
+            9 => Ok(format!(
+                "September {}, {} | {}:{}:{} UTC",
+                dt.day(),
+                dt.year(),
+                dt.hour(),
+                dt.minute(),
+                dt.second()
+            )),
+            10 => Ok(format!(
+                "October {}, {} | {}:{}:{} UTC",
+                dt.day(),
+                dt.year(),
+                dt.hour(),
+                dt.minute(),
+                dt.second()
+            )),
+            11 => Ok(format!(
+                "November {}, {} | {}:{}:{} UTC",
+                dt.day(),
+                dt.year(),
+                dt.hour(),
+                dt.minute(),
+                dt.second()
+            )),
+            12 => Ok(format!(
+                "December {}, {} | {}:{}:{} UTC",
+                dt.day(),
+                dt.year(),
+                dt.hour(),
+                dt.minute(),
+                dt.second()
+            )),
+            _ => Err(StdError::GenericErr {
+                msg: "Invalid Timestamp".to_string(),
+            }),
         }
     }
 }
