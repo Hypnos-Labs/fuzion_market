@@ -99,7 +99,6 @@ pub mod init_contracts {
         initial_user_three: &Addr,
         //balance: Uint128,
     ) -> Cw20Contract {
-        // set up cw20 contract with some tokens
         let cw20_id = router.store_code(cw20_contract());
         let msg = cw20_base::msg::InstantiateMsg {
             name: token_name.clone(),
@@ -136,7 +135,6 @@ pub mod init_contracts {
         nft_name: String,
         nft_symbol: String,
     ) -> Cw721Contract<Empty, Empty> {
-        // set up cw20 contract with some tokens
         let cw721_id = router.store_code(cw721_contract());
 
         let msg = cw721_base::msg::InstantiateMsg {
