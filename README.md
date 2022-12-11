@@ -1,7 +1,5 @@
-# CyberSwap_nft contract
+# Juno Vaults
 
-# WIP
-
-## v0.2 of Cyberswap contract, adding support for cw721s
+### A multiasset marketplace built for Juno
 
 
