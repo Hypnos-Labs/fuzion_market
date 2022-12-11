@@ -3,16 +3,11 @@ use crate::state::*;
 use chrono::{Datelike, NaiveDateTime, Timelike};
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{
-    to_binary, Addr, BankMsg, CosmosMsg, Empty, StdError, StdResult, Timestamp, WasmMsg,
+    to_binary, Addr, BankMsg, CosmosMsg, Empty, StdError, StdResult, WasmMsg,
 };
 use cw20::{Balance, Cw20ExecuteMsg};
 use cw721::Cw721ExecuteMsg;
 
-//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-// Create send tokens messages
-//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-// Needs update to enable sending to a contract or DAO address
 pub fn send_tokens_cosmos(to: &Addr, balance: &GenericBalance) -> StdResult<Vec<CosmosMsg>> {
     let native_balance = &balance.native;
     let mut msgs: Vec<CosmosMsg> = if native_balance.is_empty() {
@@ -66,17 +61,7 @@ pub fn send_tokens_cosmos(to: &Addr, balance: &GenericBalance) -> StdResult<Vec<
     Ok(msgs)
 }
 
-//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-// Whitelist checks
-//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-// Works for both Native and CW20 tokens
 pub fn is_balance_whitelisted(balance: &Balance, config: &Config) -> Result<(), ContractError> {
-    // config.whitelist_native contains (String-Symbol, String-Denom)
-    // ex: (JUNO, ujunox) or (ATOM, ibc/C4CFF46FD6DE35CA4CF4CE031E643C8FDC9BA4B99AE598E9B0ED98FE3A2319F9)
-
-    // config.whitelist_cw20 contains (String-Symbol, Addr-Token Address)
-    // ex: (NETA, juno168ctmpyppk90d34p3jjy658zf5a5l3w8wk35wht6ccqj4mr0yv8s4j5awr)
 
     let wl_native_denoms: Vec<_> = config
         .whitelist_native
@@ -103,7 +88,6 @@ pub fn is_balance_whitelisted(balance: &Balance, config: &Config) -> Result<(), 
                     }
                 })
                 .collect();
-            // If balance contains any denom that's not on the whitelist, return error
             if bool_vec.contains(&false) {
                 return Err(ContractError::NotWhitelist {
                     which: "fail 1 Native".to_string(),
@@ -193,10 +177,6 @@ pub fn is_nft_whitelisted(nft_addr: &Addr, config: &Config) -> Result<(), Contra
     Ok(())
 }
 
-//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-// EzTime
-//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
 #[cw_serde]
 pub struct EzTimeStruct {
     pub year: u32,
@@ -216,7 +196,11 @@ impl EzTime for cosmwasm_std::Timestamp {
     fn eztime_struct(&self) -> StdResult<EzTimeStruct> {
         let seconds = &self.seconds();
         let nano = &self.subsec_nanos();
-        let dt = NaiveDateTime::from_timestamp(*seconds as i64, *nano as u32);
+
+        let Some(dt) = NaiveDateTime::from_timestamp_opt(*seconds as i64, *nano as u32) else {
+            return Err(StdError::GenericErr { msg: "Invalid Timestamp".to_string() });
+        };
+
         Ok(EzTimeStruct {
             year: dt.year() as u32,
             month: dt.month(),
@@ -230,7 +214,11 @@ impl EzTime for cosmwasm_std::Timestamp {
     fn eztime_string(&self) -> StdResult<String> {
         let seconds = &self.seconds();
         let nano = &self.subsec_nanos();
-        let dt = NaiveDateTime::from_timestamp(*seconds as i64, *nano as u32);
+
+        let Some(dt) = NaiveDateTime::from_timestamp_opt(*seconds as i64, *nano as u32) else {
+            return Err(StdError::GenericErr { msg: "Invalid Timestamp".to_string() });
+        };        
+        
         match dt.month() {
             1 => {
                 return Ok(format!(

@@ -42,7 +42,6 @@ pub fn instantiate(
 
     let validated = info.sender;
 
-
     //let native_whitelist: Vec<(String, String)> = vec![("JUNO".to_string(), "ujunox".to_string())];
     let Some(native_whitelist): Option<Vec<(String, String)>> = msg.native_whitelist else {
         return Err(ContractError::MissingInit("Native Whitelist Missing".to_string()));
@@ -66,42 +65,6 @@ pub fn instantiate(
         .iter()
         .map(|nft| (nft.0.clone(), Addr::unchecked(nft.1.clone())))
         .collect();
-
-    // let cw20_whitelist: Vec<(String, Addr)> = vec![
-    //     (
-    //         "JVONE".to_string(),
-    //         //deps.api.addr_validate(&"juno1klu02klsxznmmf6yr4jrnyslhqnz2hsp5t7396hzck5m5xzt9aeq8gxgh4")?
-    //         Addr::unchecked("juno1klu02klsxznmmf6yr4jrnyslhqnz2hsp5t7396hzck5m5xzt9aeq8gxgh4"),
-    //         //z
-    //         // deps.api.addr_canonicalize(
-    //         //     "juno1klu02klsxznmmf6yr4jrnyslhqnz2hsp5t7396hzck5m5xzt9aeq8gxgh4"
-    //         // )
-    //         // .map_err(ContractError::CanonAddrError)
-    //         // .addr_humanize()
-    //     ),
-    //     (
-    //         "JVTWO".to_string(),
-    //         //deps.api.addr_validate("juno1c95jn83hujzqtp92lnx5q6jnpcy9q2yw952gc6pwlffskc2ezypsw48c2g")?,
-    //         Addr::unchecked("juno1c95jn83hujzqtp92lnx5q6jnpcy9q2yw952gc6pwlffskc2ezypsw48c2g"),
-    //     ),
-    //     (
-    //         "JVTRE".to_string(),
-    //         //deps.api.addr_validate("juno1t7krx3wp7fxhzg4e47rhuy79m2xk4hazukkuyet4mp7l5xndza3slsl23t")?,
-    //         Addr::unchecked("juno1t7krx3wp7fxhzg4e47rhuy79m2xk4hazukkuyet4mp7l5xndza3slsl23t")
-    //     ),
-    // ];
-    // let nft_whitelist: Vec<(String, Addr)> = vec![
-    //     (
-    //         "NEONPEEPZ".to_string(),
-    //         //deps.api.addr_validate("juno1xdtd9knr34juzjzw4ulmcv9p2tshvuajpx9rlmfwsak5ld7548yqdz0wp5")?,
-    //         Addr::unchecked("juno1xdtd9knr34juzjzw4ulmcv9p2tshvuajpx9rlmfwsak5ld7548yqdz0wp5")
-    //     ),
-    //     (
-    //         "SHITKIT".to_string(),
-    //         //deps.api.addr_validate("juno12n7qca7m0hxg4x57m9fk8hp7km5s70jpppma96ws4krvf4ayqwlq7jwqqx")?,
-    //         Addr::unchecked("juno12n7qca7m0hxg4x57m9fk8hp7km5s70jpppma96ws4krvf4ayqwlq7jwqqx")
-    //     ),
-    // ];
 
     CONFIG.save(
         deps.storage,
@@ -131,16 +94,13 @@ pub fn execute(
 
         ExecuteMsg::AddToWhitelist { type_adding, to_add } => add_to_whitelist(deps, info.sender, type_adding, to_add),
 
-        // ~~~~~~~~~~~~~~~~~~~~~~~~~ Wrapper cw20/cw721
         ExecuteMsg::Receive(receive_msg) => execute_receive(deps, env, info, receive_msg),
         ExecuteMsg::ReceiveNft(receive_nft_msg) => execute_receive_nft(deps, info, receive_nft_msg),
 
-        // ~~~~~~~~~~~~~~~~~~~~~~~~~ Create Listing
         ExecuteMsg::CreateListing { create_msg } => {
             execute_create_listing(deps, &info.sender, Balance::from(info.funds), create_msg)
         }
 
-        // ~~~~~~~~~~~~~~~~~~~~~~~~~ Edit Listing
         // Adding native tokens to a sale
         ExecuteMsg::AddFundsToSaleNative { listing_id } => {
             execute_add_funds_to_sale(deps, Balance::from(info.funds), &info.sender, listing_id)
@@ -164,7 +124,6 @@ pub fn execute(
             execute_refund(deps, env, &info.sender, listing_id)
         }
 
-        // ~~~~~~~~~~~~~~~~~~~~~~~~~ Buckets
         // Create a bucket
         ExecuteMsg::CreateBucket { bucket_id } => {
             execute_create_bucket(deps, Balance::from(info.funds), &info.sender, bucket_id)
@@ -178,7 +137,6 @@ pub fn execute(
             execute_withdraw_bucket(deps, &info.sender, bucket_id)
         }
 
-        // ~~~~~~~~~~~~~~~~~~~~~~~~~ Purchasing
         ExecuteMsg::BuyListing {
             listing_id,
             bucket_id,
@@ -289,28 +247,5 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
         QueryMsg::GetListingsForMarket { page_num } => {
             to_binary(&get_listings_for_market(deps, env, page_num)?)
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-
-    //use cosmwasm_std::entry_point;
-    //use cosmwasm_std::{to_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdResult, Addr};
-    //use cw2::set_contract_version;
-    //use crate::msg::{ExecuteMsg, InstantiateMsg, QueryMsg};
-    //use crate::state::{Config, CONFIG};
-    //use crate::error::ContractError;
-    //use crate::msg::AdminResponse;
-    //use crate::state::{Listing};
-    //use cw20::{Balance, Cw20Coin, Cw20CoinVerified, Cw20ExecuteMsg, Cw20ReceiveMsg};
-    //use crate::msg::{CreateListingMsg};
-    //use crate::state::*;
-    //use crate::msg::*;
-
-    #[test]
-    fn test1() {
-        let a = true;
-        assert_eq!(a, true);
     }
 }

@@ -29,19 +29,15 @@ pub struct Config {
 pub struct ListingIndexes<'a> {
     pub id: UniqueIndex<'a, String, Listing, (&'a Addr, String)>,
     pub finalized_date: MultiIndex<'a, u64, Listing, (&'a Addr, String)>,
-    //pub sale_tokens: MultiIndex<'a, Vec<u8>, Listing, (&'a Addr, String)>,
-    //pub ask_tokens: MultiIndex<'a, Vec<u8>, Listing, (&'a Addr, String)>,
 }
 
 impl IndexList<Listing> for ListingIndexes<'_> {
     fn get_indexes(&'_ self) -> Box<dyn Iterator<Item = &'_ dyn Index<Listing>> + '_> {
-        let v: Vec<&dyn Index<Listing>> = vec![&self.id, &self.finalized_date]; //, &self.sale_tokens, &self.ask_tokens];
+        let v: Vec<&dyn Index<Listing>> = vec![&self.id, &self.finalized_date];
         Box::new(v.into_iter())
     }
 }
 
-// Addr is creator, String is the Listing ID aka UniqueIndex
-// Note - ListingID is stored as suffix in PK to enable prefix.range on Addr and ensure uniqueness of each PK
 pub fn listingz<'a>() -> IndexedMap<'a, (&'a Addr, String), Listing, ListingIndexes<'a>> {
     let indexes = ListingIndexes {
         id: UniqueIndex::new(|a_listing| a_listing.id.clone(), "listing__id"),
@@ -53,66 +49,14 @@ pub fn listingz<'a>() -> IndexedMap<'a, (&'a Addr, String), Listing, ListingInde
             "listings_im",
             "listing__finalized__date",
         ),
-        // Unused rn
-        //sale_tokens: MultiIndex::new(
-        //    |a_listing| {
-        //        let mut natives: Vec<_> = a_listing.for_sale.native.iter().map(|native| native.denom.clone()).collect();
-        //        let mut cw20s: Vec<_> = a_listing.for_sale.cw20.iter().map(|cw20| cw20.address.clone().into_string()).collect();
-        //        if natives.len() > 0 && cw20s.len() > 0 {
-        //            natives.append(&mut cw20s);
-        //            let strang = natives.join(" ");
-        //            return strang.as_bytes().to_vec();
-        //        } else if natives.len() > 0 && cw20s.is_empty() {
-        //            let strang = natives.join(" ");
-        //            return strang.as_bytes().to_vec();
-        //        } else {
-        //            // Listing will never have 0 in both fields of GenericBalance of for_sale
-        //            let strang = cw20s.join(" ");
-        //            return strang.as_bytes().to_vec();
-        //        };
-        //    },
-        //    "listings_im",
-        //    "listing__sale__tokens",
-        //),
-        //// Unused rn
-        //ask_tokens: MultiIndex::new(
-        //    |a_listing| {
-        //        let mut natives:Vec<_> = a_listing.ask.native.iter().map(|native| native.denom.clone()).collect();
-        //        let mut cw20s: Vec<_> = a_listing.ask.cw20.iter().map(|cw20| cw20.address.clone().into_string()).collect();
-        //        if natives.len() > 0 && cw20s.len() > 0 {
-        //            natives.append(&mut cw20s);
-        //            let strangx = natives.join(" ");
-        //            return strangx.as_bytes().to_vec();
-        //        } else if natives.len() > 0 && cw20s.is_empty() {
-        //            let strangx = natives.join(" ");
-        //            return strangx.as_bytes().to_vec();
-        //        } else if natives.is_empty() && cw20s.len() > 0 {
-        //            let strangx = cw20s.join(" ");
-        //            return strangx.as_bytes().to_vec();
-        //        } else {
-        //            // If both types in ask are empty, return index as Vec[String; 1]
-        //            let nonex = "None".to_string();
-        //            return nonex.as_bytes().to_vec();
-        //        };
-        //    },
-        //    "listings_im",
-        //    "listing__ask__tokens",
-        //),
     };
 
     IndexedMap::new("listings_im", indexes)
 }
 
-//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-// Buckets Map
-//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-// Addr = owner, &str = UUID
 pub const BUCKETS: Map<(Addr, &str), Bucket> = Map::new("buckets");
 
-//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-// Types
-//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 #[cw_serde]
 pub struct GenericBalance {
@@ -139,9 +83,6 @@ pub struct Listing {
 pub struct Nft {
     pub contract_address: Addr,
     pub token_id: String,
-    // ignore metadata/uri for time being,
-    // don't see a scenario where it will be needed
-    //pub metadata: Option<Binary>,
 }
 
 #[cw_serde]
@@ -157,17 +98,12 @@ pub enum Status {
     Closed,
 }
 
-//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-// Traits - for my types
-//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
 pub trait GenericBalanceUtil {
     fn add_tokens(&mut self, add: Balance);
     fn add_nft(&mut self, nft: Nft);
 }
 
 impl GenericBalanceUtil for GenericBalance {
-    // Add a Balance to a GenericBalance
     fn add_tokens(&mut self, add: Balance) {
         match add {
             Balance::Native(balance) => {
@@ -214,16 +150,11 @@ pub fn genbal_from_nft(nft: Nft) -> GenericBalance {
     }
 }
 
-//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-// Traits - external types
-//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
 pub trait ToGenericBalance {
     fn to_generic(&self) -> GenericBalance;
 }
 
 impl ToGenericBalance for Balance {
-    // Convert a Balance to a GenericBalance
     fn to_generic(&self) -> GenericBalance {
         match self {
             Balance::Native(balance) => GenericBalance {

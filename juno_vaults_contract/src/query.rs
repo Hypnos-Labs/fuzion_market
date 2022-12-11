@@ -1,6 +1,7 @@
 use crate::state::*;
 use crate::utils::*;
 use cosmwasm_schema::cw_serde;
+use cosmwasm_std::StdError;
 use cosmwasm_std::{to_binary, Binary, Deps, Env, Order, StdResult};
 use cw_storage_plus::PrefixBound;
 
@@ -40,13 +41,10 @@ pub fn get_buckets(deps: Deps, bucket_owner: String) -> StdResult<Binary> {
 
 // Get a single listing by a Listing ID
 pub fn get_listing_info(deps: Deps, listing_id: String) -> StdResult<Binary> {
-    // If listing doesn't exist the unwrap panics which is
-    // handled on front end by manually checking error code
-    let (_k, listing) = listingz()
-        .idx
-        .id
-        .item(deps.storage, listing_id.clone())?
-        .unwrap();
+
+    let Some((_pk, listing)): Option<(_, Listing)> = listingz().idx.id.item(deps.storage, listing_id.clone())? else {
+        return Err(StdError::GenericErr { msg: "Invalid listing ID".to_string() });
+    };
 
     let status = match listing.status {
         Status::BeingPrepared => "Being Prepared".to_string(),
@@ -121,14 +119,12 @@ pub fn get_listings_by_owner(deps: Deps, owner: String) -> StdResult<Binary> {
     })
 }
 
-// Get most recent 100 Listings that exist
+// Limited to 100
 pub fn get_all_listings(deps: Deps) -> StdResult<Binary> {
     let all_listings: StdResult<Vec<_>> = listingz()
         .range(deps.storage, None, None, Order::Ascending)
         .take(100)
         .collect();
-    // prob limit this in future to .take(x), shouldn't get that high with removal but ynk
-    // to-do:  determine how many to take based on gas usage
 
     let listing_data: Vec<Listing> = all_listings?.iter().map(|entry| entry.1.clone()).collect();
 

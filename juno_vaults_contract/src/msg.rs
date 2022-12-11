@@ -1,4 +1,3 @@
-//use cosmwasm_std::{Addr, Api, Coin, StdResult, Binary};
 use crate::query::*;
 use crate::state::GenericBalance;
 use cosmwasm_schema::{cw_serde, QueryResponses};
@@ -8,7 +7,6 @@ use cw721::Cw721ReceiveMsg;
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // Instantiate
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
 #[cw_serde]
 pub struct InstantiateMsg {
     pub admin: Option<String>,
@@ -20,7 +18,6 @@ pub struct InstantiateMsg {
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // Execute
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
 #[cw_serde]
 pub enum ExecuteMsg {
 
@@ -88,7 +85,6 @@ pub enum ExecuteMsg {
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // cw20 entry point
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
 #[cw_serde]
 pub enum ReceiveMsg {
     CreateListingCw20 { create_msg: CreateListingMsg },
@@ -103,7 +99,6 @@ pub enum ReceiveMsg {
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // cw721 entry point
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
 #[cw_serde]
 pub enum ReceiveNftMsg {
     CreateListingCw721 { create_msg: CreateListingMsg },
@@ -118,7 +113,6 @@ pub enum ReceiveNftMsg {
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // Query
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
 #[cw_serde]
 #[derive(QueryResponses)]
 pub enum QueryMsg {
@@ -138,13 +132,9 @@ pub enum QueryMsg {
     GetConfig {},
 }
 
-//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // Create Listing msg struct
-//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
 #[cw_serde]
 pub struct CreateListingMsg {
     pub id: String,
-
     pub ask: GenericBalance,
 }

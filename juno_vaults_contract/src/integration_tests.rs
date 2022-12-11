@@ -763,7 +763,8 @@ fn create_listing_should_pass() -> Result<(),anyhow::Error> {
     // passes
     ensure!(res.is_ok(), here("'Testing Ask Creation' failure", line!(), column!()));
     let john_new_balance: Coin = router.wrap().query_balance(john.address.to_string(), "ujunox").unwrap();
-    ensure!((john_new_balance.amount <= Uint128::from(99u32)), here(format!("John balance: {}", john_new_balance.amount), line!(), column!()));
+    ensure!((john_new_balance.amount == Uint128::from(99u32)), here(format!("John balance: {}", john_new_balance.amount), line!(), column!()));
+    
 
     //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -859,7 +860,7 @@ fn add_to_listing() -> Result<(),anyhow::Error> {
     ensure!(res.is_ok(), here("'Testing Ask Creation' failure", line!(), column!()));
     //let john_new_balance = router.wrap().query_all_balances(addr).unwrap();
     let john_new_balance: Coin = router.wrap().query_balance(john.address.to_string(), "ujunox").unwrap();
-    ensure!((john_new_balance.amount <= Uint128::from(99u32)), here(format!("John balance: {}", john_new_balance.amount), line!(), column!()));
+    ensure!((john_new_balance.amount == Uint128::from(99u32)), here(format!("John balance: {}", john_new_balance.amount), line!(), column!()));
 
     //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -890,7 +891,7 @@ fn add_to_listing() -> Result<(),anyhow::Error> {
     ensure!(res.is_ok(), here("John couldn't add", line!(), column!()));
     // ensure John's balance updated
     let john_newer_balance: Coin = router.wrap().query_balance(john.address.to_string(), "ujunox").unwrap();
-    ensure!((john_newer_balance.amount <= Uint128::from(98u32)), here(format!("John balance: {}", john_newer_balance.amount), line!(), column!()));
+    ensure!((john_newer_balance.amount == Uint128::from(98u32)), here(format!("John balance: {}", john_newer_balance.amount), line!(), column!()));
 
     // ensure contract balance updated
     let contract_balance: Coin = router.wrap().query_balance(junovaults.to_string(), "ujunox").unwrap();
@@ -1051,7 +1052,7 @@ fn remove_a_listing() -> Result<(), anyhow::Error> {
     // passes
     ensure!(res.is_ok(), here("'Testing Ask Creation' failure", line!(), column!()));
     let john_new_balance: Coin = router.wrap().query_balance(john.address.to_string(), "ujunox").unwrap();
-    ensure!((john_new_balance.amount <= Uint128::from(99u32)), here(format!("John balance: {}", john_new_balance.amount), line!(), column!()));
+    ensure!((john_new_balance.amount == Uint128::from(99u32)), here(format!("John balance: {}", john_new_balance.amount), line!(), column!()));
 
     //~~~~~~~~~~
     // Listing two, created by Sam
@@ -1089,7 +1090,7 @@ fn remove_a_listing() -> Result<(), anyhow::Error> {
     ensure!(res.is_ok(), here("'Testing Ask Creation' failure", line!(), column!()));
     //let john_new_balance = router.wrap().query_all_balances(addr).unwrap();
     let sam_new_balance: Coin = router.wrap().query_balance(sam.address.to_string(), "ujunox").unwrap();
-    ensure!((sam_new_balance.amount <= Uint128::from(99u32)), here(format!("Sam balance: {}", sam_new_balance.amount), line!(), column!()));
+    ensure!((sam_new_balance.amount == Uint128::from(99u32)), here(format!("Sam balance: {}", sam_new_balance.amount), line!(), column!()));
 
     //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -1350,7 +1351,7 @@ fn finalize_a_listing() -> Result<(), anyhow::Error> {
     // passes
     ensure!(res.is_ok(), here("'Testing Ask Creation' failure", line!(), column!()));
     let john_new_balance: Coin = router.wrap().query_balance(john.address.to_string(), "ujunox").unwrap();
-    ensure!((john_new_balance.amount <= Uint128::from(99u32)), here(format!("John balance: {}", john_new_balance.amount), line!(), column!()));
+    ensure!((john_new_balance.amount == Uint128::from(99u32)), here(format!("John balance: {}", john_new_balance.amount), line!(), column!()));
 
     //~~~~~~~~~~
     // Listing two, created by Sam
@@ -1388,7 +1389,7 @@ fn finalize_a_listing() -> Result<(), anyhow::Error> {
     ensure!(res.is_ok(), here("'Testing Ask Creation' failure", line!(), column!()));
     //let john_new_balance = router.wrap().query_all_balances(addr).unwrap();
     let sam_new_balance: Coin = router.wrap().query_balance(sam.address.to_string(), "ujunox").unwrap();
-    ensure!((sam_new_balance.amount <= Uint128::from(99u32)), here(format!("Sam balance: {}", sam_new_balance.amount), line!(), column!()));
+    ensure!((sam_new_balance.amount == Uint128::from(99u32)), here(format!("Sam balance: {}", sam_new_balance.amount), line!(), column!()));
 
     //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -1710,7 +1711,7 @@ fn expiration_checks() -> Result<(), anyhow::Error> {
     // passes
     ensure!(res.is_ok(), here("'Testing Ask Creation' failure", line!(), column!()));
     let john_new_balance: Coin = router.wrap().query_balance(john.address.to_string(), "ujunox").unwrap();
-    ensure!((john_new_balance.amount <= Uint128::from(99u32)), here(format!("John balance: {}", john_new_balance.amount), line!(), column!()));
+    ensure!((john_new_balance.amount == Uint128::from(99u32)), here(format!("John balance: {}", john_new_balance.amount), line!(), column!()));
 
     //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -1932,7 +1933,7 @@ fn create_bucket() -> Result<(), anyhow::Error> {
     );
     ensure!(res.is_ok(), here("Create Bucket native", line!(), column!()));
     let john_new_balance: Coin = router.wrap().query_balance(john.address.to_string(), "ujunox").unwrap();
-    ensure!((john_new_balance.amount <= Uint128::from(99u32)), here(format!("John balance: {}", john_new_balance.amount), line!(), column!()));
+    ensure!((john_new_balance.amount == Uint128::from(99u32)), here(format!("John balance: {}", john_new_balance.amount), line!(), column!()));
 
     //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

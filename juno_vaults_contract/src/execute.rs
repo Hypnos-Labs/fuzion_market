@@ -282,7 +282,6 @@ pub fn execute_withdraw_bucket(
 // Listings
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-// Combine with execute_create_listing_cw20 for better code quality
 pub fn execute_create_listing(
     deps: DepsMut,
     user_address: &Addr,
@@ -342,7 +341,6 @@ pub fn execute_create_listing(
         .add_attribute("listing id", &createlistingmsg.id))
 }
 
-// Combine with execute_create_listing for better code quality
 pub fn execute_create_listing_cw20(
     deps: DepsMut,
     user_address: &Addr,
@@ -745,8 +743,8 @@ pub fn execute_refund(
 
     // Is listing.status == BeingPrepared
     if listing.status == Status::BeingPrepared {
+        // "please use close function instead"
         return Err(ContractError::Unauthorized {});
-        // "Please use close function instead", or just process Refund anyway?
     }
 
     // Check if listing is expired
@@ -754,7 +752,6 @@ pub fn execute_refund(
         None => {
             // Means status = BeingPrepared
             return Err(ContractError::Unauthorized {});
-            // "Please use close function instead".. or just process anyway?
         }
 
         Some(timestamp) => {
@@ -795,17 +792,10 @@ pub fn execute_buy_listing(
         Err(_) => return Err(ContractError::LoadBucketError {}),
     };
 
-    // Check that listing exists
-    if listingz().idx.id.item(deps.storage, listing_id.clone())? == None {
-        return Err(ContractError::NoListing {});
-    }
-
-    // Unwrap should never hit as previous line checked for None
-    let (_pk, the_listing) = listingz()
-        .idx
-        .id
-        .item(deps.storage, listing_id.clone())?
-        .unwrap();
+    // Check listing exists & get the_listing
+    let Some((_pk, the_listing)): Option<(_, Listing)> = listingz().idx.id.item(deps.storage, listing_id.clone())? else {
+        return Err(ContractError::NoListing {  });
+    };
 
     let listing_owner = the_listing.creator;
 
@@ -870,7 +860,6 @@ pub fn execute_withdraw_purchased(
     listing_id: String,
 ) -> Result<Response, ContractError> {
     // Get listing
-
     let Some((_pk, the_listing)): Option<(_, Listing)> = listingz().idx.id.item(deps.storage, listing_id.clone())? else {
         return Err(ContractError::NoListing {  });
     };
