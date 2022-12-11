@@ -91,8 +91,10 @@ pub fn execute(
     msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
     match msg {
-
-        ExecuteMsg::AddToWhitelist { type_adding, to_add } => add_to_whitelist(deps, info.sender, type_adding, to_add),
+        ExecuteMsg::AddToWhitelist {
+            type_adding,
+            to_add,
+        } => add_to_whitelist(deps, info.sender, type_adding, to_add),
 
         ExecuteMsg::Receive(receive_msg) => execute_receive(deps, env, info, receive_msg),
         ExecuteMsg::ReceiveNft(receive_nft_msg) => execute_receive_nft(deps, info, receive_nft_msg),

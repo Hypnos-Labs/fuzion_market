@@ -2,9 +2,7 @@ use crate::error::*;
 use crate::state::*;
 use chrono::{Datelike, NaiveDateTime, Timelike};
 use cosmwasm_schema::cw_serde;
-use cosmwasm_std::{
-    to_binary, Addr, BankMsg, CosmosMsg, Empty, StdError, StdResult, WasmMsg,
-};
+use cosmwasm_std::{to_binary, Addr, BankMsg, CosmosMsg, Empty, StdError, StdResult, WasmMsg};
 use cw20::{Balance, Cw20ExecuteMsg};
 use cw721::Cw721ExecuteMsg;
 
@@ -62,7 +60,6 @@ pub fn send_tokens_cosmos(to: &Addr, balance: &GenericBalance) -> StdResult<Vec<
 }
 
 pub fn is_balance_whitelisted(balance: &Balance, config: &Config) -> Result<(), ContractError> {
-
     let wl_native_denoms: Vec<_> = config
         .whitelist_native
         .iter()
@@ -81,11 +78,7 @@ pub fn is_balance_whitelisted(balance: &Balance, config: &Config) -> Result<(), 
                 .0
                 .iter()
                 .map(|native| {
-                    if wl_native_denoms.contains(&native.denom) {
-                        true
-                    } else {
-                        false
-                    }
+                    wl_native_denoms.contains(&native.denom)
                 })
                 .collect();
             if bool_vec.contains(&false) {
@@ -116,7 +109,7 @@ pub fn is_genericbalance_whitelisted(
         .map(|double| double.1.clone())
         .collect();
 
-    if genericbalance.native.len() > 0 as usize {
+    if !genericbalance.native.is_empty() {
         for native in genericbalance.native.clone() {
             if !wl_native_denoms.contains(&native.denom) {
                 return Err(ContractError::NotWhitelist {
@@ -132,7 +125,7 @@ pub fn is_genericbalance_whitelisted(
         .map(|double2| double2.1.clone())
         .collect();
 
-    if genericbalance.cw20.len() > 0 as usize {
+    if !genericbalance.cw20.is_empty() {
         for cw20coin in genericbalance.cw20.clone() {
             if !wl_cw20_addys.contains(&cw20coin.address) {
                 return Err(ContractError::NotWhitelist {
@@ -148,7 +141,7 @@ pub fn is_genericbalance_whitelisted(
         .map(|double3| double3.1.clone())
         .collect();
 
-    if genericbalance.nfts.len() > 0 as usize {
+    if !genericbalance.nfts.is_empty() {
         for nft in genericbalance.nfts.clone() {
             if !wl_nft_addys.contains(&nft.contract_address) {
                 return Err(ContractError::NotWhitelist {
@@ -217,134 +210,134 @@ impl EzTime for cosmwasm_std::Timestamp {
 
         let Some(dt) = NaiveDateTime::from_timestamp_opt(*seconds as i64, *nano as u32) else {
             return Err(StdError::GenericErr { msg: "Invalid Timestamp".to_string() });
-        };        
-        
+        };
+
         match dt.month() {
             1 => {
-                return Ok(format!(
+                Ok(format!(
                     "January {}, {} | {}:{}:{} UTC",
                     dt.day(),
                     dt.year(),
                     dt.hour(),
                     dt.minute(),
                     dt.second()
-                ));
+                ))
             }
             2 => {
-                return Ok(format!(
+                Ok(format!(
                     "February {}, {} | {}:{}:{} UTC",
                     dt.day(),
                     dt.year(),
                     dt.hour(),
                     dt.minute(),
                     dt.second()
-                ));
+                ))
             }
             3 => {
-                return Ok(format!(
+                Ok(format!(
                     "March {}, {} | {}:{}:{} UTC",
                     dt.day(),
                     dt.year(),
                     dt.hour(),
                     dt.minute(),
                     dt.second()
-                ));
+                ))
             }
             4 => {
-                return Ok(format!(
+                Ok(format!(
                     "April {}, {} | {}:{}:{} UTC",
                     dt.day(),
                     dt.year(),
                     dt.hour(),
                     dt.minute(),
                     dt.second()
-                ));
+                ))
             }
             5 => {
-                return Ok(format!(
+                Ok(format!(
                     "May {}, {} | {}:{}:{} UTC",
                     dt.day(),
                     dt.year(),
                     dt.hour(),
                     dt.minute(),
                     dt.second()
-                ));
+                ))
             }
             6 => {
-                return Ok(format!(
+                Ok(format!(
                     "June {}, {} | {}:{}:{} UTC",
                     dt.day(),
                     dt.year(),
                     dt.hour(),
                     dt.minute(),
                     dt.second()
-                ));
+                ))
             }
             7 => {
-                return Ok(format!(
+                Ok(format!(
                     "July {}, {} | {}:{}:{} UTC",
                     dt.day(),
                     dt.year(),
                     dt.hour(),
                     dt.minute(),
                     dt.second()
-                ));
+                ))
             }
             8 => {
-                return Ok(format!(
+                Ok(format!(
                     "August {}, {} | {}:{}:{} UTC",
                     dt.day(),
                     dt.year(),
                     dt.hour(),
                     dt.minute(),
                     dt.second()
-                ));
+                ))
             }
             9 => {
-                return Ok(format!(
+                Ok(format!(
                     "September {}, {} | {}:{}:{} UTC",
                     dt.day(),
                     dt.year(),
                     dt.hour(),
                     dt.minute(),
                     dt.second()
-                ));
+                ))
             }
             10 => {
-                return Ok(format!(
+                Ok(format!(
                     "October {}, {} | {}:{}:{} UTC",
                     dt.day(),
                     dt.year(),
                     dt.hour(),
                     dt.minute(),
                     dt.second()
-                ));
+                ))
             }
             11 => {
-                return Ok(format!(
+                Ok(format!(
                     "November {}, {} | {}:{}:{} UTC",
                     dt.day(),
                     dt.year(),
                     dt.hour(),
                     dt.minute(),
                     dt.second()
-                ));
+                ))
             }
             12 => {
-                return Ok(format!(
+                Ok(format!(
                     "December {}, {} | {}:{}:{} UTC",
                     dt.day(),
                     dt.year(),
                     dt.hour(),
                     dt.minute(),
                     dt.second()
-                ));
+                ))
             }
             _ => {
-                return Err(StdError::GenericErr {
+                Err(StdError::GenericErr {
                     msg: "Invalid Timestamp".to_string(),
-                });
+                })
             }
-        };
+        }
     }
 }

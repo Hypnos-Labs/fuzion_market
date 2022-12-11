@@ -41,8 +41,7 @@ pub fn get_buckets(deps: Deps, bucket_owner: String) -> StdResult<Binary> {
 
 // Get a single listing by a Listing ID
 pub fn get_listing_info(deps: Deps, listing_id: String) -> StdResult<Binary> {
-
-    let Some((_pk, listing)): Option<(_, Listing)> = listingz().idx.id.item(deps.storage, listing_id.clone())? else {
+    let Some((_pk, listing)): Option<(_, Listing)> = listingz().idx.id.item(deps.storage, listing_id)? else {
         return Err(StdError::GenericErr { msg: "Invalid listing ID".to_string() });
     };
 
@@ -83,24 +82,22 @@ pub fn get_listing_info(deps: Deps, listing_id: String) -> StdResult<Binary> {
         .for_each(|the_coin| the_ask.push((the_coin.address.to_string(), the_coin.amount.u128())));
 
     if let Some(x) = listing.expiration_time {
-        let res = ListingInfoResponse {
+        to_binary(&ListingInfoResponse {
             creator: listing.creator.to_string(),
-            status: status,
+            status,
             for_sale: the_sale,
             ask: the_ask,
             expiration: x.eztime_string()?,
-        };
-        return to_binary(&res);
+        })
     } else {
-        let ress = ListingInfoResponse {
+        to_binary(&ListingInfoResponse {
             creator: listing.creator.to_string(),
-            status: status,
+            status,
             for_sale: the_sale,
             ask: the_ask,
             expiration: "None".to_string(),
-        };
-        return to_binary(&ress);
-    };
+        })
+    }
 }
 
 // Get all listings owned by an Address

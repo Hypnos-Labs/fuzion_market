@@ -43,7 +43,7 @@ pub fn listingz<'a>() -> IndexedMap<'a, (&'a Addr, String), Listing, ListingInde
         id: UniqueIndex::new(|a_listing| a_listing.id.clone(), "listing__id"),
         finalized_date: MultiIndex::new(
             |_pk, a_listing| match a_listing.finalized_time {
-                None => 0 as u64,
+                None => 0_u64,
                 Some(x) => x.seconds() as u64,
             },
             "listings_im",
@@ -54,9 +54,7 @@ pub fn listingz<'a>() -> IndexedMap<'a, (&'a Addr, String), Listing, ListingInde
     IndexedMap::new("listings_im", indexes)
 }
 
-
 pub const BUCKETS: Map<(Addr, &str), Bucket> = Map::new("buckets");
-
 
 #[cw_serde]
 pub struct GenericBalance {

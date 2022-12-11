@@ -20,11 +20,10 @@ pub struct InstantiateMsg {
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 #[cw_serde]
 pub enum ExecuteMsg {
-
     // Admin Only
     AddToWhitelist {
         type_adding: u8,
-        to_add: (String, String)
+        to_add: (String, String),
     },
 
     // Receive Filters
