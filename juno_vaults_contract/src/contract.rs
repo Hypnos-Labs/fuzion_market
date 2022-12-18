@@ -31,52 +31,55 @@ pub fn instantiate(
 ) -> Result<Response, ContractError> {
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
 
-    //let admin = msg.admin.unwrap_or_else(|| info.sender.to_string());
+    let validated_admin = match msg.admin {
+        Some(adm) => deps.api.addr_validate(&adm)?,
+        None => info.sender,
+    };
 
-    //let validated = deps.api.addr_validate(&admin)?;
-
-    // let validated = match msg.admin {
-    //     Some(a) => deps.api.addr_validate(&a)?,
-    //     None => info.sender
-    // };
-
-    let validated = info.sender;
-
-    //let native_whitelist: Vec<(String, String)> = vec![("JUNO".to_string(), "ujunox".to_string())];
+    // ("JUNO", "ujunox")
     let Some(native_whitelist): Option<Vec<(String, String)>> = msg.native_whitelist else {
         return Err(ContractError::MissingInit("Native Whitelist Missing".to_string()));
     };
-
-    //let msg_cw20_whitelist = msg.cw20_whitelist;
+    // ("SYMBOL", "contract address")
     let Some(cw20_wl) = msg.cw20_whitelist else {
         return Err(ContractError::MissingInit("CW20 Whitelist Missing".to_string()));
     };
-
+    // ("SYMBOL", "contract address")
     let Some(nft_wl) = msg.nft_whitelist else {
         return Err(ContractError::MissingInit("NFT Whitelist Missing".to_string()));
     };
 
-    let cw20_whitelist = cw20_wl
+    let cw20_whitelist: Vec<(String, Addr)> = cw20_wl
         .iter()
-        .map(|cw20| (cw20.0.clone(), Addr::unchecked(cw20.1.clone())))
-        .collect();
+        .map(|cw20| {
+            let Ok(valid) = deps.api.addr_validate(&cw20.1) else {
+                return Err(ContractError::InitInvalidAddr);
+            };
+            Ok((cw20.0.clone(), valid))
+        })
+        .collect::<Result<Vec<(String, Addr)>, ContractError>>()?;
 
-    let nft_whitelist = nft_wl
+    let nft_whitelist: Vec<(String, Addr)> = nft_wl
         .iter()
-        .map(|nft| (nft.0.clone(), Addr::unchecked(nft.1.clone())))
-        .collect();
+        .map(|nft| {
+            let Ok(valid) = deps.api.addr_validate(&nft.1) else {
+                return Err(ContractError::InitInvalidAddr);
+            };
+            Ok((nft.0.clone(), valid))
+        })
+        .collect::<Result<Vec<(String, Addr)>, ContractError>>()?;
 
     CONFIG.save(
         deps.storage,
         &Config {
-            admin: validated,
+            admin: validated_admin,
             whitelist_native: native_whitelist,
             whitelist_cw20: cw20_whitelist,
             whitelist_nft: nft_whitelist,
         },
     )?;
 
-    Ok(Response::default())
+    Ok(Response::new().add_attribute("Called", "Instantiate"))
 }
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -91,65 +94,62 @@ pub fn execute(
     msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
     match msg {
+        // ~~~~
+        // Receive Wrappers
+        ExecuteMsg::Receive(receive_msg) => execute_receive(deps, env, info, receive_msg),
+        ExecuteMsg::ReceiveNft(receive_nft_msg) => execute_receive_nft(deps, info, receive_nft_msg),
+        // ~~~~
+        // Admin only
         ExecuteMsg::AddToWhitelist {
             type_adding,
             to_add,
         } => add_to_whitelist(deps, info.sender, type_adding, to_add),
-
-        ExecuteMsg::Receive(receive_msg) => execute_receive(deps, env, info, receive_msg),
-        ExecuteMsg::ReceiveNft(receive_nft_msg) => execute_receive_nft(deps, info, receive_nft_msg),
-
-        ExecuteMsg::CreateListing { create_msg } => {
-            execute_create_listing(deps, &info.sender, Balance::from(info.funds), create_msg)
-        }
-
-        // Adding native tokens to a sale
-        ExecuteMsg::AddFundsToSaleNative { listing_id } => {
-            execute_add_funds_to_sale(deps, Balance::from(info.funds), &info.sender, listing_id)
-        }
-        // Changing price of a sale
+        // ~~~~
+        // Listing Executions
+        ExecuteMsg::CreateListing {
+            create_msg,
+        } => execute_create_listing(deps, &info.sender, Balance::from(info.funds), create_msg),
+        ExecuteMsg::AddFundsToSaleNative {
+            listing_id,
+        } => execute_add_funds_to_sale(deps, Balance::from(info.funds), &info.sender, listing_id),
         ExecuteMsg::ChangeAsk {
             listing_id,
             new_ask,
         } => execute_change_ask(deps, &info.sender, listing_id, new_ask),
-        // Can only remove if listing has not yet been finalized
-        ExecuteMsg::RemoveListing { listing_id } => {
-            execute_remove_listing(deps, &info.sender, listing_id)
-        }
-        // Finalizes listing for sale w/ expiration
+        ExecuteMsg::RemoveListing {
+            listing_id,
+        } => execute_remove_listing(deps, &info.sender, listing_id),
         ExecuteMsg::Finalize {
             listing_id,
             seconds,
         } => execute_finalize(deps, env, &info.sender, listing_id, seconds),
-        // Refunds unpurchased listing if expired
-        ExecuteMsg::RefundExpired { listing_id } => {
-            execute_refund(deps, env, &info.sender, listing_id)
-        }
-
-        // Create a bucket
-        ExecuteMsg::CreateBucket { bucket_id } => {
-            execute_create_bucket(deps, Balance::from(info.funds), &info.sender, bucket_id)
-        }
-        // Add funds to bucket
-        ExecuteMsg::AddToBucket { bucket_id } => {
-            execute_add_to_bucket(deps, Balance::from(info.funds), &info.sender, bucket_id)
-        }
-        // Remove and delete a bucket
-        ExecuteMsg::RemoveBucket { bucket_id } => {
-            execute_withdraw_bucket(deps, &info.sender, bucket_id)
-        }
-
+        ExecuteMsg::RefundExpired {
+            listing_id,
+        } => execute_refund(deps, env, &info.sender, listing_id),
+        // ~~~~
+        // Bucket Executions <purchasing>
+        ExecuteMsg::CreateBucket {
+            bucket_id,
+        } => execute_create_bucket(deps, Balance::from(info.funds), &info.sender, bucket_id),
+        ExecuteMsg::AddToBucket {
+            bucket_id,
+        } => execute_add_to_bucket(deps, Balance::from(info.funds), &info.sender, bucket_id),
+        ExecuteMsg::RemoveBucket {
+            bucket_id,
+        } => execute_withdraw_bucket(deps, &info.sender, bucket_id),
+        // ~~~~
+        // Marketplace Executions
         ExecuteMsg::BuyListing {
             listing_id,
             bucket_id,
         } => execute_buy_listing(deps, env, &info.sender, listing_id, bucket_id),
-        ExecuteMsg::WithdrawPurchased { listing_id } => {
-            execute_withdraw_purchased(deps, &info.sender, listing_id)
-        }
+        ExecuteMsg::WithdrawPurchased {
+            listing_id,
+        } => execute_withdraw_purchased(deps, &info.sender, listing_id),
     }
 }
 
-// cw20 filter
+// CW20 Filter
 pub fn execute_receive(
     deps: DepsMut,
     _env: Env,
@@ -157,72 +157,59 @@ pub fn execute_receive(
     wrapper: Cw20ReceiveMsg,
 ) -> Result<Response, ContractError> {
     let msg: ReceiveMsg = from_binary(&wrapper.msg)?;
-
     let user_wallet = &deps.api.addr_validate(&wrapper.sender)?;
 
     let balance = Balance::Cw20(Cw20CoinVerified {
-        //cw20 contract this message was sent from
         address: info.sender.clone(),
         amount: wrapper.amount,
     });
 
-    // is_balance_whitelisted check in each message individually
     match msg {
-        // Create listing with Cw20's initially
-        ReceiveMsg::CreateListingCw20 { create_msg } => {
-            execute_create_listing_cw20(deps, user_wallet, &info.sender, balance, create_msg)
-        }
-        // Add Cw20's to sale
-        ReceiveMsg::AddFundsToSaleCw20 { listing_id } => {
-            execute_add_funds_to_sale(deps, balance, user_wallet, listing_id)
-        }
-        // Create Bucket with Cw20's initially
-        ReceiveMsg::CreateBucketCw20 { bucket_id } => {
-            execute_create_bucket(deps, balance, user_wallet, bucket_id)
-        }
-        // Add Cw20's to bucket
-        ReceiveMsg::AddToBucketCw20 { bucket_id } => {
-            execute_add_to_bucket(deps, balance, user_wallet, bucket_id)
-        }
+        ReceiveMsg::CreateListingCw20 {
+            create_msg,
+        } => execute_create_listing_cw20(deps, user_wallet, &info.sender, balance, create_msg),
+        ReceiveMsg::AddFundsToSaleCw20 {
+            listing_id,
+        } => execute_add_funds_to_sale(deps, balance, user_wallet, listing_id),
+        ReceiveMsg::CreateBucketCw20 {
+            bucket_id,
+        } => execute_create_bucket(deps, balance, user_wallet, bucket_id),
+        ReceiveMsg::AddToBucketCw20 {
+            bucket_id,
+        } => execute_add_to_bucket(deps, balance, user_wallet, bucket_id),
     }
 }
 
-// cw721 filter
+// CW721 filter
 pub fn execute_receive_nft(
     deps: DepsMut,
     info: MessageInfo,
     wrapper: Cw721ReceiveMsg,
 ) -> Result<Response, ContractError> {
-    // Whitelist check
     let config = CONFIG.load(deps.storage)?;
     is_nft_whitelisted(&info.sender, &config)?;
 
-    // Pull message and wallet to avoid clone in NFT construction
     let msg: ReceiveNftMsg = from_binary(&wrapper.msg)?;
     let user_wallet = &deps.api.addr_validate(&wrapper.sender)?;
 
-    // Construct NFT
     let incoming_nft: Nft = Nft {
         contract_address: info.sender,
         token_id: wrapper.token_id,
     };
 
     match msg {
-        ReceiveNftMsg::CreateListingCw721 { create_msg } => {
-            execute_create_listing_cw721(deps, user_wallet, incoming_nft, create_msg)
-        }
-
-        ReceiveNftMsg::AddToListingCw721 { listing_id } => {
-            execute_add_to_sale_cw721(deps, user_wallet, incoming_nft, listing_id)
-        }
-
-        ReceiveNftMsg::CreateBucketCw721 { bucket_id } => {
-            execute_create_bucket_cw721(deps, user_wallet, incoming_nft, bucket_id)
-        }
-
-        ReceiveNftMsg::AddToBucketCw721 { bucket_id } => {
-            execute_add_to_bucket_cw721(deps, user_wallet, incoming_nft, bucket_id)
-        }
+        ReceiveNftMsg::CreateListingCw721 {
+            create_msg,
+        } => execute_create_listing_cw721(deps, user_wallet, incoming_nft, create_msg),
+        ReceiveNftMsg::AddToListingCw721 {
+            listing_id,
+        } => execute_add_to_sale_cw721(deps, user_wallet, incoming_nft, listing_id),
+        ReceiveNftMsg::CreateBucketCw721 {
+            bucket_id,
+        } => execute_create_bucket_cw721(deps, user_wallet, incoming_nft, bucket_id),
+        ReceiveNftMsg::AddToBucketCw721 {
+            bucket_id,
+        } => execute_add_to_bucket_cw721(deps, user_wallet, incoming_nft, bucket_id),
     }
 }
 
@@ -233,21 +220,20 @@ pub fn execute_receive_nft(
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
-        // Get admin<shocking>
         QueryMsg::GetAdmin {} => to_binary(&get_admin(deps)?),
-        // Get Config
         QueryMsg::GetConfig {} => to_binary(&get_config(deps)?),
-        // Get a specific listing info
-        QueryMsg::GetListingInfo { listing_id } => to_binary(&get_listing_info(deps, listing_id)?),
-        // Get listings by owner
-        QueryMsg::GetListingsByOwner { owner } => to_binary(&get_listings_by_owner(deps, owner)?),
-        // Get all listings (take 100)
+        QueryMsg::GetListingInfo {
+            listing_id,
+        } => to_binary(&get_listing_info(deps, listing_id)?),
+        QueryMsg::GetListingsByOwner {
+            owner,
+        } => to_binary(&get_listings_by_owner(deps, owner)?),
         QueryMsg::GetAllListings {} => to_binary(&get_all_listings(deps)?),
-        // Get buckets owned by 1 address
-        QueryMsg::GetBuckets { bucket_owner } => to_binary(&get_buckets(deps, bucket_owner)?),
-        // Get listings finalized within 2 weeks & paginate for page
-        QueryMsg::GetListingsForMarket { page_num } => {
-            to_binary(&get_listings_for_market(deps, env, page_num)?)
-        }
+        QueryMsg::GetBuckets {
+            bucket_owner,
+        } => to_binary(&get_buckets(deps, bucket_owner)?),
+        QueryMsg::GetListingsForMarket {
+            page_num,
+        } => to_binary(&get_listings_for_market(deps, env, page_num)?),
     }
 }

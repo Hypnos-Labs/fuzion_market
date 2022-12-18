@@ -1,7 +1,7 @@
 use crate::query::*;
 use crate::state::GenericBalance;
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cw20::Cw20ReceiveMsg; // Cw20Coin
+use cw20::Cw20ReceiveMsg;
 use cw721::Cw721ReceiveMsg;
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -20,21 +20,17 @@ pub struct InstantiateMsg {
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 #[cw_serde]
 pub enum ExecuteMsg {
-    // Admin Only
+    // Receive Filters
+    Receive(Cw20ReceiveMsg),
+    ReceiveNft(Cw721ReceiveMsg),
     AddToWhitelist {
         type_adding: u8,
         to_add: (String, String),
     },
-
-    // Receive Filters
-    Receive(Cw20ReceiveMsg),
-    ReceiveNft(Cw721ReceiveMsg),
-
     // Create Listing
     CreateListing {
         create_msg: CreateListingMsg,
     },
-
     // Edit Listing
     AddFundsToSaleNative {
         listing_id: String,
@@ -46,32 +42,24 @@ pub enum ExecuteMsg {
     RemoveListing {
         listing_id: String,
     },
-
-    // Finalize Listing
+    // Makes Listing available for purchase & sets expiration time
     Finalize {
         listing_id: String,
         seconds: u64,
     },
-
-    // Refund expired Listing
+    // Only callable when Listing is expired
     RefundExpired {
         listing_id: String,
     },
-
-    // Create Bucket
     CreateBucket {
         bucket_id: String,
     },
-
-    // Edit Bucket
     AddToBucket {
         bucket_id: String,
     },
     RemoveBucket {
         bucket_id: String,
     },
-
-    // Purchasing
     BuyListing {
         listing_id: String,
         bucket_id: String,
@@ -86,13 +74,18 @@ pub enum ExecuteMsg {
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 #[cw_serde]
 pub enum ReceiveMsg {
-    CreateListingCw20 { create_msg: CreateListingMsg },
-
-    AddFundsToSaleCw20 { listing_id: String },
-
-    CreateBucketCw20 { bucket_id: String },
-
-    AddToBucketCw20 { bucket_id: String },
+    CreateListingCw20 {
+        create_msg: CreateListingMsg,
+    },
+    AddFundsToSaleCw20 {
+        listing_id: String,
+    },
+    CreateBucketCw20 {
+        bucket_id: String,
+    },
+    AddToBucketCw20 {
+        bucket_id: String,
+    },
 }
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -100,13 +93,18 @@ pub enum ReceiveMsg {
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 #[cw_serde]
 pub enum ReceiveNftMsg {
-    CreateListingCw721 { create_msg: CreateListingMsg },
-
-    AddToListingCw721 { listing_id: String },
-
-    CreateBucketCw721 { bucket_id: String },
-
-    AddToBucketCw721 { bucket_id: String },
+    CreateListingCw721 {
+        create_msg: CreateListingMsg,
+    },
+    AddToListingCw721 {
+        listing_id: String,
+    },
+    CreateBucketCw721 {
+        bucket_id: String,
+    },
+    AddToBucketCw721 {
+        bucket_id: String,
+    },
 }
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -117,21 +115,28 @@ pub enum ReceiveNftMsg {
 pub enum QueryMsg {
     #[returns(AdminResponse)]
     GetAdmin {},
-    #[returns(ListingInfoResponse)]
-    GetListingInfo { listing_id: String },
-    #[returns(MultiListingResponse)]
-    GetAllListings {},
-    #[returns(MultiListingResponse)]
-    GetListingsByOwner { owner: String },
-    #[returns(GetBucketsResponse)]
-    GetBuckets { bucket_owner: String },
-    #[returns(MultiListingResponse)]
-    GetListingsForMarket { page_num: u8 },
     #[returns(ConfigResponse)]
     GetConfig {},
+    #[returns(MultiListingResponse)]
+    GetAllListings {},
+    #[returns(ListingInfoResponse)]
+    GetListingInfo {
+        listing_id: String,
+    },
+    #[returns(MultiListingResponse)]
+    GetListingsByOwner {
+        owner: String,
+    },
+    #[returns(GetBucketsResponse)]
+    GetBuckets {
+        bucket_owner: String,
+    },
+    #[returns(MultiListingResponse)]
+    GetListingsForMarket {
+        page_num: u8,
+    },
 }
 
-// Create Listing msg struct
 #[cw_serde]
 pub struct CreateListingMsg {
     pub id: String,

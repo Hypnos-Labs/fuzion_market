@@ -20,17 +20,17 @@ pub fn get_admin(deps: Deps) -> StdResult<Binary> {
 // Get config
 pub fn get_config(deps: Deps) -> StdResult<Binary> {
     let config = CONFIG.load(deps.storage)?;
-    to_binary(&ConfigResponse { config })
+    to_binary(&ConfigResponse {
+        config,
+    })
 }
 
 // Get all buckets owned by an address
 pub fn get_buckets(deps: Deps, bucket_owner: String) -> StdResult<Binary> {
     let bucket_ownerx = deps.api.addr_validate(&bucket_owner)?;
 
-    let user_bucks: StdResult<Vec<_>> = BUCKETS
-        .prefix(bucket_ownerx)
-        .range(deps.storage, None, None, Order::Ascending)
-        .collect();
+    let user_bucks: StdResult<Vec<_>> =
+        BUCKETS.prefix(bucket_ownerx).range(deps.storage, None, None, Order::Ascending).collect();
 
     let rez = GetBucketsResponse {
         buckets: user_bucks?,
@@ -104,10 +104,8 @@ pub fn get_listing_info(deps: Deps, listing_id: String) -> StdResult<Binary> {
 pub fn get_listings_by_owner(deps: Deps, owner: String) -> StdResult<Binary> {
     let owner = deps.api.addr_validate(&owner)?;
 
-    let all_listings: StdResult<Vec<_>> = listingz()
-        .prefix(&owner)
-        .range(deps.storage, None, None, Order::Ascending)
-        .collect();
+    let all_listings: StdResult<Vec<_>> =
+        listingz().prefix(&owner).range(deps.storage, None, None, Order::Ascending).collect();
 
     let listing_data: Vec<Listing> = all_listings?.iter().map(|tup| tup.1.clone()).collect();
 
@@ -118,10 +116,8 @@ pub fn get_listings_by_owner(deps: Deps, owner: String) -> StdResult<Binary> {
 
 // Limited to 100
 pub fn get_all_listings(deps: Deps) -> StdResult<Binary> {
-    let all_listings: StdResult<Vec<_>> = listingz()
-        .range(deps.storage, None, None, Order::Ascending)
-        .take(100)
-        .collect();
+    let all_listings: StdResult<Vec<_>> =
+        listingz().range(deps.storage, None, None, Order::Ascending).take(100).collect();
 
     let listing_data: Vec<Listing> = all_listings?.iter().map(|entry| entry.1.clone()).collect();
 

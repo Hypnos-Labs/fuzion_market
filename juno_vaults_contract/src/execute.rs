@@ -12,8 +12,7 @@ use cw20::Balance;
 pub fn add_to_whitelist(
     deps: DepsMut,
     sender: Addr,
-    // 1 = Native, 2 = CW20, 3 = NFT
-    type_adding: u8,
+    type_adding: u8, // 1 = Native, 2 = CW20, 3 = NFT
     to_add: (String, String),
 ) -> Result<Response, ContractError> {
     let config: Config = CONFIG.load(deps.storage)?;
@@ -25,63 +24,49 @@ pub fn add_to_whitelist(
     match type_adding {
         1 => {
             // Native
-            CONFIG.update(
-                deps.storage,
-                |old_config: Config| -> Result<Config, ContractError> {
-                    let new_config = {
-                        let mut old_wl = old_config.whitelist_native;
-                        old_wl.push(to_add);
-                        Config {
-                            whitelist_native: old_wl,
-                            ..old_config
-                        }
-                    };
-
-                    Ok(new_config)
-                },
-            )?;
+            CONFIG.update(deps.storage, |old_config: Config| -> Result<Config, ContractError> {
+                let new_config = {
+                    let mut old_wl = old_config.whitelist_native;
+                    old_wl.push(to_add);
+                    Config {
+                        whitelist_native: old_wl,
+                        ..old_config
+                    }
+                };
+                Ok(new_config)
+            })?;
         }
         2 => {
             // CW20
             let cw20_addr = deps.api.addr_validate(&to_add.1)?;
-
-            CONFIG.update(
-                deps.storage,
-                |old_config: Config| -> Result<Config, ContractError> {
-                    let new_config = {
-                        let mut old_wl = old_config.whitelist_cw20;
-                        old_wl.push((to_add.0, cw20_addr));
-                        Config {
-                            whitelist_cw20: old_wl,
-                            ..old_config
-                        }
-                    };
-
-                    Ok(new_config)
-                },
-            )?;
+            CONFIG.update(deps.storage, |old_config: Config| -> Result<Config, ContractError> {
+                let new_config = {
+                    let mut old_wl = old_config.whitelist_cw20;
+                    old_wl.push((to_add.0, cw20_addr));
+                    Config {
+                        whitelist_cw20: old_wl,
+                        ..old_config
+                    }
+                };
+                Ok(new_config)
+            })?;
         }
         3 => {
-            //NFT
+            // CW721
             let nft_addr = deps.api.addr_validate(&to_add.1)?;
-
-            CONFIG.update(
-                deps.storage,
-                |old_config: Config| -> Result<Config, ContractError> {
-                    let new_config = {
-                        let mut old_wl = old_config.whitelist_nft;
-                        old_wl.push((to_add.0, nft_addr));
-                        Config {
-                            whitelist_nft: old_wl,
-                            ..old_config
-                        }
-                    };
-
-                    Ok(new_config)
-                },
-            )?;
+            CONFIG.update(deps.storage, |old_config: Config| -> Result<Config, ContractError> {
+                let new_config = {
+                    let mut old_wl = old_config.whitelist_nft;
+                    old_wl.push((to_add.0, nft_addr));
+                    Config {
+                        whitelist_nft: old_wl,
+                        ..old_config
+                    }
+                };
+                Ok(new_config)
+            })?;
         }
-        _ => return Err(ContractError::ToDo {}),
+        _ => return Err(ContractError::GenericInvalid),
     }
 
     Ok(Response::default())
@@ -136,7 +121,7 @@ pub fn execute_create_bucket_cw721(
         return Err(ContractError::IdAlreadyExists {});
     }
 
-    // all NFT validation checks are handled in receiver wrapper
+    // NFT validation checks are handled in receiver wrapper
     // Save bucket
     BUCKETS.save(
         deps.storage,
@@ -175,21 +160,20 @@ pub fn execute_add_to_bucket(
         return Err(ContractError::Unauthorized {});
     }
 
-    // Add tokens to bucket
-    // old is current GenericBalance in bucket
-    let old = the_bucket.funds.clone();
-    // upd is current bucket
-    let mut upd = the_bucket;
-    // Mutate upd by adding sent in funds to GenericBalance
-    upd.funds.add_tokens(funds);
-    // Check that upd.funds have changed
-    if old == upd.funds {
-        // Balance not updated, can have cleaner logic here
-        return Err(ContractError::ToDo {});
-    }
+    // Add tokens
+    let new_bucket = {
+        let old_funds = the_bucket.funds.clone();
+        let mut new_bucket = the_bucket;
+        new_bucket.funds.add_tokens(funds);
+        if old_funds == new_bucket.funds {
+            Err(ContractError::ErrorAdding("Tokens to bucket".to_string()))
+        } else {
+            Ok(new_bucket)
+        }
+    }?;
 
     // Save the updated bucket
-    BUCKETS.save(deps.storage, (sender.clone(), &bucket_id), &upd)?;
+    BUCKETS.save(deps.storage, (sender.clone(), &bucket_id), &new_bucket)?;
 
     Ok(Response::new()
         .add_attribute("method", "add_funds_to_bucket")
@@ -215,10 +199,10 @@ pub fn execute_add_to_bucket_cw721(
     // Create updated bucket
     let new_bucket = {
         let old_funds = the_bucket.funds.clone();
-        let mut new_bucket = the_bucket.clone();
+        let mut new_bucket = the_bucket;
         new_bucket.funds.add_nft(nft);
         if old_funds == new_bucket.funds {
-            Err(ContractError::ToDo {})
+            Err(ContractError::ErrorAdding("NFT to bucket".to_string()))
         } else {
             Ok(new_bucket)
         }
@@ -253,7 +237,6 @@ pub fn execute_withdraw_bucket(
 
     // Remove Bucket
     BUCKETS.remove(deps.storage, (user.clone(), &bucket_id));
-    // Possibly need to add replyon & verify funds sent successfully before removing bucket
 
     Ok(Response::new()
         .add_attribute("method", "empty_bucket")
@@ -276,31 +259,15 @@ pub fn execute_create_listing(
         return Err(ContractError::NoTokens {});
     }
 
-    // Only 6 native in whitelist
-    if createlistingmsg.ask.native.len() > 6 {
-        return Err(ContractError::ToDo {});
-    }
-
-    // Only 3 cw20 in whitelist
-    if createlistingmsg.ask.cw20.len() > 3 {
-        return Err(ContractError::ToDo {});
-    }
-
     // Check that funds sent are whitelisted
     let config = CONFIG.load(deps.storage)?;
-
     is_balance_whitelisted(&funds_sent, &config)?;
 
     // Check that funds in ask are whitelisted
     is_genericbalance_whitelisted(&createlistingmsg.ask, &config)?;
 
     // Check ID isn't taken
-    if (listingz()
-        .idx
-        .id
-        .item(deps.storage, createlistingmsg.id.clone())?)
-    .is_some()
-    {
+    if (listingz().idx.id.item(deps.storage, createlistingmsg.id.clone())?).is_some() {
         return Err(ContractError::IdAlreadyExists {});
     }
 
@@ -337,11 +304,6 @@ pub fn execute_create_listing_cw20(
         return Err(ContractError::NoTokens {});
     }
 
-    // Only 3 cw20 in whitelist
-    if createlistingmsg.ask.cw20.len() > 3 {
-        return Err(ContractError::ToDo {});
-    };
-
     // Check that funds sent are whitelisted
     let config = CONFIG.load(deps.storage)?;
     is_balance_whitelisted(&funds_sent, &config)?;
@@ -350,12 +312,7 @@ pub fn execute_create_listing_cw20(
     is_genericbalance_whitelisted(&createlistingmsg.ask, &config)?;
 
     // Checking to make sure that listing_id isn't taken
-    if (listingz()
-        .idx
-        .id
-        .item(deps.storage, createlistingmsg.id.clone())?)
-    .is_some()
-    {
+    if (listingz().idx.id.item(deps.storage, createlistingmsg.id.clone())?).is_some() {
         return Err(ContractError::IdAlreadyExists {});
     }
 
@@ -387,14 +344,13 @@ pub fn execute_create_listing_cw721(
     createlistingmsg: CreateListingMsg,
 ) -> Result<Response, ContractError> {
     // Checking to make sure that listing_id isn't taken
-    if (listingz()
-        .idx
-        .id
-        .item(deps.storage, createlistingmsg.id.clone())?)
-    .is_some()
-    {
+    if (listingz().idx.id.item(deps.storage, createlistingmsg.id.clone())?).is_some() {
         return Err(ContractError::IdAlreadyExists {});
     }
+
+    // Check that funds in ask are whitelisted
+    let config = CONFIG.load(deps.storage)?;
+    is_genericbalance_whitelisted(&createlistingmsg.ask, &config)?;
 
     listingz().save(
         deps.storage,
@@ -514,7 +470,7 @@ pub fn execute_add_funds_to_sale(
         let mut x = listing.clone();
         x.for_sale.add_tokens(balance);
         if old_listing == x.for_sale {
-            Err(ContractError::ToDo {})
+            Err(ContractError::ErrorAdding("Tokens to Listing".to_string()))
         } else {
             Ok(x)
         }
@@ -561,7 +517,6 @@ pub fn execute_add_to_sale_cw721(
         return Err(ContractError::Unauthorized {});
     }
 
-    // Whitelist check handled in cw721 wrapper
     // Create updated listing
     let new_listing = {
         let old = old_listing.for_sale.clone();
@@ -618,9 +573,7 @@ pub fn execute_remove_listing(
 
     listingz().remove(deps.storage, (user_sender, listing_id))?;
 
-    Ok(Response::new()
-        .add_attribute("method", "remove_listing")
-        .add_messages(msgs))
+    Ok(Response::new().add_attribute("method", "remove_listing").add_messages(msgs))
 }
 
 pub fn execute_finalize(
@@ -711,17 +664,14 @@ pub fn execute_refund(
 
     // Is listing.status == BeingPrepared
     if listing.status == Status::BeingPrepared {
-        // "please use close function instead"
         return Err(ContractError::Unauthorized {});
     }
 
     // Check if listing is expired
     match listing.expiration_time {
         None => {
-            // Means status = BeingPrepared
             return Err(ContractError::Unauthorized {});
         }
-
         Some(timestamp) => {
             if env.block.time < timestamp {
                 return Err(ContractError::NotExpired {
@@ -739,9 +689,7 @@ pub fn execute_refund(
     // Delete Listing
     listingz().remove(deps.storage, (user_sender, listing_id))?;
 
-    Ok(Response::new()
-        .add_attribute("method", "refund")
-        .add_messages(send_msgs))
+    Ok(Response::new().add_attribute("method", "refund").add_messages(send_msgs))
 }
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -762,7 +710,7 @@ pub fn execute_buy_listing(
 
     // Check listing exists & get the_listing
     let Some((_pk, the_listing)): Option<(_, Listing)> = listingz().idx.id.item(deps.storage, listing_id.clone())? else {
-        return Err(ContractError::NotFound { typ: "Listing".to_string(), id: listing_id.clone() });
+        return Err(ContractError::NotFound { typ: "Listing".to_string(), id: listing_id });
     };
 
     // Check that sender is bucket owner (redundant check)
@@ -827,7 +775,7 @@ pub fn execute_withdraw_purchased(
 ) -> Result<Response, ContractError> {
     // Get listing
     let Some((_pk, the_listing)): Option<(_, Listing)> = listingz().idx.id.item(deps.storage, listing_id.clone())? else {
-        return Err(ContractError::NotFound { typ: "Listing".to_string(), id: listing_id.clone() });
+        return Err(ContractError::NotFound { typ: "Listing".to_string(), id: listing_id });
     };
 
     // Check and pull out claimant

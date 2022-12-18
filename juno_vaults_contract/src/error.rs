@@ -12,6 +12,9 @@ pub enum ContractError {
     #[error("To Do Error")]
     ToDo {},
 
+    #[error("Error Adding: {0}")]
+    ErrorAdding(String),
+
     #[error("No Tokens have been sent")]
     NoTokens {},
 
@@ -25,13 +28,20 @@ pub enum ContractError {
     Expired {},
 
     #[error("Funds sent in are not the required funds to purchase")]
-    FundsSentNotFundsAsked { which: String },
+    FundsSentNotFundsAsked {
+        which: String,
+    },
 
     #[error("Tokens in ask are not in whitelist")]
-    NotWhitelist { which: String },
+    NotWhitelist {
+        which: String,
+    },
 
     #[error("{typ} {id} not found")]
-    NotFound { typ: String, id: String },
+    NotFound {
+        typ: String,
+        id: String,
+    },
 
     #[error("Load bucket error")]
     LoadBucketError {},
@@ -40,11 +50,19 @@ pub enum ContractError {
     InvalidExpiration {},
 
     #[error("Listing not expired | Expiration: {x}")]
-    NotExpired { x: String },
+    NotExpired {
+        x: String,
+    },
 
     #[error("Listing not purchasable")]
     NotPurchasable {},
 
     #[error("Missing Instantiate Option {0}")]
     MissingInit(String),
+
+    #[error("Invalid address passed in Instantiate Message")]
+    InitInvalidAddr,
+
+    #[error("Generic Invalid")]
+    GenericInvalid,
 }

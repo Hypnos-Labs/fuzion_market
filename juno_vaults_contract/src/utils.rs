@@ -60,17 +60,11 @@ pub fn send_tokens_cosmos(to: &Addr, balance: &GenericBalance) -> StdResult<Vec<
 }
 
 pub fn is_balance_whitelisted(balance: &Balance, config: &Config) -> Result<(), ContractError> {
-    let wl_native_denoms: Vec<_> = config
-        .whitelist_native
-        .iter()
-        .map(|double| double.1.clone())
-        .collect();
+    let wl_native_denoms: Vec<_> =
+        config.whitelist_native.iter().map(|double| double.1.clone()).collect();
 
-    let wl_cw20_addys: Vec<_> = config
-        .whitelist_cw20
-        .iter()
-        .map(|double2| double2.1.clone())
-        .collect();
+    let wl_cw20_addys: Vec<_> =
+        config.whitelist_cw20.iter().map(|double2| double2.1.clone()).collect();
 
     match balance {
         Balance::Native(natives_sent_in) => {
@@ -101,11 +95,8 @@ pub fn is_genericbalance_whitelisted(
     genericbalance: &GenericBalance,
     config: &Config,
 ) -> Result<(), ContractError> {
-    let wl_native_denoms: Vec<_> = config
-        .whitelist_native
-        .iter()
-        .map(|double| double.1.clone())
-        .collect();
+    let wl_native_denoms: Vec<_> =
+        config.whitelist_native.iter().map(|double| double.1.clone()).collect();
 
     if !genericbalance.native.is_empty() {
         for native in genericbalance.native.clone() {
@@ -117,11 +108,8 @@ pub fn is_genericbalance_whitelisted(
         }
     }
 
-    let wl_cw20_addys: Vec<_> = config
-        .whitelist_cw20
-        .iter()
-        .map(|double2| double2.1.clone())
-        .collect();
+    let wl_cw20_addys: Vec<_> =
+        config.whitelist_cw20.iter().map(|double2| double2.1.clone()).collect();
 
     if !genericbalance.cw20.is_empty() {
         for cw20coin in genericbalance.cw20.clone() {
@@ -133,11 +121,8 @@ pub fn is_genericbalance_whitelisted(
         }
     }
 
-    let wl_nft_addys: Vec<_> = config
-        .whitelist_nft
-        .iter()
-        .map(|double3| double3.1.clone())
-        .collect();
+    let wl_nft_addys: Vec<_> =
+        config.whitelist_nft.iter().map(|double3| double3.1.clone()).collect();
 
     if !genericbalance.nfts.is_empty() {
         for nft in genericbalance.nfts.clone() {
@@ -153,11 +138,7 @@ pub fn is_genericbalance_whitelisted(
 }
 
 pub fn is_nft_whitelisted(nft_addr: &Addr, config: &Config) -> Result<(), ContractError> {
-    let wl_nfts: Vec<_> = config
-        .whitelist_nft
-        .iter()
-        .map(|double| double.1.clone())
-        .collect();
+    let wl_nfts: Vec<_> = config.whitelist_nft.iter().map(|double| double.1.clone()).collect();
 
     if !wl_nfts.contains(nft_addr) {
         return Err(ContractError::NotWhitelist {
