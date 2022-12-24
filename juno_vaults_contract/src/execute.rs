@@ -794,11 +794,21 @@ pub fn execute_withdraw_purchased(
     // Delete Listing
     listingz().remove(deps.storage, (&listing_claimr, listing_id.clone()))?;
 
-    // Send balance to claimant (use directly from listing.claimant not message sender)
-    let msgs = send_tokens_cosmos(&listing_claimr, &the_listing.for_sale)?;
-
-    Ok(Response::new()
-        .add_attribute("method", "withdraw purchased")
-        .add_attribute("listing_id", listing_id)
-        .add_messages(msgs))
+    // Calculate fee amount (only if listing.for_sale contained juno)
+    if let Some((fee_msg, gbal)) = calc_fee(&the_listing.for_sale).map_err(|_| ContractError::FeeCalc)? {
+        let user_msgs = send_tokens_cosmos(&listing_claimr, &gbal)?;
+        Ok(Response::new()
+            .add_attribute("method", "withdraw purchased")
+            .add_attribute("listing_id", listing_id.clone())
+            .add_message(fee_msg)
+            .add_messages(user_msgs)
+        )
+    } else {
+        let user_msgs = send_tokens_cosmos(&listing_claimr, &the_listing.for_sale)?;
+        Ok(Response::new()
+            .add_attribute("method", "withdraw purchased")
+            .add_attribute("listing_id", listing_id.clone())
+            .add_messages(user_msgs)
+        )
+    }
 }

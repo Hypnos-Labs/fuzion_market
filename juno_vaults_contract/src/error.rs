@@ -65,4 +65,7 @@ pub enum ContractError {
 
     #[error("Generic Invalid")]
     GenericInvalid,
+
+    #[error("Fee calculation error")]
+    FeeCalc,
 }

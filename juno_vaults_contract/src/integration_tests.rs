@@ -74,7 +74,7 @@ pub mod create_users {
 
     pub fn give_natives<'a>(user: &User, router: &'a mut App) -> &'a mut App {
         let invalid_native = cosmwasm_std::coin(100, INVALID_NATIVE);
-        let valid_native = cosmwasm_std::coin(100, VALID_NATIVE);
+        let valid_native = cosmwasm_std::coin(100_000_000, VALID_NATIVE);
 
         router.borrow_mut().init_modules(|router, _, storage| {
             router
@@ -793,7 +793,7 @@ fn create_listing_should_pass() -> Result<(), anyhow::Error> {
     let john_new_balance: Coin =
         router.wrap().query_balance(john.address.to_string(), "ujunox").unwrap();
     ensure!(
-        (john_new_balance.amount == Uint128::from(99u32)),
+        (john_new_balance.amount == Uint128::from(99_999_999_u32)),
         here(format!("John balance: {}", john_new_balance.amount), line!(), column!())
     );
 
@@ -911,7 +911,7 @@ fn add_to_listing() -> Result<(), anyhow::Error> {
     let john_new_balance: Coin =
         router.wrap().query_balance(john.address.to_string(), "ujunox").unwrap();
     ensure!(
-        (john_new_balance.amount == Uint128::from(99u32)),
+        (john_new_balance.amount == Uint128::from(99_999_999_u32)),
         here(format!("John balance: {}", john_new_balance.amount), line!(), column!())
     );
 
@@ -938,7 +938,7 @@ fn add_to_listing() -> Result<(), anyhow::Error> {
     // ensure Sam's balance has not changed
     let sam_balance: Coin = router.wrap().query_balance(sam.address.to_string(), "ujunox").unwrap();
     ensure!(
-        (sam_balance.amount == Uint128::from(100u32)),
+        (sam_balance.amount == Uint128::from(100_000_000_u32)),
         here(format!("Sam balance: {}", sam_balance.amount), line!(), column!())
     );
 
@@ -954,7 +954,7 @@ fn add_to_listing() -> Result<(), anyhow::Error> {
     let john_newer_balance: Coin =
         router.wrap().query_balance(john.address.to_string(), "ujunox").unwrap();
     ensure!(
-        (john_newer_balance.amount == Uint128::from(98u32)),
+        (john_newer_balance.amount == Uint128::from(99_999_998_u32)),
         here(format!("John balance: {}", john_newer_balance.amount), line!(), column!())
     );
 
@@ -1149,7 +1149,7 @@ fn remove_a_listing() -> Result<(), anyhow::Error> {
     let john_new_balance: Coin =
         router.wrap().query_balance(john.address.to_string(), "ujunox").unwrap();
     ensure!(
-        (john_new_balance.amount == Uint128::from(99u32)),
+        (john_new_balance.amount == Uint128::from(99_999_999_u32)),
         here(format!("John balance: {}", john_new_balance.amount), line!(), column!())
     );
 
@@ -1191,7 +1191,7 @@ fn remove_a_listing() -> Result<(), anyhow::Error> {
     let sam_new_balance: Coin =
         router.wrap().query_balance(sam.address.to_string(), "ujunox").unwrap();
     ensure!(
-        (sam_new_balance.amount == Uint128::from(99u32)),
+        (sam_new_balance.amount == Uint128::from(99_999_999_u32)),
         here(format!("Sam balance: {}", sam_new_balance.amount), line!(), column!())
     );
 
@@ -1328,7 +1328,7 @@ fn remove_a_listing() -> Result<(), anyhow::Error> {
     let john_new_balance: Coin =
         router.wrap().query_balance(john.address.to_string(), "ujunox").unwrap();
     ensure!(
-        (john_new_balance.amount == Uint128::from(100u32)),
+        (john_new_balance.amount == Uint128::from(100_000_000_u32)),
         here(format!("John balance: {}", john_new_balance.amount), line!(), column!())
     );
     // jvone
@@ -1448,7 +1448,7 @@ fn finalize_a_listing() -> Result<(), anyhow::Error> {
     let john_new_balance: Coin =
         router.wrap().query_balance(john.address.to_string(), "ujunox").unwrap();
     ensure!(
-        (john_new_balance.amount == Uint128::from(99u32)),
+        (john_new_balance.amount == Uint128::from(99_999_999_u32)),
         here(format!("John balance: {}", john_new_balance.amount), line!(), column!())
     );
 
@@ -1490,7 +1490,7 @@ fn finalize_a_listing() -> Result<(), anyhow::Error> {
     let sam_new_balance: Coin =
         router.wrap().query_balance(sam.address.to_string(), "ujunox").unwrap();
     ensure!(
-        (sam_new_balance.amount == Uint128::from(99u32)),
+        (sam_new_balance.amount == Uint128::from(99_999_999_u32)),
         here(format!("Sam balance: {}", sam_new_balance.amount), line!(), column!())
     );
 
@@ -1804,7 +1804,7 @@ fn expiration_checks() -> Result<(), anyhow::Error> {
     let john_new_balance: Coin =
         router.wrap().query_balance(john.address.to_string(), "ujunox").unwrap();
     ensure!(
-        (john_new_balance.amount == Uint128::from(99u32)),
+        (john_new_balance.amount == Uint128::from(99_999_999_u32)),
         here(format!("John balance: {}", john_new_balance.amount), line!(), column!())
     );
 
@@ -2019,7 +2019,7 @@ fn create_bucket() -> Result<(), anyhow::Error> {
     let john_new_balance: Coin =
         router.wrap().query_balance(john.address.to_string(), "ujunox").unwrap();
     ensure!(
-        (john_new_balance.amount == Uint128::from(99u32)),
+        (john_new_balance.amount == Uint128::from(99_999_999_u32)),
         here(format!("John balance: {}", john_new_balance.amount), line!(), column!())
     );
 
@@ -2085,7 +2085,7 @@ fn create_bucket() -> Result<(), anyhow::Error> {
     let john_new_balance: Coin =
         router.wrap().query_balance(john.address.to_string(), "ujunox").unwrap();
     ensure!(
-        (john_new_balance.amount == Uint128::from(98u32)),
+        (john_new_balance.amount == Uint128::from(99_999_998_u32)),
         here(format!("John balance: {}", john_new_balance.amount), line!(), column!())
     );
 
@@ -2172,7 +2172,7 @@ fn create_bucket() -> Result<(), anyhow::Error> {
     let john_new_balance: Coin =
         router.wrap().query_balance(john.address.to_string(), "ujunox").unwrap();
     ensure!(
-        (john_new_balance.amount == Uint128::from(99u32)),
+        (john_new_balance.amount == Uint128::from(99_999_999_u32)),
         here(format!("John balance: {}", john_new_balance.amount), line!(), column!())
     );
 
@@ -2213,6 +2213,7 @@ fn create_bucket() -> Result<(), anyhow::Error> {
 // <X> Purchased Listing can only be removed once
 // <X> Balance checks after Bucket Removal
 // <X> Balance checks after Listing Removal
+// <X> Fee is removed when withdrawing purchase
 #[test]
 fn marketplace_sale() -> Result<(), anyhow::Error> {
     use anyhow::Result;
@@ -2273,7 +2274,7 @@ fn marketplace_sale() -> Result<(), anyhow::Error> {
         john.address.clone(),
         junovaults.clone(),
         &clm,
-        &coins(5, "ujunox"),
+        &coins(5_000_000, "ujunox"),
     );
     ensure!(res.is_ok(), here("'Testing Ask Creation' failure", line!(), column!()));
 
@@ -2636,7 +2637,7 @@ fn marketplace_sale() -> Result<(), anyhow::Error> {
         john.address.clone(),
         junovaults.clone(),
         &clm,
-        &coins(5, "ujunox"),
+        &coins(5_000_000, "ujunox"),
     );
     ensure!(res.is_err(), here("duplicate name should fail", line!(), column!()));
 
@@ -2728,7 +2729,7 @@ fn marketplace_sale() -> Result<(), anyhow::Error> {
     //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     let res: Result<AppResponse> =
         router.execute_contract(sam.address.clone(), junovaults.clone(), &remove_edge, &[]);
-    ensure!(res.is_ok(), here("Sam withdraw after sale", line!(), column!()));
+    ensure!(res.is_ok(), here(format!("{:#?}", res), line!(), column!()));
 
     // but can't remove twice
     let res: Result<AppResponse> =
@@ -2741,7 +2742,9 @@ fn marketplace_sale() -> Result<(), anyhow::Error> {
 
     // Sam balance checks
     // Sam should have
-    // 105 JUNO
+    // 105_000_000 JUNO before 0.1% fee
+    // 0.1% of 5_000_000 is = 5_000
+    // should have 104_995_000 JUNO
     // 110 JVONE
     // 80 JVTWO
     // NeonPeepz #1, #3, #4
@@ -2749,7 +2752,7 @@ fn marketplace_sale() -> Result<(), anyhow::Error> {
     let sam_juno_bal: Coin =
         router.wrap().query_balance(sam.address.to_string(), "ujunox").unwrap();
     ensure!(
-        (sam_juno_bal.amount == Uint128::from(105u32)),
+        (sam_juno_bal.amount == Uint128::from(104_995_000_u32)),
         here("Sam juno balance wrong", line!(), column!())
     );
 
@@ -2770,7 +2773,7 @@ fn marketplace_sale() -> Result<(), anyhow::Error> {
 
     // John balance checks
     // John should have
-    // 95 JUNO
+    // 95_000_000 JUNO
     // 90 JVONE
     // 120 JVTWO
     // NeonPeepz #2
@@ -2778,7 +2781,7 @@ fn marketplace_sale() -> Result<(), anyhow::Error> {
     let john_juno_bal: Coin =
         router.wrap().query_balance(john.address.to_string(), "ujunox").unwrap();
     ensure!(
-        (john_juno_bal.amount == Uint128::from(95u32)),
+        (john_juno_bal.amount == Uint128::from(95_000_000_u32)),
         here("John juno balance wrong", line!(), column!())
     );
 
