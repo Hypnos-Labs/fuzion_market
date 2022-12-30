@@ -125,7 +125,11 @@ pub fn get_all_listings(deps: Deps) -> StdResult<MultiListingResponse> {
 }
 
 // Query w filter & pagination
-pub fn get_listings_for_market(deps: Deps, env: &Env, page_num: u8) -> StdResult<MultiListingResponse> {
+pub fn get_listings_for_market(
+    deps: Deps,
+    env: &Env,
+    page_num: u8,
+) -> StdResult<MultiListingResponse> {
     let current_time = env.block.time.seconds();
     let two_weeks_ago_in_seconds = current_time - 1_209_600;
 

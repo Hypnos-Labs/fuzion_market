@@ -2,7 +2,7 @@
 use anyhow::ensure;
 use core::fmt::Display;
 
-use cosmwasm_std::{coins, to_binary, Addr, Binary, Coin, Empty, Uint128}; //BlockInfo};
+use cosmwasm_std::{coins, to_binary, Addr, Coin, Empty, Uint128}; //BlockInfo};
 use cw20::{Cw20Coin, Cw20CoinVerified, Cw20Contract};
 use cw_multi_test::{App, Contract, ContractWrapper, Executor};
 
@@ -1358,10 +1358,10 @@ fn remove_a_listing() -> Result<(), anyhow::Error> {
     let q = crate::msg::QueryMsg::GetListingsByOwner {
         owner: john.address.clone().to_string(),
     };
-    let res: crate::query::MultiListingResponse = {
-        let qres: Binary = router.wrap().query_wasm_smart(junovaults, &q).unwrap();
-        cosmwasm_std::from_binary(&qres).unwrap()
-    };
+
+    let res: crate::query::MultiListingResponse =
+        router.wrap().query_wasm_smart(junovaults, &q).unwrap();
+
     ensure!(res.listings.is_empty(), here("john listings length", line!(), column!()));
 
     Ok(())
@@ -1953,10 +1953,8 @@ fn expiration_checks() -> Result<(), anyhow::Error> {
     let q = crate::msg::QueryMsg::GetListingsByOwner {
         owner: john.address.clone().to_string(),
     };
-    let res: crate::query::MultiListingResponse = {
-        let qres: Binary = router.wrap().query_wasm_smart(junovaults, &q).unwrap();
-        cosmwasm_std::from_binary(&qres).unwrap()
-    };
+    let res: crate::query::MultiListingResponse =
+        router.wrap().query_wasm_smart(junovaults, &q).unwrap();
     ensure!(res.listings.is_empty(), here("john listings length", line!(), column!()));
 
     Ok(())
@@ -2188,10 +2186,9 @@ fn create_bucket() -> Result<(), anyhow::Error> {
     let q = crate::msg::QueryMsg::GetBuckets {
         bucket_owner: john.address.clone().to_string(),
     };
-    let res: crate::query::GetBucketsResponse = {
-        let qres: Binary = router.wrap().query_wasm_smart(junovaults, &q).unwrap();
-        cosmwasm_std::from_binary(&qres).unwrap()
-    };
+    let res: crate::query::GetBucketsResponse =
+        router.wrap().query_wasm_smart(junovaults, &q).unwrap();
+
     ensure!((res.buckets.len() == 2), here("john buckets length", line!(), column!()));
 
     Ok(())
