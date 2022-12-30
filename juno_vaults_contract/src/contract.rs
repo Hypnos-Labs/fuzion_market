@@ -36,20 +36,7 @@ pub fn instantiate(
         None => info.sender,
     };
 
-    // ("JUNO", "ujunox")
-    let Some(native_whitelist): Option<Vec<(String, String)>> = msg.native_whitelist else {
-        return Err(ContractError::MissingInit("Native Whitelist Missing".to_string()));
-    };
-    // ("SYMBOL", "contract address")
-    let Some(cw20_wl) = msg.cw20_whitelist else {
-        return Err(ContractError::MissingInit("CW20 Whitelist Missing".to_string()));
-    };
-    // ("SYMBOL", "contract address")
-    let Some(nft_wl) = msg.nft_whitelist else {
-        return Err(ContractError::MissingInit("NFT Whitelist Missing".to_string()));
-    };
-
-    let cw20_whitelist: Vec<(String, Addr)> = cw20_wl
+    let cw20_whitelist: Vec<(String, Addr)> = msg.cw20_whitelist
         .iter()
         .map(|cw20| {
             let Ok(valid) = deps.api.addr_validate(&cw20.1) else {
@@ -59,7 +46,7 @@ pub fn instantiate(
         })
         .collect::<Result<Vec<(String, Addr)>, ContractError>>()?;
 
-    let nft_whitelist: Vec<(String, Addr)> = nft_wl
+    let nft_whitelist: Vec<(String, Addr)> = msg.nft_whitelist
         .iter()
         .map(|nft| {
             let Ok(valid) = deps.api.addr_validate(&nft.1) else {
@@ -73,7 +60,7 @@ pub fn instantiate(
         deps.storage,
         &Config {
             admin: validated_admin,
-            whitelist_native: native_whitelist,
+            whitelist_native: msg.native_whitelist,
             whitelist_cw20: cw20_whitelist,
             whitelist_nft: nft_whitelist,
         },

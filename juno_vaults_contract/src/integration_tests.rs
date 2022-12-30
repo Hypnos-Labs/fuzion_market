@@ -164,9 +164,9 @@ pub mod init_contracts {
         let jv_id = router.store_code(junovaults_contract());
         let msg = InstantiateMsg {
             admin: None,
-            native_whitelist: Some(native_wl),
-            cw20_whitelist: Some(cw20_wl),
-            nft_whitelist: Some(nft_wl),
+            native_whitelist: native_wl,
+            cw20_whitelist: cw20_wl,
+            nft_whitelist: nft_wl,
         };
 
         let addr =
