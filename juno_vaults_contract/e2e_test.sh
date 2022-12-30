@@ -1,4 +1,4 @@
-# juno github -> `sh scripts/test_node.sh c`
+# https://github.com/CosmosContracts/juno -> `sh scripts/test_node.sh c`
 export KEY="juno1" 
 export KEY_ADDR="juno1efd63aw40lxf3n4mhf7dzhjkr453axurv2zdzk"
 export KEYALGO="secp256k1"
@@ -11,13 +11,6 @@ export JUNOD_COMMAND_ARGS="--gas 5000000 --gas-prices="0ujuno" -y --from $KEY --
 VAULT_UPLOAD=$(junod tx wasm store artifacts/juno_vaults.wasm $JUNOD_COMMAND_ARGS | jq -r '.txhash') && echo $VAULT_UPLOAD
 VAULT_BASE_CODE_ID=1
 
-# #[cw_serde]
-# pub struct InstantiateMsg {
-#     pub admin: Option<String>,
-#     pub native_whitelist: Vec<(String, String)>,
-#     pub cw20_whitelist: Vec<(String, String)>,
-#     pub nft_whitelist: Vec<(String, String)>,
-# }
 ADMIN="$KEY_ADDR"
 JSON_MSG=$(printf '{"admin":"%s","native_whitelist":[["JUNO","ujuno"]],"cw20_whitelist":[],"nft_whitelist":[]}' "$ADMIN")
 

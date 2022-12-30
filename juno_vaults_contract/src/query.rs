@@ -2,7 +2,7 @@ use crate::state::*;
 use crate::utils::*;
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::StdError;
-use cosmwasm_std::{to_binary, Binary, Deps, Env, Order, StdResult};
+use cosmwasm_std::{Deps, Env, Order, StdResult};
 use cw_storage_plus::PrefixBound;
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -10,37 +10,35 @@ use cw_storage_plus::PrefixBound;
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 // Get contract admin
-pub fn get_admin(deps: Deps) -> StdResult<Binary> {
+pub fn get_admin(deps: Deps) -> StdResult<AdminResponse> {
     let storage = CONFIG.load(deps.storage)?;
-    to_binary(&AdminResponse {
+    Ok(AdminResponse {
         admin: storage.admin.into_string(),
     })
 }
 
 // Get config
-pub fn get_config(deps: Deps) -> StdResult<Binary> {
+pub fn get_config(deps: Deps) -> StdResult<ConfigResponse> {
     let config = CONFIG.load(deps.storage)?;
-    to_binary(&ConfigResponse {
+    Ok(ConfigResponse {
         config,
     })
 }
 
 // Get all buckets owned by an address
-pub fn get_buckets(deps: Deps, bucket_owner: &str) -> StdResult<Binary> {
+pub fn get_buckets(deps: Deps, bucket_owner: &str) -> StdResult<GetBucketsResponse> {
     let bucket_ownerx = deps.api.addr_validate(bucket_owner)?;
 
     let user_bucks: StdResult<Vec<_>> =
         BUCKETS.prefix(bucket_ownerx).range(deps.storage, None, None, Order::Ascending).collect();
 
-    let rez = GetBucketsResponse {
+    Ok(GetBucketsResponse {
         buckets: user_bucks?,
-    };
-
-    to_binary(&rez)
+    })
 }
 
 // Get a single listing by a Listing ID
-pub fn get_listing_info(deps: Deps, listing_id: String) -> StdResult<Binary> {
+pub fn get_listing_info(deps: Deps, listing_id: String) -> StdResult<ListingInfoResponse> {
     let Some((_pk, listing)): Option<(_, Listing)> = listingz().idx.id.item(deps.storage, listing_id)? else {
         return Err(StdError::GenericErr { msg: "Invalid listing ID".to_string() });
     };
@@ -82,7 +80,7 @@ pub fn get_listing_info(deps: Deps, listing_id: String) -> StdResult<Binary> {
         .for_each(|the_coin| the_ask.push((the_coin.address.to_string(), the_coin.amount.u128())));
 
     if let Some(x) = listing.expiration_time {
-        to_binary(&ListingInfoResponse {
+        Ok(ListingInfoResponse {
             creator: listing.creator.to_string(),
             status,
             for_sale: the_sale,
@@ -90,7 +88,7 @@ pub fn get_listing_info(deps: Deps, listing_id: String) -> StdResult<Binary> {
             expiration: x.eztime_string()?,
         })
     } else {
-        to_binary(&ListingInfoResponse {
+        Ok(ListingInfoResponse {
             creator: listing.creator.to_string(),
             status,
             for_sale: the_sale,
@@ -101,7 +99,7 @@ pub fn get_listing_info(deps: Deps, listing_id: String) -> StdResult<Binary> {
 }
 
 // Get all listings owned by an Address
-pub fn get_listings_by_owner(deps: Deps, owner: &str) -> StdResult<Binary> {
+pub fn get_listings_by_owner(deps: Deps, owner: &str) -> StdResult<MultiListingResponse> {
     let owner = deps.api.addr_validate(owner)?;
 
     let all_listings: StdResult<Vec<_>> =
@@ -109,25 +107,25 @@ pub fn get_listings_by_owner(deps: Deps, owner: &str) -> StdResult<Binary> {
 
     let listing_data: Vec<Listing> = all_listings?.iter().map(|tup| tup.1.clone()).collect();
 
-    to_binary(&MultiListingResponse {
+    Ok(MultiListingResponse {
         listings: listing_data,
     })
 }
 
 // Limited to 100
-pub fn get_all_listings(deps: Deps) -> StdResult<Binary> {
+pub fn get_all_listings(deps: Deps) -> StdResult<MultiListingResponse> {
     let all_listings: StdResult<Vec<_>> =
         listingz().range(deps.storage, None, None, Order::Ascending).take(100).collect();
 
     let listing_data: Vec<Listing> = all_listings?.iter().map(|entry| entry.1.clone()).collect();
 
-    to_binary(&MultiListingResponse {
+    Ok(MultiListingResponse {
         listings: listing_data,
     })
 }
 
 // Query w filter & pagination
-pub fn get_listings_for_market(deps: Deps, env: &Env, page_num: u8) -> StdResult<Binary> {
+pub fn get_listings_for_market(deps: Deps, env: &Env, page_num: u8) -> StdResult<MultiListingResponse> {
     let current_time = env.block.time.seconds();
     let two_weeks_ago_in_seconds = current_time - 1_209_600;
 
@@ -150,7 +148,7 @@ pub fn get_listings_for_market(deps: Deps, env: &Env, page_num: u8) -> StdResult
         .map(|entry| entry.1.clone())
         .collect();
 
-    to_binary(&MultiListingResponse {
+    Ok(MultiListingResponse {
         listings: listings_in_range,
     })
 }
