@@ -26,8 +26,8 @@ pub fn get_config(deps: Deps) -> StdResult<Binary> {
 }
 
 // Get all buckets owned by an address
-pub fn get_buckets(deps: Deps, bucket_owner: String) -> StdResult<Binary> {
-    let bucket_ownerx = deps.api.addr_validate(&bucket_owner)?;
+pub fn get_buckets(deps: Deps, bucket_owner: &str) -> StdResult<Binary> {
+    let bucket_ownerx = deps.api.addr_validate(bucket_owner)?;
 
     let user_bucks: StdResult<Vec<_>> =
         BUCKETS.prefix(bucket_ownerx).range(deps.storage, None, None, Order::Ascending).collect();
@@ -101,8 +101,8 @@ pub fn get_listing_info(deps: Deps, listing_id: String) -> StdResult<Binary> {
 }
 
 // Get all listings owned by an Address
-pub fn get_listings_by_owner(deps: Deps, owner: String) -> StdResult<Binary> {
-    let owner = deps.api.addr_validate(&owner)?;
+pub fn get_listings_by_owner(deps: Deps, owner: &str) -> StdResult<Binary> {
+    let owner = deps.api.addr_validate(owner)?;
 
     let all_listings: StdResult<Vec<_>> =
         listingz().prefix(&owner).range(deps.storage, None, None, Order::Ascending).collect();
@@ -127,9 +127,9 @@ pub fn get_all_listings(deps: Deps) -> StdResult<Binary> {
 }
 
 // Query w filter & pagination
-pub fn get_listings_for_market(deps: Deps, env: Env, page_num: u8) -> StdResult<Binary> {
+pub fn get_listings_for_market(deps: Deps, env: &Env, page_num: u8) -> StdResult<Binary> {
     let current_time = env.block.time.seconds();
-    let two_weeks_ago_in_seconds = current_time - 1209600;
+    let two_weeks_ago_in_seconds = current_time - 1_209_600;
 
     let to_skip_usize = usize::from(page_num * 20 - 20);
 
@@ -143,7 +143,7 @@ pub fn get_listings_for_market(deps: Deps, env: Env, page_num: u8) -> StdResult<
             Order::Ascending,
         )
         .collect::<StdResult<Vec<_>>>()
-        .unwrap()
+        .unwrap_or_default()
         .iter()
         .skip(to_skip_usize)
         .take(20)

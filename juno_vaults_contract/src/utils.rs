@@ -2,7 +2,7 @@ use crate::error::*;
 use crate::state::*;
 use chrono::{Datelike, NaiveDateTime, Timelike};
 use cosmwasm_schema::cw_serde;
-use cosmwasm_std::Uint128;
+
 use cosmwasm_std::coins;
 use cosmwasm_std::{to_binary, Addr, BankMsg, CosmosMsg, Empty, StdError, StdResult, WasmMsg};
 use cw20::{Balance, Cw20ExecuteMsg};
@@ -20,7 +20,7 @@ pub fn send_tokens_cosmos(to: &Addr, balance: &GenericBalance) -> StdResult<Vec<
     } else {
         vec![CosmosMsg::from(BankMsg::Send {
             to_address: to.into(),
-            amount: native_balance.to_vec(),
+            amount: native_balance.clone(),
         })]
     };
 
@@ -66,69 +66,61 @@ pub fn send_tokens_cosmos(to: &Addr, balance: &GenericBalance) -> StdResult<Vec<
     Ok(msgs)
 }
 
-
 pub fn calc_fee(balance: &GenericBalance) -> StdResult<Option<(CosmosMsg, GenericBalance)>> {
-
-    let juno_in_balance = balance
-        .native
-        .iter()
-        .find(|n| n.denom == "ujunox".to_string());
+    let juno_in_balance = balance.native.iter().find(|n| n.denom == *"ujunox");
 
     // If balance DOES NOT contain juno, return Ok(None)
     // If balance DOES contain juno, calculate 0.1% of the JUNO in the balance,
     // Create CosmosMsg sending that to the Community Pool,
     // and return this CosmosMsg + a generic balance with the fee removed for the user
     if let Some(juno) = juno_in_balance {
-
         // 0.1% = amount * 1 / 1000
         let ten_pips = juno.amount.multiply_ratio(1_u128, 1000_u128);
 
         let fee_msg: CosmosMsg<Empty> = CosmosMsg::from(BankMsg::Send {
-            to_address: COMMUNITY_POOL.to_string(), 
-            amount: coins(ten_pips.u128(), "ujunox") 
+            to_address: COMMUNITY_POOL.to_string(),
+            amount: coins(ten_pips.u128(), "ujunox"),
         });
 
         let juno_amount_after_fee_removed = juno.amount.checked_sub(ten_pips)?;
 
         let balance_with_fee_removed = {
             let mut x = balance.clone();
-            x.native.retain(|n| n.denom != "ujunox".to_string());
+            x.native.retain(|n| n.denom != *"ujunox");
             x.native.append(&mut coins(juno_amount_after_fee_removed.u128(), "ujunox"));
             x
         };
 
         Ok(Some((fee_msg, balance_with_fee_removed)))
-
     } else {
-
         Ok(None)
     }
-
 }
-
 
 pub fn is_balance_whitelisted(balance: &Balance, config: &Config) -> Result<(), ContractError> {
     let wl_native_denoms: Vec<_> =
         config.whitelist_native.iter().map(|double| double.1.clone()).collect();
 
-    let wl_cw20_addys: Vec<_> =
-        config.whitelist_cw20.iter().map(|double2| double2.1.clone()).collect();
-
     match balance {
         Balance::Native(natives_sent_in) => {
-            let bool_vec: Vec<bool> = natives_sent_in
+            if natives_sent_in
                 .0
                 .iter()
                 .map(|native| wl_native_denoms.contains(&native.denom))
-                .collect();
-            if bool_vec.contains(&false) {
+                .any(|x| !x)
+            {
                 return Err(ContractError::NotWhitelist {
                     which: "fail 1 Native".to_string(),
                 });
             }
         }
         Balance::Cw20(cw20) => {
-            if !wl_cw20_addys.contains(&cw20.address) {
+            if !config
+                .whitelist_cw20
+                .iter()
+                .map(|double2| double2.1.clone())
+                .any(|x| x == cw20.address)
+            {
                 return Err(ContractError::NotWhitelist {
                     which: "fail 2 Cw20".to_string(),
                 });
@@ -186,9 +178,7 @@ pub fn is_genericbalance_whitelisted(
 }
 
 pub fn is_nft_whitelisted(nft_addr: &Addr, config: &Config) -> Result<(), ContractError> {
-    let wl_nfts: Vec<_> = config.whitelist_nft.iter().map(|double| double.1.clone()).collect();
-
-    if !wl_nfts.contains(nft_addr) {
+    if !config.whitelist_nft.iter().map(|double| double.1.clone()).any(|x| x == *nft_addr) {
         return Err(ContractError::NotWhitelist {
             which: nft_addr.to_string(),
         });

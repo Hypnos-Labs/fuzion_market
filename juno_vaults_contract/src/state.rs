@@ -38,14 +38,12 @@ impl IndexList<Listing> for ListingIndexes<'_> {
     }
 }
 
+#[must_use]
 pub fn listingz<'a>() -> IndexedMap<'a, (&'a Addr, String), Listing, ListingIndexes<'a>> {
     let indexes = ListingIndexes {
         id: UniqueIndex::new(|a_listing| a_listing.id.clone(), "listing__id"),
         finalized_date: MultiIndex::new(
-            |_pk, a_listing| match a_listing.finalized_time {
-                None => 0_u64,
-                Some(x) => x.seconds() as u64,
-            },
+            |_pk, a_listing| a_listing.finalized_time.map_or(0_u64, |x| x.seconds() as u64),
             "listings_im",
             "listing__finalized__date",
         ),
@@ -140,6 +138,7 @@ impl GenericBalanceUtil for GenericBalance {
     }
 }
 
+#[must_use]
 pub fn genbal_from_nft(nft: Nft) -> GenericBalance {
     GenericBalance {
         native: vec![],
@@ -155,12 +154,12 @@ pub trait ToGenericBalance {
 impl ToGenericBalance for Balance {
     fn to_generic(&self) -> GenericBalance {
         match self {
-            Balance::Native(balance) => GenericBalance {
+            Self::Native(balance) => GenericBalance {
                 native: balance.clone().into_vec(),
                 cw20: vec![],
                 nfts: vec![],
             },
-            Balance::Cw20(token) => GenericBalance {
+            Self::Cw20(token) => GenericBalance {
                 native: vec![],
                 cw20: vec![token.clone()],
                 nfts: vec![],
