@@ -13,61 +13,50 @@ pub fn add_to_whitelist(
     deps: DepsMut,
     sender: Addr,
     type_adding: u8, // 1 = Native, 2 = CW20, 3 = NFT
-    to_add: (String, String),
+    //to_add: (String, String),
+    to_add: String
 ) -> Result<Response, ContractError> {
     let config: Config = CONFIG.load(deps.storage)?;
 
     if config.admin != sender {
         return Err(ContractError::Unauthorized {});
-    }
+    };
 
     match type_adding {
         1 => {
-            // Native
-            CONFIG.update(deps.storage, |old_config: Config| -> Result<Config, ContractError> {
-                let new_config = {
-                    let mut old_wl = old_config.whitelist_native;
-                    old_wl.push(to_add);
-                    Config {
-                        whitelist_native: old_wl,
-                        ..old_config
-                    }
-                };
-                Ok(new_config)
-            })?;
-        }
+            if WHITELIST_NATIVE.has(deps.storage, to_add.clone()) {
+                return Err(ContractError::GenericInvalid);
+            } else {
+                WHITELIST_NATIVE.save(deps.storage, to_add, &true)?;
+            };
+        },
+
         2 => {
-            // CW20
-            let cw20_addr = deps.api.addr_validate(&to_add.1)?;
-            CONFIG.update(deps.storage, |old_config: Config| -> Result<Config, ContractError> {
-                let new_config = {
-                    let mut old_wl = old_config.whitelist_cw20;
-                    old_wl.push((to_add.0, cw20_addr));
-                    Config {
-                        whitelist_cw20: old_wl,
-                        ..old_config
-                    }
-                };
-                Ok(new_config)
-            })?;
-        }
+            let Ok(valid) = deps.api.addr_validate(&to_add) else {
+                return Err(ContractError::ErrorAdding(to_add.clone()));
+            };
+
+            if WHITELIST_CW20.has(deps.storage, valid.clone()) {
+                return Err(ContractError::GenericInvalid);
+            } else {
+                WHITELIST_CW20.save(deps.storage, valid, &true)?;
+            };
+        },
+
         3 => {
-            // CW721
-            let nft_addr = deps.api.addr_validate(&to_add.1)?;
-            CONFIG.update(deps.storage, |old_config: Config| -> Result<Config, ContractError> {
-                let new_config = {
-                    let mut old_wl = old_config.whitelist_nft;
-                    old_wl.push((to_add.0, nft_addr));
-                    Config {
-                        whitelist_nft: old_wl,
-                        ..old_config
-                    }
-                };
-                Ok(new_config)
-            })?;
-        }
+            let Ok(valid) = deps.api.addr_validate(&to_add) else {
+                return Err(ContractError::ErrorAdding(to_add.clone()));
+            };
+
+            if WHITELIST_NFT.has(deps.storage, valid.clone()) {
+                return Err(ContractError::GenericInvalid);
+            } else {
+                WHITELIST_NFT.save(deps.storage, valid, &true)?;
+            };
+        },
+
         _ => return Err(ContractError::GenericInvalid),
-    }
+    };
 
     Ok(Response::default())
 }
@@ -87,8 +76,7 @@ pub fn execute_create_bucket(
     }
 
     // Check that balance sent in is on whitelist
-    let config = CONFIG.load(deps.storage)?;
-    is_balance_whitelisted(&funds, &config)?;
+    is_balance_whitelisted(&funds, &deps)?;
 
     // Check that bucket_id isn't used
     if BUCKETS.has(deps.storage, (creator.clone(), &bucket_id)) {
@@ -147,8 +135,7 @@ pub fn execute_add_to_bucket(
     }
 
     // Ensure coins sent in are in whitelist
-    let config = CONFIG.load(deps.storage)?;
-    is_balance_whitelisted(&funds, &config)?;
+    is_balance_whitelisted(&funds, &deps)?;
 
     // Ensure bucket exists & Sender is owner
     let Some(the_bucket) = BUCKETS.may_load(deps.storage, (sender.clone(), &bucket_id))? else {
@@ -260,11 +247,10 @@ pub fn execute_create_listing(
     }
 
     // Check that funds sent are whitelisted
-    let config = CONFIG.load(deps.storage)?;
-    is_balance_whitelisted(&funds_sent, &config)?;
+    is_balance_whitelisted(&funds_sent, &deps)?;
 
     // Check that funds in ask are whitelisted
-    is_genericbalance_whitelisted(&createlistingmsg.ask, &config)?;
+    is_genericbalance_whitelisted(&createlistingmsg.ask, &deps)?;
 
     // Check ID isn't taken
     if (listingz().idx.id.item(deps.storage, createlistingmsg.id.clone())?).is_some() {
@@ -309,11 +295,10 @@ pub fn execute_create_listing_cw20(
     }
 
     // Check that funds sent are whitelisted
-    let config = CONFIG.load(deps.storage)?;
-    is_balance_whitelisted(&funds_sent, &config)?;
+    is_balance_whitelisted(&funds_sent, &deps)?;
 
     // Check that funds in ask are whitelisted
-    is_genericbalance_whitelisted(&createlistingmsg.ask, &config)?;
+    is_genericbalance_whitelisted(&createlistingmsg.ask, &deps)?;
 
     // Checking to make sure that listing_id isn't taken
     if (listingz().idx.id.item(deps.storage, createlistingmsg.id.clone())?).is_some() {
@@ -358,7 +343,7 @@ pub fn execute_create_listing_cw721(
 
     // Check that funds in ask are whitelisted
     let config = CONFIG.load(deps.storage)?;
-    is_genericbalance_whitelisted(&createlistingmsg.ask, &config)?;
+    is_genericbalance_whitelisted(&createlistingmsg.ask, &deps)?;
 
     let whitelisted_addrs =
         get_whitelisted_addresses(&deps, createlistingmsg.whitelisted_purchasers)?;
@@ -420,8 +405,7 @@ pub fn execute_change_ask(
     }
 
     // Check that new_ask is whitelisted
-    let config = CONFIG.load(deps.storage)?;
-    is_genericbalance_whitelisted(&new_ask, &config)?;
+    is_genericbalance_whitelisted(&new_ask, &deps)?;
 
     listingz().replace(
         deps.storage,
@@ -473,8 +457,7 @@ pub fn execute_add_funds_to_sale(
     }
 
     // Ensure coins sent in are in whitelist
-    let config = CONFIG.load(deps.storage)?;
-    is_balance_whitelisted(&balance, &config)?;
+    is_balance_whitelisted(&balance, &deps)?;
 
     // Update old listing by adding tokens
     let new_listing = {

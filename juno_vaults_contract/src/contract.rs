@@ -36,35 +36,33 @@ pub fn instantiate(
         None => info.sender,
     };
 
-    let cw20_whitelist: Vec<(String, Addr)> = msg.cw20_whitelist
-        .iter()
-        .map(|cw20| {
-            let Ok(valid) = deps.api.addr_validate(&cw20.1) else {
-                return Err(ContractError::InitInvalidAddr);
-            };
-            Ok((cw20.0.clone(), valid))
-        })
-        .collect::<Result<Vec<(String, Addr)>, ContractError>>()?;
-
-    let nft_whitelist: Vec<(String, Addr)> = msg.nft_whitelist
-        .iter()
-        .map(|nft| {
-            let Ok(valid) = deps.api.addr_validate(&nft.1) else {
-                return Err(ContractError::InitInvalidAddr);
-            };
-            Ok((nft.0.clone(), valid))
-        })
-        .collect::<Result<Vec<(String, Addr)>, ContractError>>()?;
-
     CONFIG.save(
         deps.storage,
-        &Config {
-            admin: validated_admin,
-            whitelist_native: msg.native_whitelist,
-            whitelist_cw20: cw20_whitelist,
-            whitelist_nft: nft_whitelist,
-        },
-    )?;
+        &Config { admin: validated_admin},
+    ).map_err(|e| ContractError::InitInvalidAddr)?;
+
+    for native in msg.native_whitelist {
+        WHITELIST_NATIVE.save(deps.storage, native.clone(), &true)
+            .map_err(|e| ContractError::InitInvalidAddr)?;
+    };
+
+    for cw20 in msg.cw20_whitelist {
+        let Ok(address) = deps.api.addr_validate(&cw20) else {
+            return Err(ContractError::InitInvalidAddr);
+        };
+
+        WHITELIST_CW20.save(deps.storage, address, &true)
+            .map_err(|e| ContractError::InitInvalidAddr)?;
+    };
+
+    for nft in msg.nft_whitelist {
+        let Ok(address) = deps.api.addr_validate(&nft) else {
+            return Err(ContractError::InitInvalidAddr);
+        };
+
+        WHITELIST_NFT.save(deps.storage, address, &true)
+            .map_err(|e| ContractError::InitInvalidAddr)?;
+    };
 
     Ok(Response::new().add_attribute("Called", "Instantiate"))
 }
@@ -173,8 +171,8 @@ pub fn execute_receive_nft(
     info: MessageInfo,
     wrapper: Cw721ReceiveMsg,
 ) -> Result<Response, ContractError> {
-    let config = CONFIG.load(deps.storage)?;
-    is_nft_whitelisted(&info.sender, &config)?;
+    //let config = CONFIG.load(deps.storage)?;
+    is_nft_whitelisted(&info.sender, &deps)?;
 
     let msg: ReceiveNftMsg = from_binary(&wrapper.msg)?;
     let user_wallet = &deps.api.addr_validate(&wrapper.sender)?;
