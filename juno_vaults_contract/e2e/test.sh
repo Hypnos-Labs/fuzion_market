@@ -103,11 +103,9 @@ function wasm_cmd {
         FUNDS="--amount $FUNDS"
     fi
 
-    # echo "junod tx wasm execute $CONTRACT $MESSAGE --amount $FUNDS $JUNOD_COMMAND_ARGS"
     tx_hash=$(junod tx wasm execute $CONTRACT $MESSAGE $FUNDS $JUNOD_COMMAND_ARGS | jq -r '.txhash')
 
     export CMD_LOG=$(junod query tx $tx_hash --output json | jq -r '.raw_log')    
-
     if [ "$SHOW_LOG" == "show_log" ]; then
         echo "raw_log: $CMD_LOG"
     fi    
@@ -148,16 +146,19 @@ ASSERT_EQUAL "$CMD_LOG" 'failed to execute message; message index: 0: ID already
 # Finalize the listing for purchase after everything is added
 # TODO: optional set expire at block height?
 wasm_cmd $VAULT_CONTRACT '{"finalize":{"listing_id":"vault_1","seconds":1000}}' "" show_log
+# try to finalize again, will fail
+wasm_cmd $VAULT_CONTRACT '{"finalize":{"listing_id":"vault_1","seconds":1000}}' ""
+ASSERT_EQUAL "$CMD_LOG" 'failed to execute message; message index: 0: Listing already finalized: execute wasm contract failed'
 
 # Createe bucket so we can purchase the listing
-wasm_cmd $VAULT_CONTRACT '{"create_bucket":{"bucket_id":"buyer_a"}}' "10ujuno" show_log
-query_contract $VAULT_CONTRACT `printf '{"get_buckets":{"bucket_owner":"%s"}}' $KEY_ADDR`
+wasm_cmd $VAULT_CONTRACT '{"create_bucket":{"bucket_id":"buyer_a"}}' "10ujuno"
+# query_contract $VAULT_CONTRACT `printf '{"get_buckets":{"bucket_owner":"%s"}}' $KEY_ADDR`
 
 
 # purchase listing
 wasm_cmd $VAULT_CONTRACT '{"buy_listing":{"listing_id":"vault_1","bucket_id":"buyer_a"}}' "0ujuno" show_log
 
-# TODO: after we buy a listing, remove it from the store to save data. No need to save it. Maybe move to another store for X past listing if you want.
+# TODO: after we buy a listing (status closed), remove it from the store to save data. No need to save it. Maybe move to another store for X past listing if you want.
 # Then as new listings come in, remove the oldest listing from that store
 
 # manual queries
