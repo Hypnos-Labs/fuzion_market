@@ -157,9 +157,9 @@ pub mod init_contracts {
     pub fn init_jv_contract(
         router: &mut App,
         admin: &Addr,
-        native_wl: Vec<(String, String)>,
-        cw20_wl: Vec<(String, String)>,
-        nft_wl: Vec<(String, String)>,
+        native_wl: Vec<String>,
+        cw20_wl: Vec<String>,
+        nft_wl: Vec<String>,
     ) -> Addr {
         let jv_id = router.store_code(junovaults_contract());
         let msg = InstantiateMsg {
@@ -228,9 +228,9 @@ pub mod init_contracts {
         );
 
         let cw20_whitelist = vec![
-            ("JVONE".to_string(), jvone.addr().to_string()),
-            ("JVTWO".to_string(), jvtwo.addr().to_string()),
-            ("JVTRE".to_string(), jvtre.addr().to_string()),
+            jvone.addr().to_string(),
+            jvtwo.addr().to_string(),
+            jvtre.addr().to_string(),
         ];
 
         //~~~~~~~~~~~~~~~~~~~~~
@@ -250,8 +250,8 @@ pub mod init_contracts {
         );
 
         let nft_whitelist = vec![
-            ("ShittyKittyz".to_string(), shittykittyz.addr().to_string()),
-            ("NeonPeepz".to_string(), neonpeepz.addr().to_string()),
+            shittykittyz.addr().to_string(),
+            neonpeepz.addr().to_string(),
         ];
 
         //~~~~~~~~~~~~~~~~~~~~~
@@ -259,7 +259,7 @@ pub mod init_contracts {
         let junovaults = init_contracts::init_jv_contract(
             router,
             &contract_admin.address,
-            vec![("JUNO".to_string(), "ujunox".to_string())],
+            vec!["ujunox".to_string()],
             cw20_whitelist,
             nft_whitelist,
         );

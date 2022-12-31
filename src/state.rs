@@ -15,12 +15,21 @@ pub struct Config {
     // Admin of contract
     pub admin: Addr,
     // "Osmo", "ibc/4X5Y6Z"
-    pub whitelist_native: Vec<(String, String)>,
-    // "Shitcoin", "juno1xxx"
-    pub whitelist_cw20: Vec<(String, Addr)>,
-    // "NeonPeepz", "juno1xxx"
-    pub whitelist_nft: Vec<(String, Addr)>,
+    // pub whitelist_native: Vec<(String, String)>,
+    // // "Shitcoin", "juno1xxx"
+    // pub whitelist_cw20: Vec<(String, Addr)>,
+    // // "NeonPeepz", "juno1xxx"
+    // pub whitelist_nft: Vec<(String, Addr)>,
 }
+
+pub const WHITELIST_NATIVE: Map<String, bool> = Map::new("whitelist_native");
+
+pub const WHITELIST_CW20: Map<Addr, bool> = Map::new("whitelist_cw20");
+
+pub const WHITELIST_NFT: Map<Addr, bool> = Map::new("whitelist_nft");
+
+//const WHITELIST: Map<(AssetVariant, String), bool> = Map::new("whitelist");
+
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // Listings IndexedMap

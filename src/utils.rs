@@ -99,94 +99,82 @@ pub fn calc_fee(balance: &GenericBalance) -> StdResult<Option<(CosmosMsg, Generi
     }
 }
 
-pub fn is_balance_whitelisted(balance: &Balance, config: &Config) -> Result<(), ContractError> {
-    let wl_native_denoms: Vec<_> =
-        config.whitelist_native.iter().map(|double| double.1.clone()).collect();
+pub fn is_balance_whitelisted(
+    balance: &Balance, 
+    deps: &DepsMut
+) -> Result<(), ContractError> {
 
     match balance {
-        Balance::Native(natives_sent_in) => {
-            if natives_sent_in
+        Balance::Native(natives) => {
+
+            let _valid = natives
                 .0
                 .iter()
-                .map(|native| wl_native_denoms.contains(&native.denom))
-                .any(|x| !x)
-            {
-                return Err(ContractError::NotWhitelist {
-                    which: "fail 1 Native".to_string(),
-                });
-            }
-        }
+                .map(|native| -> Result<(), ContractError> {
+                    if !WHITELIST_NATIVE.has(deps.storage, native.denom.clone()) {
+                        Err(ContractError::NotWhitelisted {  })
+                    } else {
+                        Ok(())
+                    }
+                })
+                .collect::<Result<(), ContractError>>()?;
+
+            Ok(())
+
+        },
+
         Balance::Cw20(cw20) => {
-            if !config
-                .whitelist_cw20
-                .iter()
-                .map(|double2| double2.1.clone())
-                .any(|x| x == cw20.address)
-            {
-                return Err(ContractError::NotWhitelist {
-                    which: "fail 2 Cw20".to_string(),
-                });
+
+            if !WHITELIST_CW20.has(deps.storage, cw20.address.clone()) {
+                Err(ContractError::NotWhitelisted {  })
+            } else {
+                Ok(())
             }
         }
     }
 
-    Ok(())
 }
 
 pub fn is_genericbalance_whitelisted(
     genericbalance: &GenericBalance,
-    config: &Config,
+    //config: &Config,
+    deps: &DepsMut
 ) -> Result<(), ContractError> {
-    let wl_native_denoms: Vec<_> =
-        config.whitelist_native.iter().map(|double| double.1.clone()).collect();
 
-    if !genericbalance.native.is_empty() {
-        for native in genericbalance.native.clone() {
-            if !wl_native_denoms.contains(&native.denom) {
-                return Err(ContractError::NotWhitelist {
-                    which: native.denom,
-                });
-            };
+
+    // Check for Natives
+    for native in &genericbalance.native {
+        if !WHITELIST_NATIVE.has(deps.storage, native.denom.clone()) {
+            return Err(ContractError::NotWhitelist { which: "Native".to_string() });
         }
     }
 
-    let wl_cw20_addys: Vec<_> =
-        config.whitelist_cw20.iter().map(|double2| double2.1.clone()).collect();
-
-    if !genericbalance.cw20.is_empty() {
-        for cw20coin in genericbalance.cw20.clone() {
-            if !wl_cw20_addys.contains(&cw20coin.address) {
-                return Err(ContractError::NotWhitelist {
-                    which: cw20coin.address.into_string(),
-                });
-            };
+    // Check for cw20s
+    for cw20 in &genericbalance.cw20 {
+        if !WHITELIST_CW20.has(deps.storage, cw20.address.clone()) {
+            return Err(ContractError::NotWhitelist {which: "Cw20".to_string()});
         }
     }
 
-    let wl_nft_addys: Vec<_> =
-        config.whitelist_nft.iter().map(|double3| double3.1.clone()).collect();
-
-    if !genericbalance.nfts.is_empty() {
-        for nft in genericbalance.nfts.clone() {
-            if !wl_nft_addys.contains(&nft.contract_address) {
-                return Err(ContractError::NotWhitelist {
-                    which: nft.contract_address.into_string(),
-                });
-            };
+    // Check for NFTs
+    for nft in &genericbalance.nfts {
+        if !WHITELIST_NFT.has(deps.storage, nft.contract_address.clone()) {
+            return Err(ContractError::NotWhitelist {which: "NFT".to_string()});
         }
     }
 
     Ok(())
+
 }
 
-pub fn is_nft_whitelisted(nft_addr: &Addr, config: &Config) -> Result<(), ContractError> {
-    if !config.whitelist_nft.iter().map(|double| double.1.clone()).any(|x| x == *nft_addr) {
-        return Err(ContractError::NotWhitelist {
-            which: nft_addr.to_string(),
-        });
+pub fn is_nft_whitelisted(nft_addr: &Addr, deps: &DepsMut) -> Result<(), ContractError> {
+
+    if !WHITELIST_NFT.has(deps.storage, nft_addr.to_owned()) {
+        return Err(ContractError::NotWhitelisted {  });
     };
 
     Ok(())
+
 }
 
 /// Get allowed purchasers for a given listing.
