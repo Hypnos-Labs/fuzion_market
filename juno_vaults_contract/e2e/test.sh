@@ -2,6 +2,10 @@
 # Then run this from root of this directory
 # sh e2e/test.sh
 
+# TODO: 
+# - timeout_commit = "500ms" for test_node.sh
+# - put test into their own function?
+
 export KEY="juno1" 
 export KEY_ADDR="juno1hj5fveer5cjtn4wd6wstzugjfdxzl0xps73ftl"
 export KEYALGO="secp256k1"
@@ -74,7 +78,7 @@ ASSERT_EQUAL $token_uri "https://m.media-amazon.com/images/I/21IAeMeSa5L.jpg"
 admin=$(query_contract $VAULT_CONTRACT '{"get_config":{}}' | jq -r '.data.config.admin')
 ASSERT_EQUAL $admin $KEY_ADDR
 
-# Check whitelist is set to what we requested
+# Check whitelist is set to what we requested (add cw721 here in the future too)
 whitelist_native=$(query_contract $VAULT_CONTRACT '{"get_config":{}}' | jq -r '.data.config.whitelist_native')
 ASSERT_EQUAL $whitelist_native '[["JUNO","ujuno"]]'
 
@@ -83,6 +87,55 @@ ASSERT_EQUAL $whitelist_native '[["JUNO","ujuno"]]'
 # == TRANSACTIONS ==
 # test cw20, nft, and native (as well as tokenfactory for v12)
 
+function wasm_cmd {
+    CONTRACT=$1
+    MESSAGE=$2
+    FUNDS=$3
+    SHOW_LOG=$4
+
+    echo "Running... $CONTRACT: $MESSAGE"
+
+    echo "junod tx wasm execute $CONTRACT $MESSAGE --amount $FUNDS $JUNOD_COMMAND_ARGS"
+    tx_hash=$(junod tx wasm execute $CONTRACT $MESSAGE --amount "$FUNDS" $JUNOD_COMMAND_ARGS | jq -r '.txhash')
+
+    export CMD_LOG=$(junod query tx $tx_hash --output json | jq -r '.raw_log')    
+
+    if [ "$SHOW_LOG" == "show_log" ]; then
+        echo "raw_log: $CMD_LOG"
+    fi    
+}
+
+# type_adding: 1 = Native, 2 = CW20, 3 = NFT
+wasm_cmd $VAULT_CONTRACT '{"add_to_whitelist":{"type_adding":1,"to_add":["NEW","unew"]}}'
+# add nft
+wasm_cmd $VAULT_CONTRACT `printf '{"add_to_whitelist":{"type_adding":3,"to_add":["cw721","%s"]}}' $CW721_CONTRACT`
+
+# TODO: don't allow multiple of the same add to whitelist, ensure this errors
+# wasm_cmd $VAULT_CONTRACT `printf '{"add_to_whitelist":{"type_adding":3,"to_add":["cw721","%s"]}}' $CW721_CONTRACT`
+
+
+# == TEST == 
+# Check that whitelist was updated
+native=$(query_contract $VAULT_CONTRACT '{"get_config":{}}' | jq -r '.data.config.whitelist_native')
+ASSERT_EQUAL $native '[["JUNO","ujuno"],["NEW","unew"]'
+# test nft
+nft=$(query_contract $VAULT_CONTRACT '{"get_config":{}}' | jq -r '.data.config.whitelist_nft')
+ASSERT_EQUAL $nft `printf '[["cw721","%s"]]' $CW721_CONTRACT`
+
+
+
+# LISTINGS
+
+# TODO: make ask Optionals?
+wasm_cmd $VAULT_CONTRACT '{"create_listing":{"create_msg":{"id":"vault_1","ask":{"native":[{"denom":"ujuno","amount":"10"}],"cw20":[],"nfts":[]}}}}' "1ujuno" dont_show_log
+
+# test listing went up correctly
+listing_1=$(query_contract $VAULT_CONTRACT '{"get_listing_info":{"listing_id":"vault_1"}}' | jq -r '.data')
+ASSERT_EQUAL $listing_1 '{"data":{"creator":"juno1hj5fveer5cjtn4wd6wstzugjfdxzl0xps73ftl","status":"Being Prepared","for_sale":[["ujuno","1"]],"ask":[["ujuno","10"]],"expiration":"None"}}'
+
+# Duplicate vault id, fails
+wasm_cmd $VAULT_CONTRACT '{"create_listing":{"create_msg":{"id":"vault_1","ask":{"native":[{"denom":"ujuno","amount":"10"}],"cw20":[],"nfts":[]}}}}' "1ujuno" dont_show_log
+ASSERT_EQUAL "$CMD_LOG" 'failed to execute message; message index: 0: ID already taken: execute wasm contract failed'
 
 # manual queries
 # query_contract $VAULT_CONTRACT '{"get_config":{}}'
