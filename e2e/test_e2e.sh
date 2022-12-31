@@ -39,10 +39,10 @@ function start_docker {
 function compile_and_copy {
     # compile vaults contract here
 
-    docker run --rm -v "$(pwd)":/code \
+    docker exec -it $CONTAINER_NAME docker run --rm -v "$(pwd)":/code \
       --mount type=volume,source="$(basename "$(pwd)")_cache",target=/code/target \
       --mount type=volume,source=registry_cache,target=/usr/local/cargo/registry \
-      cosmwasm/rust-optimizer:0.12.10
+      cosmwasm/rust-optimizer:0.12.11
 
     # copy wasm to docker container
     docker cp artifacts/juno_vaults.wasm $CONTAINER_NAME:/juno_vaults.wasm
@@ -198,7 +198,7 @@ wasm_cmd $VAULT_CONTRACT `printf '{"add_to_whitelist":{"type_adding":3,"to_add":
 
 
 # LISTINGS
-wasm_cmd $VAULT_CONTRACT '{"create_listing":{"create_msg":{"id":"vault_1","ask":{"native":[{"denom":"ujunox","amount":"10"}],"cw20":[],"nfts":[]}}}}' "10ujunoxx" show_log
+wasm_cmd $VAULT_CONTRACT '{"create_listing":{"create_msg":{"id":"vault_1","ask":{"native":[{"denom":"ujunox","amount":"10"}],"cw20":[],"nfts":[]}}}}' "10ujunox" show_log
 
 # test listing went up correctly
 listing_1=$(query_contract $VAULT_CONTRACT '{"get_listing_info":{"listing_id":"vault_1"}}')
