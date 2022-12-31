@@ -154,10 +154,6 @@ function upload_cw721 {
     export CW721_CONTRACT=$($BINARY query tx $IMAGE_TX_UPLOAD --output json | jq -r '.logs[0].events[0].attributes[0].value') && echo "CW721_CONTRACT: $CW721_CONTRACT"        
 }
 upload_cw721
-
-
-
-
 echo "Minting NFTs..."
 mint_cw721 $CW721_CONTRACT 1 "$KEY_ADDR" "https://m.media-amazon.com/images/I/21IAeMeSa5L.jpg"
 mint_cw721 $CW721_CONTRACT 2 $KEY_ADDR "https://m.media-amazon.com/images/I/31E1mBJT-7L.jpg"
@@ -181,15 +177,15 @@ ASSERT_EQUAL "$admin" $KEY_ADDR
 # nft=$(query_contract $VAULT_CONTRACT '{"get_config":{}}' | jq -r '.data.config.whitelist_nft')
 # ASSERT_EQUAL $nft `printf '[["cw721","%s"]]' $CW721_CONTRACT`
 
-# LISTINGS 0 selling 1ujunox (--amount) for 5 ujunox (in ask)
-wasm_cmd $VAULT_CONTRACT '{"create_listing":{"create_msg":{"id":"vault_1","ask":{"native":[{"denom":"ujunox","amount":"5"}],"cw20":[],"nfts":[]}}}}' "1ujunox" show_log
+# LISTINGS - Selling 1ujunox (--amount) for 5 ucosm (in ask)
+wasm_cmd $VAULT_CONTRACT '{"create_listing":{"create_msg":{"id":"vault_1","ask":{"native":[{"denom":"ucosm","amount":"5"}],"cw20":[],"nfts":[]}}}}' "1ujunox" show_log
 
 # test listing went up correctly
 listing_1=$(query_contract $VAULT_CONTRACT '{"get_listing_info":{"listing_id":"vault_1"}}')
-ASSERT_EQUAL "$listing_1" '{"data":{"creator":"juno1hj5fveer5cjtn4wd6wstzugjfdxzl0xps73ftl","status":"Being Prepared","for_sale":[["ujunox","1"]],"ask":[["ujunox","5"]],"expiration":"None"}}'
+ASSERT_EQUAL "$listing_1" '{"data":{"creator":"juno1hj5fveer5cjtn4wd6wstzugjfdxzl0xps73ftl","status":"Being Prepared","for_sale":[["ujunox","1"]],"ask":[["ucosm","5"]],"expiration":"None"}}'
 
 # Duplicate vault id, fails
-wasm_cmd $VAULT_CONTRACT '{"create_listing":{"create_msg":{"id":"vault_1","ask":{"native":[{"denom":"ujunox","amount":"10"}],"cw20":[],"nfts":[]}}}}' "1ujunox"
+wasm_cmd $VAULT_CONTRACT '{"create_listing":{"create_msg":{"id":"vault_1","ask":{"native":[{"denom":"ujunox","amount":"1"}],"cw20":[],"nfts":[]}}}}' "1ujunox"
 ASSERT_CONTAINS "$CMD_LOG" 'ID already taken'
 
 # Finalize the listing for purchase after everything is added
@@ -199,20 +195,20 @@ wasm_cmd $VAULT_CONTRACT '{"finalize":{"listing_id":"vault_1","seconds":100}}' "
 ASSERT_CONTAINS "$CMD_LOG" 'Listing already finalized'
 
 # Create bucket so we can purchase the listing
-wasm_cmd $VAULT_CONTRACT '{"create_bucket":{"bucket_id":"buyer_a"}}' "5ujunox" show_log
+wasm_cmd $VAULT_CONTRACT '{"create_bucket":{"bucket_id":"buyer_1"}}' "5ucosm" show_log
 # query_contract $VAULT_CONTRACT `printf '{"get_buckets":{"bucket_owner":"%s"}}' $KEY_ADDR`
 
 # purchase listing
-wasm_cmd $VAULT_CONTRACT '{"buy_listing":{"listing_id":"vault_1","bucket_id":"buyer_a"}}' "" show_log
+wasm_cmd $VAULT_CONTRACT '{"buy_listing":{"listing_id":"vault_1","bucket_id":"buyer_1"}}' "" show_log
 # check users balance changes here after we  execute_withdraw_purchased
 # query_contract $VAULT_CONTRACT '{"get_listing_info":{"listing_id":"vault_1"}}' <- ensure it is closed, but I feel when we buy it should auto transfer? Why not?
 
 # withdraw purchase
 wasm_cmd $VAULT_CONTRACT '{"withdraw_purchased":{"listing_id":"vault_1"}}' "" show_log
 
-
-tx_hash=$($BINARY tx wasm execute $VAULT_CONTRACT '{"withdraw_purchased":{"listing_id":"vault_1"}}' $JUNOD_COMMAND_ARGS | jq -r '.txhash')
-export CMD_LOG=$($BINARY query tx $tx_hash --output json | jq -r '.raw_log')   
+# ensure listings are empty now
+listings=$(query_contract $VAULT_CONTRACT '{"get_all_listings":{}}' | jq -r '.data.listings')
+ASSERT_EQUAL "$listings" '[]'
 
 echo -e "\n\nSuccessfull!"
 
