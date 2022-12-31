@@ -2,7 +2,7 @@
 use anyhow::ensure;
 use core::fmt::Display;
 
-use cosmwasm_std::{coins, to_binary, Addr, Binary, Coin, Empty, Uint128}; //BlockInfo};
+use cosmwasm_std::{coins, to_binary, Addr, Coin, Empty, Uint128}; //BlockInfo};
 use cw20::{Cw20Coin, Cw20CoinVerified, Cw20Contract};
 use cw_multi_test::{App, Contract, ContractWrapper, Executor};
 
@@ -68,7 +68,7 @@ pub mod create_users {
     pub fn fake_user(name: String) -> User {
         User {
             name: name.clone(),
-            address: Addr::unchecked(format!("{}", name)),
+            address: Addr::unchecked(name),
         }
     }
 
@@ -227,11 +227,8 @@ pub mod init_contracts {
             &max.address,
         );
 
-        let cw20_whitelist = vec![
-            jvone.addr().to_string(),
-            jvtwo.addr().to_string(),
-            jvtre.addr().to_string(),
-        ];
+        let cw20_whitelist =
+            vec![jvone.addr().to_string(), jvtwo.addr().to_string(), jvtre.addr().to_string()];
 
         //~~~~~~~~~~~~~~~~~~~~~
         // Init NFT Contracts
@@ -249,10 +246,7 @@ pub mod init_contracts {
             "SHITKIT".to_string(),
         );
 
-        let nft_whitelist = vec![
-            shittykittyz.addr().to_string(),
-            neonpeepz.addr().to_string(),
-        ];
+        let nft_whitelist = vec![shittykittyz.addr().to_string(), neonpeepz.addr().to_string()];
 
         //~~~~~~~~~~~~~~~~~~~~~
         // Init JunoVaults Contract
@@ -639,10 +633,10 @@ fn create_listing_should_fail() -> Result<(), anyhow::Error> {
 
     // Give native balances to all users
     // Each user gets 100 VALID_NATIVE + 100 INVALID_NATIVE
-    let mut router = give_natives(&john, &mut router);
-    let mut router = give_natives(&sam, &mut router);
-    let mut router = give_natives(&max, &mut router);
-    //let mut router = give_natives(&bad_actor, &mut router);
+    let router = give_natives(&john, &mut router);
+    let router = give_natives(&sam, router);
+    let router = give_natives(&max, router);
+    //let router = give_natives(&bad_actor, &mut router);
 
     //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -735,12 +729,8 @@ fn create_listing_should_fail() -> Result<(), anyhow::Error> {
     ensure!(res.is_err(), here("Cant create with same ID failure", line!(), column!()));
 
     // Sam can't create another listing with same ID
-    let res: Result<AppResponse> = router.execute_contract(
-        sam.address.clone(),
-        junovaults.clone(),
-        &ask_price_valid,
-        &one_juno,
-    );
+    let res: Result<AppResponse> =
+        router.execute_contract(sam.address.clone(), junovaults, &ask_price_valid, &one_juno);
 
     ensure!(res.is_err(), here("Cant create with same ID failure", line!(), column!()));
 
@@ -770,10 +760,10 @@ fn create_listing_should_pass() -> Result<(), anyhow::Error> {
     // 2 ShittyKittyz + 2 NeonPeepz
 
     // Give each user 100 VALID_NATIVE + 100 INVALID_NATIVE
-    let mut router = give_natives(&john, &mut router);
-    let mut router = give_natives(&sam, &mut router);
-    let mut router = give_natives(&max, &mut router);
-    let mut router = give_natives(&bad_actor, &mut router);
+    let router = give_natives(&john, &mut router);
+    let router = give_natives(&sam, router);
+    let router = give_natives(&max, router);
+    let router = give_natives(&bad_actor, router);
 
     //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -826,7 +816,7 @@ fn create_listing_should_pass() -> Result<(), anyhow::Error> {
         create_msg: cm,
     })?;
     let createmsg = cw20_base::msg::ExecuteMsg::Send {
-        contract: junovaults.clone().to_string(),
+        contract: junovaults.to_string(),
         amount: Uint128::from(1u32),
         msg: cmsg,
     };
@@ -850,7 +840,7 @@ fn create_listing_should_pass() -> Result<(), anyhow::Error> {
     })?;
     let createmsg_nft: cw721_base::ExecuteMsg<Option<Empty>, Empty> =
         cw721_base::msg::ExecuteMsg::SendNft {
-            contract: junovaults.clone().to_string(),
+            contract: junovaults.to_string(),
             token_id: "1".to_string(),
             msg: cmsg_nft,
         };
@@ -858,7 +848,7 @@ fn create_listing_should_pass() -> Result<(), anyhow::Error> {
         router.execute_contract(john.address.clone(), neonpeepz.addr(), &createmsg_nft, &[]);
     ensure!(res.is_ok(), here("'Testing Ask Creation with NFT' failure", line!(), column!()));
     let owner = neonpeepz.owner_of(&router.wrap(), "1".to_string(), false).unwrap().owner;
-    assert_eq!(owner, junovaults.clone().to_string());
+    assert_eq!(owner, junovaults.to_string());
 
     Ok(())
 }
@@ -890,10 +880,10 @@ fn add_to_listing() -> Result<(), anyhow::Error> {
     // 2 ShittyKittyz + 2 NeonPeepz
 
     // Give each user 100 VALID_NATIVE + 100 INVALID_NATIVE
-    let mut router = give_natives(&john, &mut router);
-    let mut router = give_natives(&sam, &mut router);
-    let mut router = give_natives(&max, &mut router);
-    let mut router = give_natives(&bad_actor, &mut router);
+    let router = give_natives(&john, &mut router);
+    let router = give_natives(&sam, router);
+    let router = give_natives(&max, router);
+    let router = give_natives(&bad_actor, router);
 
     //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -993,7 +983,7 @@ fn add_to_listing() -> Result<(), anyhow::Error> {
     })?;
 
     let add_cw20_msg = cw20_base::msg::ExecuteMsg::Send {
-        contract: junovaults.clone().to_string(),
+        contract: junovaults.to_string(),
         amount: Uint128::from(1u32),
         msg: add_msg,
     };
@@ -1057,14 +1047,14 @@ fn add_to_listing() -> Result<(), anyhow::Error> {
 
     let john_add_nft_msg: cw721_base::ExecuteMsg<Option<Empty>, Empty> =
         cw721_base::msg::ExecuteMsg::SendNft {
-            contract: junovaults.clone().to_string(),
+            contract: junovaults.to_string(),
             token_id: "1".to_string(),
             msg: add_msg.clone(),
         };
 
     let sam_add_nft_msg: cw721_base::ExecuteMsg<Option<Empty>, Empty> =
         cw721_base::msg::ExecuteMsg::SendNft {
-            contract: junovaults.clone().to_string(),
+            contract: junovaults.to_string(),
             token_id: "3".to_string(),
             msg: add_msg,
         };
@@ -1118,10 +1108,10 @@ fn remove_a_listing() -> Result<(), anyhow::Error> {
     // 2 ShittyKittyz + 2 NeonPeepz
 
     // Give each user 100 VALID_NATIVE + 100 INVALID_NATIVE
-    let mut router = give_natives(&john, &mut router);
-    let mut router = give_natives(&sam, &mut router);
-    let mut router = give_natives(&max, &mut router);
-    let mut router = give_natives(&bad_actor, &mut router);
+    let router = give_natives(&john, &mut router);
+    let router = give_natives(&sam, router);
+    let router = give_natives(&max, router);
+    let router = give_natives(&bad_actor, router);
 
     //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -1228,12 +1218,12 @@ fn remove_a_listing() -> Result<(), anyhow::Error> {
         listing_id: "sam_1".to_string(),
     })?;
     let john_add_ten_msg = cw20_base::msg::ExecuteMsg::Send {
-        contract: junovaults.clone().to_string(),
+        contract: junovaults.to_string(),
         amount: Uint128::from(10u32),
         msg: john_msg,
     };
     let sam_add_ten_msg = cw20_base::msg::ExecuteMsg::Send {
-        contract: junovaults.clone().to_string(),
+        contract: junovaults.to_string(),
         amount: Uint128::from(10u32),
         msg: sam_msg,
     };
@@ -1274,7 +1264,7 @@ fn remove_a_listing() -> Result<(), anyhow::Error> {
     })?;
     let john_add_nft_msg: cw721_base::ExecuteMsg<Option<Empty>, Empty> =
         cw721_base::msg::ExecuteMsg::SendNft {
-            contract: junovaults.clone().to_string(),
+            contract: junovaults.to_string(),
             token_id: "1".to_string(),
             msg: john_add_msg,
         };
@@ -1290,8 +1280,8 @@ fn remove_a_listing() -> Result<(), anyhow::Error> {
     // Contract has NFTs
     let owner = shittykittyz.owner_of(&router.wrap(), "1".to_string(), false).unwrap().owner;
     let owner2 = neonpeepz.owner_of(&router.wrap(), "1".to_string(), false).unwrap().owner;
-    assert_eq!(owner, junovaults.clone().to_string());
-    assert_eq!(owner2, junovaults.clone().to_string());
+    assert_eq!(owner, junovaults.to_string());
+    assert_eq!(owner2, junovaults.to_string());
 
     // // ensure Sam still has NFT
     // let owner = shittykittyz.owner_of(&router.wrap(), "3".to_string(), false).unwrap().owner;
@@ -1301,7 +1291,7 @@ fn remove_a_listing() -> Result<(), anyhow::Error> {
     })?;
     let sam_add_nft_msg: cw721_base::ExecuteMsg<Option<Empty>, Empty> =
         cw721_base::msg::ExecuteMsg::SendNft {
-            contract: junovaults.clone().to_string(),
+            contract: junovaults.to_string(),
             token_id: "3".to_string(),
             msg: sam_add_msg,
         };
@@ -1316,8 +1306,8 @@ fn remove_a_listing() -> Result<(), anyhow::Error> {
     ensure!(res.is_ok(), here("sam", line!(), column!()));
     let owner = shittykittyz.owner_of(&router.wrap(), "3".to_string(), false).unwrap().owner;
     let owner2 = neonpeepz.owner_of(&router.wrap(), "3".to_string(), false).unwrap().owner;
-    assert_eq!(owner, junovaults.clone().to_string());
-    assert_eq!(owner2, junovaults.clone().to_string());
+    assert_eq!(owner, junovaults.to_string());
+    assert_eq!(owner2, junovaults.to_string());
 
     //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -1365,7 +1355,7 @@ fn remove_a_listing() -> Result<(), anyhow::Error> {
     // Contract balance is updated
     // juno
     let contract_new_balance: Coin =
-        router.wrap().query_balance(junovaults.clone().to_string(), "ujunox").unwrap();
+        router.wrap().query_balance(junovaults.to_string(), "ujunox").unwrap();
     ensure!(
         (contract_new_balance.amount == Uint128::from(1u32)),
         here(format!("Contract balance: {}", contract_new_balance.amount), line!(), column!())
@@ -1383,11 +1373,11 @@ fn remove_a_listing() -> Result<(), anyhow::Error> {
     let q = crate::msg::QueryMsg::GetListingsByOwner {
         owner: john.address.clone().to_string(),
     };
-    let res: crate::query::MultiListingResponse = {
-        let qres: Binary = router.wrap().query_wasm_smart(junovaults.clone(), &q).unwrap();
-        cosmwasm_std::from_binary(&qres).unwrap()
-    };
-    ensure!((res.listings.len() == 0), here("john listings length", line!(), column!()));
+
+    let res: crate::query::MultiListingResponse =
+        router.wrap().query_wasm_smart(junovaults, &q).unwrap();
+
+    ensure!(res.listings.is_empty(), here("john listings length", line!(), column!()));
 
     Ok(())
 }
@@ -1422,10 +1412,10 @@ fn finalize_a_listing() -> Result<(), anyhow::Error> {
     // 2 ShittyKittyz + 2 NeonPeepz
 
     // Give each user 100 VALID_NATIVE + 100 INVALID_NATIVE
-    let mut router = give_natives(&john, &mut router);
-    let mut router = give_natives(&sam, &mut router);
-    let mut router = give_natives(&max, &mut router);
-    let mut router = give_natives(&bad_actor, &mut router);
+    let router = give_natives(&john, &mut router);
+    let router = give_natives(&sam, router);
+    let router = give_natives(&max, router);
+    let router = give_natives(&bad_actor, router);
 
     //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -1531,12 +1521,12 @@ fn finalize_a_listing() -> Result<(), anyhow::Error> {
         listing_id: "sam_1".to_string(),
     })?;
     let john_add_ten_msg = cw20_base::msg::ExecuteMsg::Send {
-        contract: junovaults.clone().to_string(),
+        contract: junovaults.to_string(),
         amount: Uint128::from(10u32),
         msg: john_msg,
     };
     let sam_add_ten_msg = cw20_base::msg::ExecuteMsg::Send {
-        contract: junovaults.clone().to_string(),
+        contract: junovaults.to_string(),
         amount: Uint128::from(10u32),
         msg: sam_msg,
     };
@@ -1577,7 +1567,7 @@ fn finalize_a_listing() -> Result<(), anyhow::Error> {
     })?;
     let john_add_nft_msg: cw721_base::ExecuteMsg<Option<Empty>, Empty> =
         cw721_base::msg::ExecuteMsg::SendNft {
-            contract: junovaults.clone().to_string(),
+            contract: junovaults.to_string(),
             token_id: "1".to_string(),
             msg: john_add_msg,
         };
@@ -1593,8 +1583,8 @@ fn finalize_a_listing() -> Result<(), anyhow::Error> {
     // Contract has NFTs
     let owner = shittykittyz.owner_of(&router.wrap(), "1".to_string(), false).unwrap().owner;
     let owner2 = neonpeepz.owner_of(&router.wrap(), "1".to_string(), false).unwrap().owner;
-    assert_eq!(owner, junovaults.clone().to_string());
-    assert_eq!(owner2, junovaults.clone().to_string());
+    assert_eq!(owner, junovaults.to_string());
+    assert_eq!(owner2, junovaults.to_string());
 
     //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     // Sam adding
@@ -1605,7 +1595,7 @@ fn finalize_a_listing() -> Result<(), anyhow::Error> {
     })?;
     let sam_add_nft_msg: cw721_base::ExecuteMsg<Option<Empty>, Empty> =
         cw721_base::msg::ExecuteMsg::SendNft {
-            contract: junovaults.clone().to_string(),
+            contract: junovaults.to_string(),
             token_id: "3".to_string(),
             msg: sam_add_msg,
         };
@@ -1620,8 +1610,8 @@ fn finalize_a_listing() -> Result<(), anyhow::Error> {
     ensure!(res.is_ok(), here("sam", line!(), column!()));
     let owner = shittykittyz.owner_of(&router.wrap(), "3".to_string(), false).unwrap().owner;
     let owner2 = neonpeepz.owner_of(&router.wrap(), "3".to_string(), false).unwrap().owner;
-    assert_eq!(owner, junovaults.clone().to_string());
-    assert_eq!(owner2, junovaults.clone().to_string());
+    assert_eq!(owner, junovaults.to_string());
+    assert_eq!(owner2, junovaults.to_string());
 
     //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -1728,7 +1718,7 @@ fn finalize_a_listing() -> Result<(), anyhow::Error> {
         listing_id: "john_1".to_string(),
     })?;
     let john_add_ten_msg = cw20_base::msg::ExecuteMsg::Send {
-        contract: junovaults.clone().to_string(),
+        contract: junovaults.to_string(),
         amount: Uint128::from(10u32),
         msg: john_msg,
     };
@@ -1742,7 +1732,7 @@ fn finalize_a_listing() -> Result<(), anyhow::Error> {
     })?;
     let john_add_nft_msg: cw721_base::ExecuteMsg<Option<Empty>, Empty> =
         cw721_base::msg::ExecuteMsg::SendNft {
-            contract: junovaults.clone().to_string(),
+            contract: junovaults.to_string(),
             token_id: "2".to_string(),
             msg: john_add_msg,
         };
@@ -1782,10 +1772,10 @@ fn expiration_checks() -> Result<(), anyhow::Error> {
     // 2 ShittyKittyz + 2 NeonPeepz
 
     // Give each user 100 VALID_NATIVE + 100 INVALID_NATIVE
-    let mut router = give_natives(&john, &mut router);
-    let mut router = give_natives(&sam, &mut router);
-    let mut router = give_natives(&max, &mut router);
-    let mut router = give_natives(&bad_actor, &mut router);
+    let router = give_natives(&john, &mut router);
+    let router = give_natives(&sam, router);
+    let router = give_natives(&max, router);
+    let router = give_natives(&bad_actor, router);
 
     //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -1844,7 +1834,7 @@ fn expiration_checks() -> Result<(), anyhow::Error> {
         listing_id: "john_1".to_string(),
     })?;
     let john_add_ten_msg = cw20_base::msg::ExecuteMsg::Send {
-        contract: junovaults.clone().to_string(),
+        contract: junovaults.to_string(),
         amount: Uint128::from(10u32),
         msg: john_msg,
     };
@@ -1872,7 +1862,7 @@ fn expiration_checks() -> Result<(), anyhow::Error> {
     })?;
     let john_add_nft_msg: cw721_base::ExecuteMsg<Option<Empty>, Empty> =
         cw721_base::msg::ExecuteMsg::SendNft {
-            contract: junovaults.clone().to_string(),
+            contract: junovaults.to_string(),
             token_id: "1".to_string(),
             msg: john_add_msg,
         };
@@ -1888,8 +1878,8 @@ fn expiration_checks() -> Result<(), anyhow::Error> {
     // Contract has NFTs
     let owner = shittykittyz.owner_of(&router.wrap(), "1".to_string(), false).unwrap().owner;
     let owner2 = neonpeepz.owner_of(&router.wrap(), "1".to_string(), false).unwrap().owner;
-    assert_eq!(owner, junovaults.clone().to_string());
-    assert_eq!(owner2, junovaults.clone().to_string());
+    assert_eq!(owner, junovaults.to_string());
+    assert_eq!(owner2, junovaults.to_string());
 
     //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -1958,7 +1948,7 @@ fn expiration_checks() -> Result<(), anyhow::Error> {
         listing_id: "john_1".to_string(),
     })?;
     let john_add_ten_msg = cw20_base::msg::ExecuteMsg::Send {
-        contract: junovaults.clone().to_string(),
+        contract: junovaults.to_string(),
         amount: Uint128::from(10u32),
         msg: john_msg,
     };
@@ -1984,11 +1974,9 @@ fn expiration_checks() -> Result<(), anyhow::Error> {
     let q = crate::msg::QueryMsg::GetListingsByOwner {
         owner: john.address.clone().to_string(),
     };
-    let res: crate::query::MultiListingResponse = {
-        let qres: Binary = router.wrap().query_wasm_smart(junovaults.clone(), &q).unwrap();
-        cosmwasm_std::from_binary(&qres).unwrap()
-    };
-    ensure!((res.listings.len() == 0), here("john listings length", line!(), column!()));
+    let res: crate::query::MultiListingResponse =
+        router.wrap().query_wasm_smart(junovaults, &q).unwrap();
+    ensure!(res.listings.is_empty(), here("john listings length", line!(), column!()));
 
     Ok(())
 }
@@ -2023,10 +2011,10 @@ fn create_bucket() -> Result<(), anyhow::Error> {
 
     // Give native balances to all users
     // Each user gets 100 VALID_NATIVE + 100 INVALID_NATIVE
-    let mut router = give_natives(&john, &mut router);
-    let mut router = give_natives(&sam, &mut router);
-    let mut router = give_natives(&max, &mut router);
-    let mut router = give_natives(&bad_actor, &mut router);
+    let router = give_natives(&john, &mut router);
+    let router = give_natives(&sam, router);
+    let router = give_natives(&max, router);
+    let router = give_natives(&bad_actor, router);
 
     //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -2060,7 +2048,7 @@ fn create_bucket() -> Result<(), anyhow::Error> {
     })
     .unwrap();
     let john_c_msg = cw20_base::msg::ExecuteMsg::Send {
-        contract: junovaults.clone().to_string(),
+        contract: junovaults.to_string(),
         amount: Uint128::from(10u32),
         msg: john_msg,
     };
@@ -2082,7 +2070,7 @@ fn create_bucket() -> Result<(), anyhow::Error> {
     .unwrap();
     let john_nft_c_msg: cw721_base::ExecuteMsg<Option<Empty>, Empty> =
         cw721_base::ExecuteMsg::SendNft {
-            contract: junovaults.clone().to_string(),
+            contract: junovaults.to_string(),
             token_id: "1".to_string(),
             msg: john_nft_msg,
         };
@@ -2090,7 +2078,7 @@ fn create_bucket() -> Result<(), anyhow::Error> {
         router.execute_contract(john.address.clone(), neonpeepz.addr(), &john_nft_c_msg, &[]);
     ensure!(res.is_ok(), here("John create bucket NFT", line!(), column!()));
     let owner = neonpeepz.owner_of(&router.wrap(), "1".to_string(), false).unwrap().owner;
-    assert_eq!(owner, junovaults.clone().to_string());
+    assert_eq!(owner, junovaults.to_string());
 
     //----------------------------------------------------------//
 
@@ -2126,7 +2114,7 @@ fn create_bucket() -> Result<(), anyhow::Error> {
     })
     .unwrap();
     let john_c_msg = cw20_base::msg::ExecuteMsg::Send {
-        contract: junovaults.clone().to_string(),
+        contract: junovaults.to_string(),
         amount: Uint128::from(10u32),
         msg: john_msg,
     };
@@ -2148,7 +2136,7 @@ fn create_bucket() -> Result<(), anyhow::Error> {
     .unwrap();
     let john_nft_c_msg: cw721_base::ExecuteMsg<Option<Empty>, Empty> =
         cw721_base::ExecuteMsg::SendNft {
-            contract: junovaults.clone().to_string(),
+            contract: junovaults.to_string(),
             token_id: "2".to_string(),
             msg: john_nft_msg,
         };
@@ -2157,7 +2145,7 @@ fn create_bucket() -> Result<(), anyhow::Error> {
         router.execute_contract(john.address.clone(), neonpeepz.addr(), &john_nft_c_msg, &[]);
     ensure!(res.is_ok(), here("John create bucket NFT", line!(), column!()));
     let owner2 = neonpeepz.owner_of(&router.wrap(), "2".to_string(), false).unwrap().owner;
-    assert_eq!(owner2, junovaults.clone().to_string());
+    assert_eq!(owner2, junovaults.to_string());
 
     //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -2170,7 +2158,7 @@ fn create_bucket() -> Result<(), anyhow::Error> {
     .unwrap();
     let sam_nft_fail: cw721_base::ExecuteMsg<Option<Empty>, Empty> =
         cw721_base::ExecuteMsg::SendNft {
-            contract: junovaults.clone().to_string(),
+            contract: junovaults.to_string(),
             token_id: "3".to_string(),
             msg: sam_fail,
         };
@@ -2219,10 +2207,9 @@ fn create_bucket() -> Result<(), anyhow::Error> {
     let q = crate::msg::QueryMsg::GetBuckets {
         bucket_owner: john.address.clone().to_string(),
     };
-    let res: crate::query::GetBucketsResponse = {
-        let qres: Binary = router.wrap().query_wasm_smart(junovaults.clone(), &q).unwrap();
-        cosmwasm_std::from_binary(&qres).unwrap()
-    };
+    let res: crate::query::GetBucketsResponse =
+        router.wrap().query_wasm_smart(junovaults, &q).unwrap();
+
     ensure!((res.buckets.len() == 2), here("john buckets length", line!(), column!()));
 
     Ok(())
@@ -2260,10 +2247,10 @@ fn marketplace_sale() -> Result<(), anyhow::Error> {
 
     // Give native balances to all users
     // Each user gets 100 VALID_NATIVE + 100 INVALID_NATIVE
-    let mut router = give_natives(&john, &mut router);
-    let mut router = give_natives(&sam, &mut router);
-    let mut router = give_natives(&max, &mut router);
-    let mut router = give_natives(&bad_actor, &mut router);
+    let router = give_natives(&john, &mut router);
+    let router = give_natives(&sam, router);
+    let router = give_natives(&max, router);
+    let router = give_natives(&bad_actor, router);
 
     //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -2317,7 +2304,7 @@ fn marketplace_sale() -> Result<(), anyhow::Error> {
     })
     .unwrap();
     let john_c_msg = cw20_base::msg::ExecuteMsg::Send {
-        contract: junovaults.clone().to_string(),
+        contract: junovaults.to_string(),
         amount: Uint128::from(10u32),
         msg: john_msg,
     };
@@ -2337,7 +2324,7 @@ fn marketplace_sale() -> Result<(), anyhow::Error> {
     .unwrap();
     let john_nft_c_msg: cw721_base::ExecuteMsg<Option<Empty>, Empty> =
         cw721_base::ExecuteMsg::SendNft {
-            contract: junovaults.clone().to_string(),
+            contract: junovaults.to_string(),
             token_id: "1".to_string(),
             msg: john_nft_msg,
         };
@@ -2385,7 +2372,7 @@ fn marketplace_sale() -> Result<(), anyhow::Error> {
     })
     .unwrap();
     let sam_c_msg = cw20_base::msg::ExecuteMsg::Send {
-        contract: junovaults.clone().to_string(),
+        contract: junovaults.to_string(),
         amount: Uint128::from(20u32),
         msg: sam_msg,
     };
@@ -2400,7 +2387,7 @@ fn marketplace_sale() -> Result<(), anyhow::Error> {
     .unwrap();
     let sam_nft_c_msg: cw721_base::ExecuteMsg<Option<Empty>, Empty> =
         cw721_base::ExecuteMsg::SendNft {
-            contract: junovaults.clone().to_string(),
+            contract: junovaults.to_string(),
             token_id: "4".to_string(),
             msg: sam_nft_msg,
         };
@@ -2437,7 +2424,7 @@ fn marketplace_sale() -> Result<(), anyhow::Error> {
     })
     .unwrap();
     let sam_c_msg = cw20_base::msg::ExecuteMsg::Send {
-        contract: junovaults.clone().to_string(),
+        contract: junovaults.to_string(),
         amount: Uint128::from(20u32),
         msg: sam_msg,
     };
@@ -2452,7 +2439,7 @@ fn marketplace_sale() -> Result<(), anyhow::Error> {
     .unwrap();
     let sam_nft_c_msg: cw721_base::ExecuteMsg<Option<Empty>, Empty> =
         cw721_base::ExecuteMsg::SendNft {
-            contract: junovaults.clone().to_string(),
+            contract: junovaults.to_string(),
             token_id: "3".to_string(),
             msg: sam_nft_msg,
         };
@@ -2489,7 +2476,7 @@ fn marketplace_sale() -> Result<(), anyhow::Error> {
     })
     .unwrap();
     let sam_c_msg = cw20_base::msg::ExecuteMsg::Send {
-        contract: junovaults.clone().to_string(),
+        contract: junovaults.to_string(),
         amount: Uint128::from(20u32),
         msg: sam_msg,
     };
@@ -2504,7 +2491,7 @@ fn marketplace_sale() -> Result<(), anyhow::Error> {
     .unwrap();
     let sam_nft_c_msg: cw721_base::ExecuteMsg<Option<Empty>, Empty> =
         cw721_base::ExecuteMsg::SendNft {
-            contract: junovaults.clone().to_string(),
+            contract: junovaults.to_string(),
             token_id: "3".to_string(),
             msg: sam_nft_msg,
         };
@@ -2540,7 +2527,7 @@ fn marketplace_sale() -> Result<(), anyhow::Error> {
     })
     .unwrap();
     let sam_c_msg = cw20_base::msg::ExecuteMsg::Send {
-        contract: junovaults.clone().to_string(),
+        contract: junovaults.to_string(),
         amount: Uint128::from(19u32),
         msg: sam_msg,
     };
@@ -2555,7 +2542,7 @@ fn marketplace_sale() -> Result<(), anyhow::Error> {
     .unwrap();
     let sam_nft_c_msg: cw721_base::ExecuteMsg<Option<Empty>, Empty> =
         cw721_base::ExecuteMsg::SendNft {
-            contract: junovaults.clone().to_string(),
+            contract: junovaults.to_string(),
             token_id: "3".to_string(),
             msg: sam_nft_msg,
         };
@@ -2623,7 +2610,7 @@ fn marketplace_sale() -> Result<(), anyhow::Error> {
     })
     .unwrap();
     let sam_c_msg = cw20_base::msg::ExecuteMsg::Send {
-        contract: junovaults.clone().to_string(),
+        contract: junovaults.to_string(),
         amount: Uint128::from(20u32),
         msg: sam_msg,
     };
@@ -2638,7 +2625,7 @@ fn marketplace_sale() -> Result<(), anyhow::Error> {
     .unwrap();
     let sam_nft_c_msg: cw721_base::ExecuteMsg<Option<Empty>, Empty> =
         cw721_base::ExecuteMsg::SendNft {
-            contract: junovaults.clone().to_string(),
+            contract: junovaults.to_string(),
             token_id: "3".to_string(),
             msg: sam_nft_msg,
         };
@@ -2707,7 +2694,7 @@ fn marketplace_sale() -> Result<(), anyhow::Error> {
     })
     .unwrap();
     let john_c_msg = cw20_base::msg::ExecuteMsg::Send {
-        contract: junovaults.clone().to_string(),
+        contract: junovaults.to_string(),
         amount: Uint128::from(10u32),
         msg: john_msg,
     };
@@ -2791,7 +2778,7 @@ fn marketplace_sale() -> Result<(), anyhow::Error> {
 
     // but can't remove twice
     let res: Result<AppResponse> =
-        router.execute_contract(sam.address.clone(), junovaults.clone(), &remove_edge, &[]);
+        router.execute_contract(sam.address.clone(), junovaults, &remove_edge, &[]);
     ensure!(res.is_err(), here("Sam Remove purchased twice", line!(), column!()));
 
     // PRICE: JVTWO 20, ShittyKittyz #3
@@ -2880,10 +2867,10 @@ fn cant_buy_expired() -> Result<(), anyhow::Error> {
 
     // Give native balances to all users
     // Each user gets 100 VALID_NATIVE + 100 INVALID_NATIVE
-    let mut router = give_natives(&john, &mut router);
-    let mut router = give_natives(&sam, &mut router);
-    let mut router = give_natives(&max, &mut router);
-    let mut router = give_natives(&bad_actor, &mut router);
+    let router = give_natives(&john, &mut router);
+    let router = give_natives(&sam, router);
+    let router = give_natives(&max, router);
+    let router = give_natives(&bad_actor, router);
 
     //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -2937,7 +2924,7 @@ fn cant_buy_expired() -> Result<(), anyhow::Error> {
     })
     .unwrap();
     let john_c_msg = cw20_base::msg::ExecuteMsg::Send {
-        contract: junovaults.clone().to_string(),
+        contract: junovaults.to_string(),
         amount: Uint128::from(10u32),
         msg: john_msg,
     };
@@ -2957,7 +2944,7 @@ fn cant_buy_expired() -> Result<(), anyhow::Error> {
     .unwrap();
     let john_nft_c_msg: cw721_base::ExecuteMsg<Option<Empty>, Empty> =
         cw721_base::ExecuteMsg::SendNft {
-            contract: junovaults.clone().to_string(),
+            contract: junovaults.to_string(),
             token_id: "1".to_string(),
             msg: john_nft_msg,
         };
@@ -2997,7 +2984,7 @@ fn cant_buy_expired() -> Result<(), anyhow::Error> {
     })
     .unwrap();
     let sam_c_msg = cw20_base::msg::ExecuteMsg::Send {
-        contract: junovaults.clone().to_string(),
+        contract: junovaults.to_string(),
         amount: Uint128::from(20u32),
         msg: sam_msg,
     };
@@ -3012,7 +2999,7 @@ fn cant_buy_expired() -> Result<(), anyhow::Error> {
     .unwrap();
     let sam_nft_c_msg: cw721_base::ExecuteMsg<Option<Empty>, Empty> =
         cw721_base::ExecuteMsg::SendNft {
-            contract: junovaults.clone().to_string(),
+            contract: junovaults.to_string(),
             token_id: "3".to_string(),
             msg: sam_nft_msg,
         };
@@ -3038,7 +3025,7 @@ fn cant_buy_expired() -> Result<(), anyhow::Error> {
         bucket_id: "correct".to_string(),
     };
     let res: Result<AppResponse> =
-        router.execute_contract(sam.address.clone(), junovaults.clone(), &buy_msg, &[]);
+        router.execute_contract(sam.address.clone(), junovaults, &buy_msg, &[]);
     ensure!(res.is_err(), here("Sam bought listing after expiration", line!(), column!()));
 
     Ok(())

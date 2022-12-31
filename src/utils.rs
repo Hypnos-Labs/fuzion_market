@@ -1,10 +1,12 @@
-use crate::error::*;
-use crate::state::*;
+use crate::error::ContractError;
+use crate::state::{GenericBalance, WHITELIST_CW20, WHITELIST_NATIVE, WHITELIST_NFT};
 use chrono::{Datelike, NaiveDateTime, Timelike};
 use cosmwasm_schema::cw_serde;
-use cosmwasm_std::DepsMut;
+
 use cosmwasm_std::coins;
-use cosmwasm_std::{to_binary, Addr, BankMsg, CosmosMsg, Empty, StdError, StdResult, WasmMsg};
+use cosmwasm_std::{
+    to_binary, Addr, BankMsg, CosmosMsg, DepsMut, Empty, StdError, StdResult, WasmMsg,
+};
 use cw20::{Balance, Cw20ExecuteMsg};
 use cw721::Cw721ExecuteMsg;
 
@@ -20,7 +22,7 @@ pub fn send_tokens_cosmos(to: &Addr, balance: &GenericBalance) -> StdResult<Vec<
     } else {
         vec![CosmosMsg::from(BankMsg::Send {
             to_address: to.into(),
-            amount: native_balance.to_vec(),
+            amount: native_balance.clone(),
         })]
     };
 
@@ -67,7 +69,7 @@ pub fn send_tokens_cosmos(to: &Addr, balance: &GenericBalance) -> StdResult<Vec<
 }
 
 pub fn calc_fee(balance: &GenericBalance) -> StdResult<Option<(CosmosMsg, GenericBalance)>> {
-    let juno_in_balance = balance.native.iter().find(|n| n.denom == "ujunox".to_string());
+    let juno_in_balance = balance.native.iter().find(|n| n.denom == *"ujunox");
 
     // If balance DOES NOT contain juno, return Ok(None)
     // If balance DOES contain juno, calculate 0.1% of the JUNO in the balance,
@@ -86,7 +88,7 @@ pub fn calc_fee(balance: &GenericBalance) -> StdResult<Option<(CosmosMsg, Generi
 
         let balance_with_fee_removed = {
             let mut x = balance.clone();
-            x.native.retain(|n| n.denom != "ujunox".to_string());
+            x.native.retain(|n| n.denom != *"ujunox");
             x.native.append(&mut coins(juno_amount_after_fee_removed.u128(), "ujunox"));
             x
         };
@@ -97,84 +99,71 @@ pub fn calc_fee(balance: &GenericBalance) -> StdResult<Option<(CosmosMsg, Generi
     }
 }
 
-pub fn is_balance_whitelisted(
-    balance: &Balance, 
-    deps: &DepsMut
-) -> Result<(), ContractError> {
-
+pub fn is_balance_whitelisted(balance: &Balance, deps: &DepsMut) -> Result<(), ContractError> {
     match balance {
         Balance::Native(natives) => {
-
-            let _valid = natives
-                .0
-                .iter()
-                .map(|native| -> Result<(), ContractError> {
-                    if !WHITELIST_NATIVE.has(deps.storage, native.denom.clone()) {
-                        Err(ContractError::NotWhitelisted {  })
-                    } else {
-                        Ok(())
-                    }
-                })
-                .collect::<Result<(), ContractError>>()?;
+            natives.0.iter().try_for_each(|native| -> Result<(), ContractError> {
+                if !WHITELIST_NATIVE.has(deps.storage, native.denom.clone()) {
+                    return Err(ContractError::NotWhitelisted {});
+                }
+                Ok(())
+            })?;
 
             Ok(())
-
-        },
+        }
 
         Balance::Cw20(cw20) => {
-
             if !WHITELIST_CW20.has(deps.storage, cw20.address.clone()) {
-                Err(ContractError::NotWhitelisted {  })
-            } else {
-                Ok(())
+                return Err(ContractError::NotWhitelisted {});
             }
+
+            Ok(())
         }
     }
-
 }
 
 pub fn is_genericbalance_whitelisted(
     genericbalance: &GenericBalance,
     //config: &Config,
-    deps: &DepsMut
+    deps: &DepsMut,
 ) -> Result<(), ContractError> {
-
-
     // Check for Natives
     for native in &genericbalance.native {
         if !WHITELIST_NATIVE.has(deps.storage, native.denom.clone()) {
-            return Err(ContractError::NotWhitelist { which: "Native".to_string() });
+            return Err(ContractError::NotWhitelist {
+                which: "Native".to_string(),
+            });
         }
     }
 
     // Check for cw20s
     for cw20 in &genericbalance.cw20 {
         if !WHITELIST_CW20.has(deps.storage, cw20.address.clone()) {
-            return Err(ContractError::NotWhitelist {which: "Cw20".to_string()});
+            return Err(ContractError::NotWhitelist {
+                which: "Cw20".to_string(),
+            });
         }
     }
 
     // Check for NFTs
     for nft in &genericbalance.nfts {
         if !WHITELIST_NFT.has(deps.storage, nft.contract_address.clone()) {
-            return Err(ContractError::NotWhitelist {which: "NFT".to_string()});
+            return Err(ContractError::NotWhitelist {
+                which: "NFT".to_string(),
+            });
         }
     }
 
     Ok(())
-
 }
 
 pub fn is_nft_whitelisted(nft_addr: &Addr, deps: &DepsMut) -> Result<(), ContractError> {
-
-    if !WHITELIST_NFT.has(deps.storage, nft_addr.to_owned()) {
-        return Err(ContractError::NotWhitelisted {  });
+    if !WHITELIST_NFT.has(deps.storage, nft_addr.clone()) {
+        return Err(ContractError::NotWhitelisted {});
     };
 
     Ok(())
-
 }
-
 
 /// Get allowed purchasers for a given listing.
 /// If any address string is not valid, returns an error
@@ -182,7 +171,6 @@ pub fn get_whitelisted_addresses(
     deps: &DepsMut,
     whitelisted_addrs: Option<Vec<String>>,
 ) -> Result<Option<Vec<Addr>>, ContractError> {
-
     let Some(addrs) = whitelisted_addrs else {
         return Ok(None);
     };
@@ -193,13 +181,13 @@ pub fn get_whitelisted_addresses(
 
     let valid: Vec<Addr> = addrs
         .iter()
-        .map(|address| deps.api.addr_validate(&address).map_err(|_| ContractError::InvalidAddressFormat))
+        .map(|address| {
+            deps.api.addr_validate(address).map_err(|_foo| ContractError::InvalidAddressFormat)
+        })
         .collect::<Result<Vec<Addr>, ContractError>>()?;
 
     Ok(Some(valid))
-    
 }
-
 
 #[cw_serde]
 pub struct EzTimeStruct {
