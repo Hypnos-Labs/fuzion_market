@@ -636,7 +636,7 @@ pub fn execute_buy_listing(
     // Check that bucket contains required purchase price
     if the_bucket.funds != the_listing.ask {
         return Err(ContractError::FundsSentNotFundsAsked {
-            which: format!("Bucket ID: {}", bucket_id),
+            which: format!("Bucket ID: {bucket_id}"),
         });
     }
     // Check that listing is ready for purchase
