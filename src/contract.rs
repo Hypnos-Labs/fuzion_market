@@ -39,21 +39,21 @@ pub fn instantiate(
 ) -> Result<Response, ContractError> {
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
 
-    let validated_admin = match msg.admin {
-        Some(adm) => deps.api.addr_validate(&adm)?,
-        None => info.sender,
-    };
+    let validated_admin =
+        deps.api.addr_validate(&msg.admin.unwrap_or_else(|| info.sender.to_string()))?;
 
     CONFIG
         .save(
             deps.storage,
             &Config {
-                admin: validated_admin,
+                admin: validated_admin.clone(),
             },
         )
         .map_err(|_e| ContractError::InitInvalidAddr)?;
 
-    Ok(Response::new().add_attribute("Called", "Instantiate"))
+    Ok(Response::new()
+        .add_attribute("action", "instantiate")
+        .add_attribute("admin", validated_admin.to_string()))
 }
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

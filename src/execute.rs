@@ -38,7 +38,7 @@ pub fn execute_create_bucket(
     )?;
 
     Ok(Response::new()
-        .add_attribute("method", "create_bucket")
+        .add_attribute("action", "create_bucket")
         .add_attribute("bucket_id", bucket_id))
 }
 
@@ -104,8 +104,8 @@ pub fn execute_add_to_bucket(
     BUCKETS.save(deps.storage, (sender.clone(), &bucket_id), &new_bucket)?;
 
     Ok(Response::new()
-        .add_attribute("method", "add_funds_to_bucket")
-        .add_attribute("listing", &bucket_id))
+        .add_attribute("action", "add_funds_to_bucket")
+        .add_attribute("bucket_id", &bucket_id))
 }
 
 pub fn execute_add_to_bucket_cw721(
@@ -144,7 +144,9 @@ pub fn execute_add_to_bucket_cw721(
         }
     })?;
 
-    Ok(Response::new().add_attribute("Add NFT to bucket", format!("Bucket ID: {}", bucket_id)))
+    Ok(Response::new()
+        .add_attribute("action", "execute_add_to_bucket_cw721")
+        .add_attribute("bucket_id", bucket_id))
 }
 
 pub fn execute_withdraw_bucket(
@@ -167,7 +169,7 @@ pub fn execute_withdraw_bucket(
     BUCKETS.remove(deps.storage, (user.clone(), bucket_id));
 
     Ok(Response::new()
-        .add_attribute("method", "empty_bucket")
+        .add_attribute("action", "empty_bucket")
         .add_attribute("bucket_id", bucket_id)
         .add_messages(msgs))
 }
@@ -213,8 +215,8 @@ pub fn execute_create_listing(
     )?;
 
     Ok(Response::new()
-        .add_attribute("method", "create native listing")
-        .add_attribute("listing id", &createlistingmsg.id))
+        .add_attribute("action", "create_native_listing")
+        .add_attribute("listing_id", &createlistingmsg.id))
 }
 
 pub fn execute_create_listing_cw20(
@@ -254,8 +256,8 @@ pub fn execute_create_listing_cw20(
     )?;
 
     Ok(Response::new()
-        .add_attribute("method", "create cw20 listing")
-        .add_attribute("listing id", &createlistingmsg.id)
+        .add_attribute("action", "create_cw20_listing")
+        .add_attribute("listing_id", &createlistingmsg.id)
         .add_attribute("creator", user_address.to_string()))
 }
 
@@ -290,8 +292,8 @@ pub fn execute_create_listing_cw721(
     )?;
 
     Ok(Response::new()
-        .add_attribute("method", "create cw721 listing")
-        .add_attribute("listing id", &createlistingmsg.id)
+        .add_attribute("action", "create_cw721_listing")
+        .add_attribute("listing_id", &createlistingmsg.id)
         .add_attribute("creator", user_wallet.to_string()))
 }
 
@@ -340,8 +342,8 @@ pub fn execute_change_ask(
     )?;
 
     Ok(Response::new()
-        .add_attribute("Change Ask", "Change listing ask")
-        .add_attribute("listing ID", &listing_id))
+        .add_attribute("attribute", "change_listing_ask")
+        .add_attribute("listing_id", &listing_id))
 }
 
 pub fn execute_add_funds_to_sale(
@@ -398,7 +400,7 @@ pub fn execute_add_funds_to_sale(
     )?;
 
     Ok(Response::new()
-        .add_attribute("method", "add funds to listing")
+        .add_attribute("action", "add_funds_to_listing")
         .add_attribute("listing", &listing_id))
 }
 
@@ -487,7 +489,7 @@ pub fn execute_remove_listing(
 
     listingz().remove(deps.storage, (user_sender, listing_id))?;
 
-    Ok(Response::new().add_attribute("method", "remove_listing").add_messages(msgs))
+    Ok(Response::new().add_attribute("action", "remove_listing").add_messages(msgs))
 }
 
 pub fn execute_finalize(
@@ -547,9 +549,9 @@ pub fn execute_finalize(
     )?;
 
     Ok(Response::new()
-        .add_attribute("method", "finalize")
-        .add_attribute("listing ID", &listing_id)
-        .add_attribute("expiration time", expiration.to_string()))
+        .add_attribute("action", "finalize")
+        .add_attribute("listing_id", &listing_id)
+        .add_attribute("expiration_seconds", expiration.to_string()))
 }
 
 pub fn execute_refund(
@@ -603,7 +605,7 @@ pub fn execute_refund(
     // Delete Listing
     listingz().remove(deps.storage, (user_sender, listing_id))?;
 
-    Ok(Response::new().add_attribute("method", "refund").add_messages(send_msgs))
+    Ok(Response::new().add_attribute("action", "refund").add_messages(send_msgs))
 }
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -683,9 +685,9 @@ pub fn execute_buy_listing(
     )?;
 
     Ok(Response::new()
-        .add_attribute("method", "buy listing")
-        .add_attribute("Bucket Used:", bucket_id)
-        .add_attribute("Listing Purchased:", &listing_id))
+        .add_attribute("action", "buy_listing")
+        .add_attribute("bucket_used", bucket_id)
+        .add_attribute("listing_purchased:", &listing_id))
 }
 
 pub fn execute_withdraw_purchased(
@@ -714,21 +716,18 @@ pub fn execute_withdraw_purchased(
     // Delete Listing
     listingz().remove(deps.storage, (&listing_claimr, listing_id.clone()))?;
 
-    // Calculate fee amount (only if listing.for_sale contained juno)
+    // default listing response
+    let res: Response = Response::new()
+        .add_attribute("action", "withdraw_purchased")
+        .add_attribute("listing_id", listing_id);
+
     if let Some((fee_msg, gbal)) =
         calc_fee(&the_listing.for_sale).map_err(|_foo| ContractError::FeeCalc)?
     {
         let user_msgs = send_tokens_cosmos(&listing_claimr, &gbal)?;
-        Ok(Response::new()
-            .add_attribute("method", "withdraw purchased")
-            .add_attribute("listing_id", listing_id)
-            .add_message(fee_msg)
-            .add_messages(user_msgs))
+        Ok(res.add_message(fee_msg).add_messages(user_msgs))
     } else {
         let user_msgs = send_tokens_cosmos(&listing_claimr, &the_listing.for_sale)?;
-        Ok(Response::new()
-            .add_attribute("method", "withdraw purchased")
-            .add_attribute("listing_id", listing_id)
-            .add_messages(user_msgs))
+        Ok(res.add_messages(user_msgs))
     }
 }
