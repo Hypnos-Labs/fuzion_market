@@ -62,6 +62,8 @@ function query_contract {
 }
 
 function ASSERT_EQUAL() {
+    # For logs, put in quotes. 
+    # If $1 is from JQ, ensure its -r and don't put in quotes
     if [ "$1" != "$2" ]; then
         echo "ERROR: $1 != $2"        
     fi
@@ -72,11 +74,11 @@ function ASSERT_EQUAL() {
 # == INITIAL TEST ==
 # Ensures CW721 was properly minted
 token_uri=$(query_contract $CW721_CONTRACT '{"all_nft_info":{"token_id":"1"}}' | jq -r '.data.info.token_uri')
-ASSERT_EQUAL $token_uri "https://m.media-amazon.com/images/I/21IAeMeSa5L.jpg"
+ASSERT_EQUAL "$token_uri" "https://m.media-amazon.com/images/I/21IAeMeSa5L.jpg"
 
 # Ensure admin is correct from insntiation
 admin=$(query_contract $VAULT_CONTRACT '{"get_config":{}}' | jq -r '.data.config.admin')
-ASSERT_EQUAL $admin $KEY_ADDR
+ASSERT_EQUAL "$admin" $KEY_ADDR
 
 # Check whitelist is set to what we requested (add cw721 here in the future too)
 whitelist_native=$(query_contract $VAULT_CONTRACT '{"get_config":{}}' | jq -r '.data.config.whitelist_native')
@@ -91,12 +93,18 @@ function wasm_cmd {
     CONTRACT=$1
     MESSAGE=$2
     FUNDS=$3
-    SHOW_LOG=$4
-
+    SHOW_LOG=${4:dont_show}
     echo "Running... $CONTRACT: $MESSAGE"
 
-    echo "junod tx wasm execute $CONTRACT $MESSAGE --amount $FUNDS $JUNOD_COMMAND_ARGS"
-    tx_hash=$(junod tx wasm execute $CONTRACT $MESSAGE --amount "$FUNDS" $JUNOD_COMMAND_ARGS | jq -r '.txhash')
+    # if length of funds is 0, then don't add funds
+    if [ -z "$FUNDS" ]; then
+        FUNDS=""
+    else
+        FUNDS="--amount $FUNDS"
+    fi
+
+    # echo "junod tx wasm execute $CONTRACT $MESSAGE --amount $FUNDS $JUNOD_COMMAND_ARGS"
+    tx_hash=$(junod tx wasm execute $CONTRACT $MESSAGE $FUNDS $JUNOD_COMMAND_ARGS | jq -r '.txhash')
 
     export CMD_LOG=$(junod query tx $tx_hash --output json | jq -r '.raw_log')    
 
@@ -106,11 +114,11 @@ function wasm_cmd {
 }
 
 # type_adding: 1 = Native, 2 = CW20, 3 = NFT
-wasm_cmd $VAULT_CONTRACT '{"add_to_whitelist":{"type_adding":1,"to_add":["NEW","unew"]}}'
+wasm_cmd $VAULT_CONTRACT '{"add_to_whitelist":{"type_adding":1,"to_add":["NEW","unew"]}}' ""
 # add nft
 wasm_cmd $VAULT_CONTRACT `printf '{"add_to_whitelist":{"type_adding":3,"to_add":["cw721","%s"]}}' $CW721_CONTRACT`
 
-# TODO: don't allow multiple of the same add to whitelist, ensure this errors
+# TODO: don't allow multiple of the same add to whitelist, ensure this errors in the future
 # wasm_cmd $VAULT_CONTRACT `printf '{"add_to_whitelist":{"type_adding":3,"to_add":["cw721","%s"]}}' $CW721_CONTRACT`
 
 
@@ -127,17 +135,33 @@ ASSERT_EQUAL $nft `printf '[["cw721","%s"]]' $CW721_CONTRACT`
 # LISTINGS
 
 # TODO: make ask Optionals?
-wasm_cmd $VAULT_CONTRACT '{"create_listing":{"create_msg":{"id":"vault_1","ask":{"native":[{"denom":"ujuno","amount":"10"}],"cw20":[],"nfts":[]}}}}' "1ujuno" dont_show_log
+wasm_cmd $VAULT_CONTRACT '{"create_listing":{"create_msg":{"id":"vault_1","ask":{"native":[{"denom":"ujuno","amount":"10"}],"cw20":[],"nfts":[]}}}}' "1ujuno"
 
 # test listing went up correctly
-listing_1=$(query_contract $VAULT_CONTRACT '{"get_listing_info":{"listing_id":"vault_1"}}' | jq -r '.data')
-ASSERT_EQUAL $listing_1 '{"data":{"creator":"juno1hj5fveer5cjtn4wd6wstzugjfdxzl0xps73ftl","status":"Being Prepared","for_sale":[["ujuno","1"]],"ask":[["ujuno","10"]],"expiration":"None"}}'
+listing_1=$(query_contract $VAULT_CONTRACT '{"get_listing_info":{"listing_id":"vault_1"}}')
+ASSERT_EQUAL "$listing_1" '{"data":{"creator":"juno1hj5fveer5cjtn4wd6wstzugjfdxzl0xps73ftl","status":"Being Prepared","for_sale":[["ujuno","1"]],"ask":[["ujuno","10"]],"expiration":"None"}}'
 
 # Duplicate vault id, fails
-wasm_cmd $VAULT_CONTRACT '{"create_listing":{"create_msg":{"id":"vault_1","ask":{"native":[{"denom":"ujuno","amount":"10"}],"cw20":[],"nfts":[]}}}}' "1ujuno" dont_show_log
+wasm_cmd $VAULT_CONTRACT '{"create_listing":{"create_msg":{"id":"vault_1","ask":{"native":[{"denom":"ujuno","amount":"10"}],"cw20":[],"nfts":[]}}}}' "1ujuno"
 ASSERT_EQUAL "$CMD_LOG" 'failed to execute message; message index: 0: ID already taken: execute wasm contract failed'
 
+# Finalize the listing for purchase after everything is added
+# TODO: optional set expire at block height?
+wasm_cmd $VAULT_CONTRACT '{"finalize":{"listing_id":"vault_1","seconds":1000}}' "" show_log
+
+# Createe bucket so we can purchase the listing
+wasm_cmd $VAULT_CONTRACT '{"create_bucket":{"bucket_id":"buyer_a"}}' "10ujuno" show_log
+query_contract $VAULT_CONTRACT `printf '{"get_buckets":{"bucket_owner":"%s"}}' $KEY_ADDR`
+
+
+# purchase listing
+wasm_cmd $VAULT_CONTRACT '{"buy_listing":{"listing_id":"vault_1","bucket_id":"buyer_a"}}' "0ujuno" show_log
+
+# TODO: after we buy a listing, remove it from the store to save data. No need to save it. Maybe move to another store for X past listing if you want.
+# Then as new listings come in, remove the oldest listing from that store
+
 # manual queries
+# TODO: add get-bucket_info?
 # query_contract $VAULT_CONTRACT '{"get_config":{}}'
 # query_contract $VAULT_CONTRACT '{"get_all_listings":{}}'
 # query_contract $VAULT_CONTRACT '{"get_listing_info":{"listing_id":"1"}}'
