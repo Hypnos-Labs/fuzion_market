@@ -248,28 +248,6 @@ pub fn execute_withdraw_bucket(
 // Listings
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-/// Get allowed purchasers for a given listing.
-/// If any address string is not valid, returns an error
-pub fn get_whitelisted_addresses(
-    deps: &DepsMut,
-    whitelisted_addrs: Option<Vec<String>>,
-) -> Result<Option<Vec<Addr>>, ContractError> {
-    let whitelisted_addrs = whitelisted_addrs
-        .unwrap_or_default()
-        .iter()
-        .map(|address| deps.api.addr_validate(&address))
-        .collect::<Result<Vec<Addr>, _>>()
-        .map(|allowed_purchasers| {
-            if allowed_purchasers.len() > 0 {
-                Some(allowed_purchasers)
-            } else {
-                None
-            }
-        })?;
-
-    Ok(whitelisted_addrs)
-}
-
 pub fn execute_create_listing(
     deps: DepsMut,
     user_address: &Addr,

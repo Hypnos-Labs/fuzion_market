@@ -12,6 +12,9 @@ pub enum ContractError {
     #[error("Not whitelisted to purchase")]
     NotWhitelisted {},
 
+    #[error("One or more invalid address formats")]
+    InvalidAddressFormat,
+
     #[error("To Do Error")]
     ToDo {},
 

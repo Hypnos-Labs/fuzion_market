@@ -2,6 +2,7 @@ use crate::error::*;
 use crate::state::*;
 use chrono::{Datelike, NaiveDateTime, Timelike};
 use cosmwasm_schema::cw_serde;
+use cosmwasm_std::DepsMut;
 use cosmwasm_std::coins;
 use cosmwasm_std::{to_binary, Addr, BankMsg, CosmosMsg, Empty, StdError, StdResult, WasmMsg};
 use cw20::{Balance, Cw20ExecuteMsg};
@@ -185,6 +186,32 @@ pub fn is_nft_whitelisted(nft_addr: &Addr, config: &Config) -> Result<(), Contra
 
     Ok(())
 }
+
+
+/// Get allowed purchasers for a given listing.
+/// If any address string is not valid, returns an error
+pub fn get_whitelisted_addresses(
+    deps: &DepsMut,
+    whitelisted_addrs: Option<Vec<String>>,
+) -> Result<Option<Vec<Addr>>, ContractError> {
+
+    let Some(addrs) = whitelisted_addrs else {
+        return Ok(None);
+    };
+
+    if addrs.is_empty() {
+        return Ok(None);
+    };
+
+    let valid: Vec<Addr> = addrs
+        .iter()
+        .map(|address| deps.api.addr_validate(&address).map_err(|_| ContractError::InvalidAddressFormat))
+        .collect::<Result<Vec<Addr>, ContractError>>()?;
+
+    Ok(Some(valid))
+    
+}
+
 
 #[cw_serde]
 pub struct EzTimeStruct {
