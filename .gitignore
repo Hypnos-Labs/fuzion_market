@@ -1,6 +1,6 @@
 /target
 /artifacts
-/ts-codegen
+/ts_codegen
 
 .editorconfig
 WORKSPACE.md

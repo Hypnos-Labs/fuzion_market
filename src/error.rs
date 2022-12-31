@@ -18,6 +18,9 @@ pub enum ContractError {
     #[error("To Do Error")]
     ToDo {},
 
+    #[error("Can not ask for 0 tokens")]
+    ZeroAmount {},
+
     #[error("Error Adding: {0}")]
     ErrorAdding(String),
 

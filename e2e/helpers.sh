@@ -10,7 +10,7 @@ function wasm_cmd {
     MESSAGE=$2
     FUNDS=$3
     SHOW_LOG=${4:dont_show}
-    ARGS=${5:-JUNOD_COMMAND_ARGS}
+    ARGS=${5:-$JUNOD_COMMAND_ARGS}
     echo "EXECUTE $MESSAGE on $CONTRACT"
 
     # if length of funds is 0, then no funds are sent
@@ -20,6 +20,8 @@ function wasm_cmd {
         FUNDS="--amount $FUNDS"
         echo "FUNDS: $FUNDS"
     fi
+    
+    # echo "ARGS: $ARGS"
 
     tx_hash=$($BINARY tx wasm execute $CONTRACT $MESSAGE $FUNDS $ARGS | jq -r '.txhash')
     export CMD_LOG=$($BINARY query tx $tx_hash --output json | jq -r '.raw_log')    

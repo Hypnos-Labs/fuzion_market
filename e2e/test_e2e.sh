@@ -14,7 +14,7 @@ JUNOD_CHAIN_ID='testing'
 JUNOD_NODE='http://localhost:26657/'
 # globalfee will break this in the future
 TX_FLAGS="--gas-prices 0.1$DENOM --gas-prices="0ujunox" --gas 5000000 -y -b block --chain-id $JUNOD_CHAIN_ID --node $JUNOD_NODE --output json"
-JUNOD_COMMAND_ARGS="$TX_FLAGS --from test-user"
+export JUNOD_COMMAND_ARGS="$TX_FLAGS --from test-user"
 export KEY_ADDR="juno1hj5fveer5cjtn4wd6wstzugjfdxzl0xps73ftl"
 
 
@@ -167,7 +167,6 @@ compile_and_copy # the compile takes time for the docker container to start up
 set -e
 
 health_status
-
 add_accounts
 
 upload_vault
@@ -196,86 +195,114 @@ ASSERT_EQUAL "$token_uri" "https://m.media-amazon.com/images/I/21IAeMeSa5L.jpg"
 
 
 # === LISTINGS TEST ===
+function test_duplicate_ask_denoms {
+    # make a listing with 2 unique but duplicate denoms, ensure the denoms are merged correctly on ask
+    # failure to do this = the user can not purchase the listing, even if they sent 2ujunox
+    wasm_cmd $VAULT_CONTRACT '{"create_listing":{"create_msg":{"id":"vault_combine","ask":{"native":[{"denom":"ujunox","amount":"1"},{"denom":"ujunox","amount":"1"}],"cw20":[],"nfts":[]}}}}' "1ucosm" dont_show "$JUNOD_COMMAND_ARGS"
+    asking_values=$(query_contract $VAULT_CONTRACT '{"get_listing_info":{"listing_id":"vault_combine"}}' | jq -r '.data.ask')
+    ASSERT_EQUAL $asking_values '[["ujunox","2"]]'
 
-# Selling 10ucosm for 5ujunox
-wasm_cmd $VAULT_CONTRACT '{"create_listing":{"create_msg":{"id":"vault_1","ask":{"native":[{"denom":"ujunox","amount":"5"}],"cw20":[],"nfts":[]}}}}' "10ucosm" show_log
+    # finalize
+    wasm_cmd $VAULT_CONTRACT '{"finalize":{"listing_id":"vault_combine","seconds":5000}}' "" show_log
 
-# Ensure listing went up correctly
-listing_1=$(query_contract $VAULT_CONTRACT '{"get_listing_info":{"listing_id":"vault_1"}}')
-ASSERT_EQUAL "$listing_1" '{"data":{"creator":"juno1hj5fveer5cjtn4wd6wstzugjfdxzl0xps73ftl","status":"Being Prepared","for_sale":[["ucosm","10"]],"ask":[["ujunox","5"]],"expiration":"None"}}'
+    # buy the listing to keep future test clean
+    wasm_cmd $VAULT_CONTRACT '{"create_bucket":{"bucket_id":"buyer_com"}}' "2ujunox" show_log
+    wasm_cmd $VAULT_CONTRACT '{"buy_listing":{"listing_id":"vault_combine","bucket_id":"buyer_com"}}' "" show_log 
+    wasm_cmd $VAULT_CONTRACT '{"withdraw_purchased":{"listing_id":"vault_combine"}}' "" dont_show
 
-# Duplicate vault id, expect fail
-wasm_cmd $VAULT_CONTRACT '{"create_listing":{"create_msg":{"id":"vault_1","ask":{"native":[{"denom":"ujunox","amount":"1"}],"cw20":[],"nfts":[]}}}}' "1ujunox"
-ASSERT_CONTAINS "$CMD_LOG" 'ID already taken'
+    # ensure the listing was removed        
+    listings=$(query_contract $VAULT_CONTRACT '{"get_all_listings":{}}' --output json)       
+    ASSERT_EQUAL $listings '{"data":{"listings":[]}}'
+}
 
+function test_all_listings {
+    # Selling 10ucosm for 5ujunox
+    wasm_cmd $VAULT_CONTRACT '{"create_listing":{"create_msg":{"id":"vault_1","ask":{"native":[{"denom":"ujunox","amount":"5"}],"cw20":[],"nfts":[]}}}}' "10ucosm" show_log
 
-echo "Sending NFT id 1 to the listing"
-send_nft_to_listing $VAULT_CONTRACT $CW721_CONTRACT "1" "vault_1"
-query_contract $VAULT_CONTRACT '{"get_listing_info":{"listing_id":"vault_1"}}'
+    # Ensure listing went up correctly
+    listing_1=$(query_contract $VAULT_CONTRACT '{"get_listing_info":{"listing_id":"vault_1"}}')
+    ASSERT_EQUAL "$listing_1" '{"data":{"creator":"juno1hj5fveer5cjtn4wd6wstzugjfdxzl0xps73ftl","status":"Being Prepared","for_sale":[["ucosm","10"]],"ask":[["ujunox","5"]],"expiration":"None","whitelisted_purchasers":[]}}'
 
-# owner should now be the VAULT_CONTRACT after sending (We check that the NFT is in the listing after the CW20)
-owner_of_nft=$(query_contract $CW721_CONTRACT '{"all_nft_info":{"token_id":"1"}}' | jq -r '.data.access.owner')
-ASSERT_EQUAL "$owner_of_nft" "$VAULT_CONTRACT"
+    # Ensure duplicate vault_id fails
+    wasm_cmd $VAULT_CONTRACT '{"create_listing":{"create_msg":{"id":"vault_1","ask":{"native":[{"denom":"ujunox","amount":"1"}],"cw20":[],"nfts":[]}}}}' "1ujunox"
+    ASSERT_CONTAINS "$CMD_LOG" 'ID already taken'
 
+    echo "Sending NFT id 1 to the listing"
+    send_nft_to_listing $VAULT_CONTRACT $CW721_CONTRACT "1" "vault_1"
+    query_contract $VAULT_CONTRACT '{"get_listing_info":{"listing_id":"vault_1"}}'
 
-# Send 20 CW20 coin to the listing
-send_cw20_to_listing $VAULT_CONTRACT $CW20_CONTRACT "20" "vault_1"
+    # owner should now be the VAULT_CONTRACT after sending (We check that the NFT is in the listing after the CW20)
+    owner_of_nft=$(query_contract $CW721_CONTRACT '{"all_nft_info":{"token_id":"1"}}' | jq -r '.data.access.owner')
+    ASSERT_EQUAL "$owner_of_nft" "$VAULT_CONTRACT"
 
-# Ensure the CW20 token & CW721 is now apart of the listing
-# todo: this will fail if the order of the array changes given there is no difference between cw20 and cw721 in it right? or does jq sort deterministically?
-listing_values=$(query_contract $VAULT_CONTRACT '{"get_listing_info":{"listing_id":"vault_1"}}' | jq -r '.data.for_sale')
-ASSERT_EQUAL $listing_values `printf '[["ucosm","10"],["%s","20"],["%s":"1"]]' $CW20_CONTRACT $CW721_CONTRACT`
+    # Send 20 CW20 coin to the listing
+    echo "Sending 20 CW20 token to the listing"
+    send_cw20_to_listing $VAULT_CONTRACT $CW20_CONTRACT "20" "vault_1"
 
+    # Ensure the CW20 token & CW721 is now apart of the listing
+    # todo: this will fail if the order of the array changes given there is no difference between cw20 and cw721 in it right? or does jq sort deterministically?
+    listing_values=$(query_contract $VAULT_CONTRACT '{"get_listing_info":{"listing_id":"vault_1"}}' | jq -r '.data.for_sale')
+    ASSERT_EQUAL $listing_values `printf '[["ucosm","10"],["%s","20"],["%s":"1"]]' $CW20_CONTRACT $CW721_CONTRACT`
 
-# Finalize the listing for purchase after everything is added
-wasm_cmd $VAULT_CONTRACT '{"finalize":{"listing_id":"vault_1","seconds":5000}}' "" show_log
-# try to finalize again, will fail
-wasm_cmd $VAULT_CONTRACT '{"finalize":{"listing_id":"vault_1","seconds":100}}' ""
-ASSERT_CONTAINS "$CMD_LOG" 'Listing already finalized'
+    # Finalize the listing for purchase after everything is added
+    wasm_cmd $VAULT_CONTRACT '{"finalize":{"listing_id":"vault_1","seconds":5000}}' "" show_log
+    # try to finalize again, will fail
+    wasm_cmd $VAULT_CONTRACT '{"finalize":{"listing_id":"vault_1","seconds":100}}' ""
+    ASSERT_CONTAINS "$CMD_LOG" 'Listing already finalized'
 
-# Create bucket so we can purchase the listing
-wasm_cmd $VAULT_CONTRACT '{"create_bucket":{"bucket_id":"buyer_1"}}' "5ujunox" show_log
+    # Create bucket so we can purchase the listing
+    echo "Creating bucket and purchasing listing"
+    wasm_cmd $VAULT_CONTRACT '{"create_bucket":{"bucket_id":"buyer_1"}}' "5ujunox" show_log
+    # purchase listing
+    wasm_cmd $VAULT_CONTRACT '{"buy_listing":{"listing_id":"vault_1","bucket_id":"buyer_1"}}' "" show_log
+    echo "Withdrawing rewaords... (Should do this in buy listing function"
 
-# purchase listing
-wasm_cmd $VAULT_CONTRACT '{"buy_listing":{"listing_id":"vault_1","bucket_id":"buyer_1"}}' "" show_log
-# check users balance changes here after we  execute_withdraw_purchased
-# query_contract $VAULT_CONTRACT '{"get_listing_info":{"listing_id":"vault_1"}}' <- ensure it is closed, but I feel when we buy it should auto transfer? Why not?
+    # check users balance changes here after we  execute_withdraw_purchased
+    # query_contract $VAULT_CONTRACT '{"get_listing_info":{"listing_id":"vault_1"}}' <- ensure it is closed, but I feel when we buy it should auto transfer? Why not?
 
-# withdraw purchased items to are account (merge with buy_listing above)
-wasm_cmd $VAULT_CONTRACT '{"withdraw_purchased":{"listing_id":"vault_1"}}' "" show_log
+    wasm_cmd $VAULT_CONTRACT '{"withdraw_purchased":{"listing_id":"vault_1"}}' "" show_log
+    # ensure listings are empty now
+    listings=$(query_contract $VAULT_CONTRACT '{"get_all_listings":{}}' | jq -r '.data.listings')
+    ASSERT_EQUAL "$listings" '[]'
+}
 
-# ensure listings are empty now
-listings=$(query_contract $VAULT_CONTRACT '{"get_all_listings":{}}' | jq -r '.data.listings')
-ASSERT_EQUAL "$listings" '[]'
+function test_whitelist {
+    # === WHITELIST ONLY ===
+    # Selling 25ucosm for 5ujunox - only other account can purchase
+    wasm_cmd $VAULT_CONTRACT '{"create_listing":{"create_msg":{"id":"vault_2","ask":{"native":[{"denom":"ujunox","amount":"5"}],"cw20":[],"nfts":[]},"whitelisted_purchasers":["juno1efd63aw40lxf3n4mhf7dzhjkr453axurv2zdzk"]}}}' "25ucosm" show_log
+    # Ensure listing went up correctly
+    listing_1=$(query_contract $VAULT_CONTRACT '{"get_listing_info":{"listing_id":"vault_2"}}')
+    ASSERT_EQUAL "$listing_1" '{"data":{"creator":"juno1hj5fveer5cjtn4wd6wstzugjfdxzl0xps73ftl","status":"Being Prepared","for_sale":[["ucosm","25"]],"ask":[["ujunox","5"]],"expiration":"None","whitelisted_purchasers":["juno1efd63aw40lxf3n4mhf7dzhjkr453axurv2zdzk"]}}'
+    # finalize just the natives
+    wasm_cmd $VAULT_CONTRACT '{"finalize":{"listing_id":"vault_2","seconds":5000}}' "" show_log
+
+    # try to buy as the incorrect user (test-user) which is not whitelisted
+    wasm_cmd $VAULT_CONTRACT '{"create_bucket":{"bucket_id":"buyer_2"}}' "5ujunox" show_log
+    wasm_cmd $VAULT_CONTRACT '{"buy_listing":{"listing_id":"vault_2","bucket_id":"buyer_2"}}' "" dont_show_log
+    ASSERT_CONTAINS "$CMD_LOG" 'Not whitelisted'
+    # try to buy as the whitelisted person
+    wasm_cmd $VAULT_CONTRACT '{"create_bucket":{"bucket_id":"buyer_3"}}' "5ujunox" show_log "$TX_FLAGS --keyring-backend test --from other-user"
+    wasm_cmd $VAULT_CONTRACT '{"buy_listing":{"listing_id":"vault_2","bucket_id":"buyer_3"}}' "" show_log "$TX_FLAGS --keyring-backend test --from other-user"
+    wasm_cmd $VAULT_CONTRACT '{"withdraw_purchased":{"listing_id":"vault_2"}}' "" show_log "$TX_FLAGS --keyring-backend test --from other-user"
+    # ensure there are 0 listings left
+    listings=$(query_contract $VAULT_CONTRACT '{"get_all_listings":{}}' | jq -r '.data.listings')
+    ASSERT_EQUAL "$listings" '[]'
+
+    # check if other-user has the ucosm tokens they bought (they would be down 5ujunox as well)
+    balance=$($BINARY q bank balances "juno1efd63aw40lxf3n4mhf7dzhjkr453axurv2zdzk" --output json)
+    ASSERT_CONTAINS "$balance" '{"denom":"ucosm","amount":"25"}'
+    ASSERT_CONTAINS "$balance" '{"denom":"ujunox","amount":"9999995"}'
+    # no cw20 or nfts to check here :)
+}
+
+test_duplicate_ask_denoms
+test_whitelist # run before test_whitelist since we check balances here
+test_all_listings
+
 
 # ! TODO: experation should return seconds, not convert to human readable - do that on the frontend
 
-# === WHITELIST ONLY ===
-# Selling 25ucosm for 5ujunox - only other account can purchase
-wasm_cmd $VAULT_CONTRACT '{"create_listing":{"create_msg":{"id":"vault_2","ask":{"native":[{"denom":"ujunox","amount":"5"}],"cw20":[],"nfts":[]},"whitelisted_purchasers":["juno1efd63aw40lxf3n4mhf7dzhjkr453axurv2zdzk"]}}}' "25ucosm" show_log
-# Ensure listing went up correctly
-listing_1=$(query_contract $VAULT_CONTRACT '{"get_listing_info":{"listing_id":"vault_2"}}')
-ASSERT_EQUAL "$listing_1" '{"data":{"creator":"juno1hj5fveer5cjtn4wd6wstzugjfdxzl0xps73ftl","status":"Being Prepared","for_sale":[["ucosm","25"]],"ask":[["ujunox","5"]],"expiration":"None","whitelisted_purchasers":["juno1efd63aw40lxf3n4mhf7dzhjkr453axurv2zdzk"]}}'
-# finalize just the natives
-wasm_cmd $VAULT_CONTRACT '{"finalize":{"listing_id":"vault_2","seconds":5000}}' "" show_log
 
-# try to buy as the incorrect user (test-user) which is not whitelisted
-wasm_cmd $VAULT_CONTRACT '{"create_bucket":{"bucket_id":"buyer_2"}}' "5ujunox" show_log
-wasm_cmd $VAULT_CONTRACT '{"buy_listing":{"listing_id":"vault_2","bucket_id":"buyer_2"}}' "" show_log
-ASSERT_CONTAINS "$CMD_LOG" 'Not whitelisted'
-# try to buy as the whitelisted person
-wasm_cmd $VAULT_CONTRACT '{"create_bucket":{"bucket_id":"buyer_3"}}' "5ujunox" show_log "$TX_FLAGS --keyring-backend test --from other-user"
-wasm_cmd $VAULT_CONTRACT '{"buy_listing":{"listing_id":"vault_2","bucket_id":"buyer_3"}}' "" show_log "$TX_FLAGS --keyring-backend test --from other-user"
-wasm_cmd $VAULT_CONTRACT '{"withdraw_purchased":{"listing_id":"vault_2"}}' "" show_log "$TX_FLAGS --keyring-backend test --from other-user"
-# ensure there are 0 listings left
-listings=$(query_contract $VAULT_CONTRACT '{"get_all_listings":{}}' | jq -r '.data.listings')
-ASSERT_EQUAL "$listings" '[]'
-
-# check if other-user has the ucosm tokens they bought (they would be down 5ujunox as well)
-balance=$($BINARY q bank balances "juno1efd63aw40lxf3n4mhf7dzhjkr453axurv2zdzk" --output json)
-ASSERT_CONTAINS "$balance" '{"denom":"ucosm","amount":"25"}'
-ASSERT_CONTAINS "$balance" '{"denom":"ujunox","amount":"9999995"}'
-# no cw20 or nfts to check here :)
 
 # 1 if any of the above test failed
 exit $FINAL_STATUS_CODE
