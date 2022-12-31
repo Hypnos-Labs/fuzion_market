@@ -79,6 +79,11 @@ pub fn calc_fee(balance: &GenericBalance) -> StdResult<Option<(CosmosMsg, Generi
         // 0.1% = amount * 1 / 1000
         let ten_pips = juno.amount.multiply_ratio(1_u128, 1000_u128);
 
+        // small amounts (like 1ujuno) will be 0
+        if ten_pips.is_zero() {
+            return Ok(None);
+        }
+
         let fee_msg: CosmosMsg<Empty> = CosmosMsg::from(BankMsg::Send {
             to_address: COMMUNITY_POOL.to_string(),
             amount: coins(ten_pips.u128(), "ujunox"),
