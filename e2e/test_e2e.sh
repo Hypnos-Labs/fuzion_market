@@ -3,9 +3,6 @@
 #
 # sh ./e2e/test_e2e.sh
 
-# Don't allow errors
-set -e
-
 # get functions from helpers file 
 # -> query_contract, wasm_cmd, mint_cw721, send_nft_to_listing, send_cw20_to_listing
 source ./e2e/helpers.sh
@@ -165,6 +162,10 @@ function add_accounts {
 
 start_docker
 compile_and_copy # the compile takes time for the docker container to start up
+
+# Don't allow errors after this point
+set -e
+
 health_status
 
 add_accounts
