@@ -1,11 +1,7 @@
-# used as our test account
-
-# export KEY="juno1" 
-# export KEYALGO="secp256k1"
-# export JUNOD_CHAIN_ID="junod-1"
-# export JUNOD_KEYRING_BACKEND="test"
-# export JUNOD_NODE="http://localhost:26657"
-# export JUNOD_COMMAND_ARGS="--gas 5000000 --gas-prices="0ujunox" -y --from $KEY --broadcast-mode block --output json --chain-id juno-t1 --fees 125000ujunox --node $JUNOD_NODE"
+# Test script for Juno Smart Contracts (By @Reecepbcups)
+# ./github/workflows/e2e.yml
+#
+# sh ./e2e/test_e2e.sh
 
 CONTAINER_NAME="juno_cw_vaults"
 BINARY="docker exec -i $CONTAINER_NAME junod"
@@ -46,14 +42,14 @@ function compile_and_copy {
     docker run --rm -v "$(pwd)":/code \
       --mount type=volume,source="$(basename "$(pwd)")_cache",target=/code/target \
       --mount type=volume,source=registry_cache,target=/usr/local/cargo/registry \
-      cosmwasm/rust-optimizer:0.12.11
+      cosmwasm/rust-optimizer:0.12.10
 
     # copy wasm to docker container
-    docker cp ./artifacts/juno_vaults.wasm $CONTAINER_NAME:/juno_vaults.wasm
+    docker cp artifacts/juno_vaults.wasm $CONTAINER_NAME:/juno_vaults.wasm
 
     # copy helper contracts to container
-    docker cp ./e2e/cw20_base.wasm $CONTAINER_NAME:/cw20_base.wasm
-    docker cp ./e2e/cw721_base.wasm $CONTAINER_NAME:/cw721_base.wasm
+    docker cp e2e/cw20_base.wasm $CONTAINER_NAME:/cw20_base.wasm
+    docker cp e2e/cw721_base.wasm $CONTAINER_NAME:/cw721_base.wasm
 }
 
 start_docker
