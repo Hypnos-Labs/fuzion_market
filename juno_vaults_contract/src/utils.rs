@@ -2,7 +2,7 @@ use crate::error::*;
 use crate::state::*;
 use chrono::{Datelike, NaiveDateTime, Timelike};
 use cosmwasm_schema::cw_serde;
-use cosmwasm_std::Uint128;
+use cosmwasm_std::DepsMut;
 use cosmwasm_std::coins;
 use cosmwasm_std::{to_binary, Addr, BankMsg, CosmosMsg, Empty, StdError, StdResult, WasmMsg};
 use cw20::{Balance, Cw20ExecuteMsg};
@@ -66,26 +66,20 @@ pub fn send_tokens_cosmos(to: &Addr, balance: &GenericBalance) -> StdResult<Vec<
     Ok(msgs)
 }
 
-
 pub fn calc_fee(balance: &GenericBalance) -> StdResult<Option<(CosmosMsg, GenericBalance)>> {
-
-    let juno_in_balance = balance
-        .native
-        .iter()
-        .find(|n| n.denom == "ujunox".to_string());
+    let juno_in_balance = balance.native.iter().find(|n| n.denom == "ujunox".to_string());
 
     // If balance DOES NOT contain juno, return Ok(None)
     // If balance DOES contain juno, calculate 0.1% of the JUNO in the balance,
     // Create CosmosMsg sending that to the Community Pool,
     // and return this CosmosMsg + a generic balance with the fee removed for the user
     if let Some(juno) = juno_in_balance {
-
         // 0.1% = amount * 1 / 1000
         let ten_pips = juno.amount.multiply_ratio(1_u128, 1000_u128);
 
         let fee_msg: CosmosMsg<Empty> = CosmosMsg::from(BankMsg::Send {
-            to_address: COMMUNITY_POOL.to_string(), 
-            amount: coins(ten_pips.u128(), "ujunox") 
+            to_address: COMMUNITY_POOL.to_string(),
+            amount: coins(ten_pips.u128(), "ujunox"),
         });
 
         let juno_amount_after_fee_removed = juno.amount.checked_sub(ten_pips)?;
@@ -98,14 +92,10 @@ pub fn calc_fee(balance: &GenericBalance) -> StdResult<Option<(CosmosMsg, Generi
         };
 
         Ok(Some((fee_msg, balance_with_fee_removed)))
-
     } else {
-
         Ok(None)
     }
-
 }
-
 
 pub fn is_balance_whitelisted(balance: &Balance, config: &Config) -> Result<(), ContractError> {
     let wl_native_denoms: Vec<_> =
@@ -196,6 +186,32 @@ pub fn is_nft_whitelisted(nft_addr: &Addr, config: &Config) -> Result<(), Contra
 
     Ok(())
 }
+
+
+/// Get allowed purchasers for a given listing.
+/// If any address string is not valid, returns an error
+pub fn get_whitelisted_addresses(
+    deps: &DepsMut,
+    whitelisted_addrs: Option<Vec<String>>,
+) -> Result<Option<Vec<Addr>>, ContractError> {
+
+    let Some(addrs) = whitelisted_addrs else {
+        return Ok(None);
+    };
+
+    if addrs.is_empty() {
+        return Ok(None);
+    };
+
+    let valid: Vec<Addr> = addrs
+        .iter()
+        .map(|address| deps.api.addr_validate(&address).map_err(|_| ContractError::InvalidAddressFormat))
+        .collect::<Result<Vec<Addr>, ContractError>>()?;
+
+    Ok(Some(valid))
+    
+}
+
 
 #[cw_serde]
 pub struct EzTimeStruct {
