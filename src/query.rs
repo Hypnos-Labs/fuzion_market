@@ -64,11 +64,12 @@ pub fn get_listing_info(deps: Deps, listing_id: String) -> StdResult<ListingInfo
         .iter()
         .for_each(|the_coin| the_sale.push((the_coin.address.to_string(), the_coin.amount.u128())));
 
-    listing
-        .for_sale
-        .nfts
-        .iter()
-        .for_each(|the_nft| the_sale.push((the_nft.contract_address.to_string(), the_nft.token_id.trim().parse::<u128>().unwrap())));
+    listing.for_sale.nfts.iter().for_each(|the_nft| {
+        the_sale.push((
+            the_nft.contract_address.to_string(),
+            the_nft.token_id.trim().parse::<u128>().unwrap(),
+        ))
+    });
 
     // Getting the ask
     let mut the_ask: Vec<(String, u128)> = vec![];
@@ -84,12 +85,13 @@ pub fn get_listing_info(deps: Deps, listing_id: String) -> StdResult<ListingInfo
         .cw20
         .iter()
         .for_each(|the_coin| the_ask.push((the_coin.address.to_string(), the_coin.amount.u128())));
-    
-    listing
-        .ask
-        .nfts
-        .iter()
-        .for_each(|the_nft| the_ask.push((the_nft.contract_address.to_string(), the_nft.token_id.trim().parse::<u128>().unwrap())));
+
+    listing.ask.nfts.iter().for_each(|the_nft| {
+        the_ask.push((
+            the_nft.contract_address.to_string(),
+            the_nft.token_id.trim().parse::<u128>().unwrap(),
+        ))
+    });
 
     if let Some(x) = listing.expiration_time {
         Ok(ListingInfoResponse {
