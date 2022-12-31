@@ -227,11 +227,8 @@ pub mod init_contracts {
             &max.address,
         );
 
-        let cw20_whitelist = vec![
-            jvone.addr().to_string(),
-            jvtwo.addr().to_string(),
-            jvtre.addr().to_string(),
-        ];
+        let cw20_whitelist =
+            vec![jvone.addr().to_string(), jvtwo.addr().to_string(), jvtre.addr().to_string()];
 
         //~~~~~~~~~~~~~~~~~~~~~
         // Init NFT Contracts
@@ -249,10 +246,7 @@ pub mod init_contracts {
             "SHITKIT".to_string(),
         );
 
-        let nft_whitelist = vec![
-            shittykittyz.addr().to_string(),
-            neonpeepz.addr().to_string(),
-        ];
+        let nft_whitelist = vec![shittykittyz.addr().to_string(), neonpeepz.addr().to_string()];
 
         //~~~~~~~~~~~~~~~~~~~~~
         // Init JunoVaults Contract

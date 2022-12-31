@@ -14,7 +14,7 @@ pub fn add_to_whitelist(
     sender: &Addr,
     type_adding: u8, // 1 = Native, 2 = CW20, 3 = NFT
     //to_add: (String, String),
-    to_add: String
+    to_add: String,
 ) -> Result<Response, ContractError> {
     let config: Config = CONFIG.load(deps.storage)?;
 
@@ -29,11 +29,11 @@ pub fn add_to_whitelist(
             } else {
                 WHITELIST_NATIVE.save(deps.storage, to_add, &true)?;
             };
-        },
+        }
 
         2 => {
             let Ok(valid) = deps.api.addr_validate(&to_add) else {
-                return Err(ContractError::ErrorAdding(to_add.clone()));
+                return Err(ContractError::ErrorAdding(to_add));
             };
 
             if WHITELIST_CW20.has(deps.storage, valid.clone()) {
@@ -41,11 +41,11 @@ pub fn add_to_whitelist(
             } else {
                 WHITELIST_CW20.save(deps.storage, valid, &true)?;
             };
-        },
+        }
 
         3 => {
             let Ok(valid) = deps.api.addr_validate(&to_add) else {
-                return Err(ContractError::ErrorAdding(to_add.clone()));
+                return Err(ContractError::ErrorAdding(to_add));
             };
 
             if WHITELIST_NFT.has(deps.storage, valid.clone()) {
@@ -53,7 +53,7 @@ pub fn add_to_whitelist(
             } else {
                 WHITELIST_NFT.save(deps.storage, valid, &true)?;
             };
-        },
+        }
 
         _ => return Err(ContractError::GenericInvalid),
     };
@@ -76,7 +76,7 @@ pub fn execute_create_bucket(
     }
 
     // Check that balance sent in is on whitelist
-    is_balance_whitelisted(&funds, &deps)?;
+    is_balance_whitelisted(funds, &deps)?;
 
     // Check that bucket_id isn't used
     if BUCKETS.has(deps.storage, (creator.clone(), bucket_id)) {
@@ -295,7 +295,7 @@ pub fn execute_create_listing_cw20(
     }
 
     // Check that funds sent are whitelisted
-    is_balance_whitelisted(&funds_sent, &deps)?;
+    is_balance_whitelisted(funds_sent, &deps)?;
 
     // Check that funds in ask are whitelisted
     is_genericbalance_whitelisted(&createlistingmsg.ask, &deps)?;
@@ -342,7 +342,6 @@ pub fn execute_create_listing_cw721(
     }
 
     // Check that funds in ask are whitelisted
-    let config = CONFIG.load(deps.storage)?;
     is_genericbalance_whitelisted(&createlistingmsg.ask, &deps)?;
 
     let whitelisted_addrs =

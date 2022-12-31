@@ -30,7 +30,6 @@ pub const WHITELIST_NFT: Map<Addr, bool> = Map::new("whitelist_nft");
 
 //const WHITELIST: Map<(AssetVariant, String), bool> = Map::new("whitelist");
 
-
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // Listings IndexedMap
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

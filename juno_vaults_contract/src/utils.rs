@@ -4,7 +4,9 @@ use chrono::{Datelike, NaiveDateTime, Timelike};
 use cosmwasm_schema::cw_serde;
 
 use cosmwasm_std::coins;
-use cosmwasm_std::{DepsMut, to_binary, Addr, BankMsg, CosmosMsg, Empty, StdError, StdResult, WasmMsg};
+use cosmwasm_std::{
+    to_binary, Addr, BankMsg, CosmosMsg, DepsMut, Empty, StdError, StdResult, WasmMsg,
+};
 use cw20::{Balance, Cw20ExecuteMsg};
 use cw721::Cw721ExecuteMsg;
 
@@ -97,84 +99,72 @@ pub fn calc_fee(balance: &GenericBalance) -> StdResult<Option<(CosmosMsg, Generi
     }
 }
 
-pub fn is_balance_whitelisted(
-    balance: &Balance, 
-    deps: &DepsMut
-) -> Result<(), ContractError> {
-
+pub fn is_balance_whitelisted(balance: &Balance, deps: &DepsMut) -> Result<(), ContractError> {
     match balance {
         Balance::Native(natives) => {
-
-            let _valid = natives
-                .0
-                .iter()
-                .map(|native| -> Result<(), ContractError> {
-                    if !WHITELIST_NATIVE.has(deps.storage, native.denom.clone()) {
-                        Err(ContractError::NotWhitelisted {  })
-                    } else {
-                        Ok(())
-                    }
-                })
-                .collect::<Result<(), ContractError>>()?;
+            natives.0.iter().try_for_each(|native| -> Result<(), ContractError> {
+                if !WHITELIST_NATIVE.has(deps.storage, native.denom.clone()) {
+                    Err(ContractError::NotWhitelisted {})
+                } else {
+                    Ok(())
+                }
+            })?;
 
             Ok(())
-
-        },
+        }
 
         Balance::Cw20(cw20) => {
-
             if !WHITELIST_CW20.has(deps.storage, cw20.address.clone()) {
-                Err(ContractError::NotWhitelisted {  })
+                Err(ContractError::NotWhitelisted {})
             } else {
                 Ok(())
             }
         }
     }
-
 }
 
 pub fn is_genericbalance_whitelisted(
     genericbalance: &GenericBalance,
     //config: &Config,
-    deps: &DepsMut
+    deps: &DepsMut,
 ) -> Result<(), ContractError> {
-
-
     // Check for Natives
     for native in &genericbalance.native {
         if !WHITELIST_NATIVE.has(deps.storage, native.denom.clone()) {
-            return Err(ContractError::NotWhitelist { which: "Native".to_string() });
+            return Err(ContractError::NotWhitelist {
+                which: "Native".to_string(),
+            });
         }
     }
 
     // Check for cw20s
     for cw20 in &genericbalance.cw20 {
         if !WHITELIST_CW20.has(deps.storage, cw20.address.clone()) {
-            return Err(ContractError::NotWhitelist {which: "Cw20".to_string()});
+            return Err(ContractError::NotWhitelist {
+                which: "Cw20".to_string(),
+            });
         }
     }
 
     // Check for NFTs
     for nft in &genericbalance.nfts {
         if !WHITELIST_NFT.has(deps.storage, nft.contract_address.clone()) {
-            return Err(ContractError::NotWhitelist {which: "NFT".to_string()});
+            return Err(ContractError::NotWhitelist {
+                which: "NFT".to_string(),
+            });
         }
     }
 
     Ok(())
-
 }
 
 pub fn is_nft_whitelisted(nft_addr: &Addr, deps: &DepsMut) -> Result<(), ContractError> {
-
     if !WHITELIST_NFT.has(deps.storage, nft_addr.to_owned()) {
-        return Err(ContractError::NotWhitelisted {  });
+        return Err(ContractError::NotWhitelisted {});
     };
 
     Ok(())
-
 }
-
 
 /// Get allowed purchasers for a given listing.
 /// If any address string is not valid, returns an error
@@ -182,7 +172,6 @@ pub fn get_whitelisted_addresses(
     deps: &DepsMut,
     whitelisted_addrs: Option<Vec<String>>,
 ) -> Result<Option<Vec<Addr>>, ContractError> {
-
     let Some(addrs) = whitelisted_addrs else {
         return Ok(None);
     };
@@ -193,13 +182,13 @@ pub fn get_whitelisted_addresses(
 
     let valid: Vec<Addr> = addrs
         .iter()
-        .map(|address| deps.api.addr_validate(&address).map_err(|_| ContractError::InvalidAddressFormat))
+        .map(|address| {
+            deps.api.addr_validate(address).map_err(|_| ContractError::InvalidAddressFormat)
+        })
         .collect::<Result<Vec<Addr>, ContractError>>()?;
 
     Ok(Some(valid))
-    
 }
-
 
 #[cw_serde]
 pub struct EzTimeStruct {

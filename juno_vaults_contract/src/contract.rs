@@ -1,7 +1,7 @@
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    from_binary, to_binary, Addr, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdResult,
+    from_binary, to_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdResult,
 };
 use cw2::set_contract_version;
 use cw20::{Balance, Cw20CoinVerified, Cw20ReceiveMsg};
@@ -36,33 +36,40 @@ pub fn instantiate(
         None => info.sender,
     };
 
-    CONFIG.save(
-        deps.storage,
-        &Config { admin: validated_admin},
-    ).map_err(|e| ContractError::InitInvalidAddr)?;
+    CONFIG
+        .save(
+            deps.storage,
+            &Config {
+                admin: validated_admin,
+            },
+        )
+        .map_err(|_e| ContractError::InitInvalidAddr)?;
 
     for native in msg.native_whitelist {
-        WHITELIST_NATIVE.save(deps.storage, native.clone(), &true)
-            .map_err(|e| ContractError::InitInvalidAddr)?;
-    };
+        WHITELIST_NATIVE
+            .save(deps.storage, native.clone(), &true)
+            .map_err(|_e| ContractError::InitInvalidAddr)?;
+    }
 
     for cw20 in msg.cw20_whitelist {
         let Ok(address) = deps.api.addr_validate(&cw20) else {
             return Err(ContractError::InitInvalidAddr);
         };
 
-        WHITELIST_CW20.save(deps.storage, address, &true)
-            .map_err(|e| ContractError::InitInvalidAddr)?;
-    };
+        WHITELIST_CW20
+            .save(deps.storage, address, &true)
+            .map_err(|_e| ContractError::InitInvalidAddr)?;
+    }
 
     for nft in msg.nft_whitelist {
         let Ok(address) = deps.api.addr_validate(&nft) else {
             return Err(ContractError::InitInvalidAddr);
         };
 
-        WHITELIST_NFT.save(deps.storage, address, &true)
-            .map_err(|e| ContractError::InitInvalidAddr)?;
-    };
+        WHITELIST_NFT
+            .save(deps.storage, address, &true)
+            .map_err(|_e| ContractError::InitInvalidAddr)?;
+    }
 
     Ok(Response::new().add_attribute("Called", "Instantiate"))
 }
