@@ -39,10 +39,12 @@ function start_docker {
 function compile_and_copy {
     # compile vaults contract here
 
-    docker exec -it $CONTAINER_NAME docker run --rm -v "$(pwd)":/code \
+    docker run --rm -v "$(pwd)":/code \
       --mount type=volume,source="$(basename "$(pwd)")_cache",target=/code/target \
       --mount type=volume,source=registry_cache,target=/usr/local/cargo/registry \
       cosmwasm/rust-optimizer:0.12.11
+
+    ls /    
 
     # copy wasm to docker container
     docker cp artifacts/juno_vaults.wasm $CONTAINER_NAME:/juno_vaults.wasm
