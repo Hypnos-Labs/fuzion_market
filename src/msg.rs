@@ -28,10 +28,6 @@ pub enum ExecuteMsg {
     // Receive Filters
     Receive(Cw20ReceiveMsg),
     ReceiveNft(Cw721ReceiveMsg),
-    AddToWhitelist {
-        type_adding: u8,
-        to_add: String,
-    },
     // Create Listing
     CreateListing {
         create_msg: CreateListingMsg,

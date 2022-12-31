@@ -9,19 +9,18 @@ use cw721::Cw721ReceiveMsg;
 
 use crate::error::ContractError;
 use crate::execute::{
-    add_to_whitelist, execute_add_funds_to_sale, execute_add_to_bucket,
-    execute_add_to_bucket_cw721, execute_add_to_sale_cw721, execute_buy_listing,
-    execute_change_ask, execute_create_bucket, execute_create_bucket_cw721, execute_create_listing,
-    execute_create_listing_cw20, execute_create_listing_cw721, execute_finalize, execute_refund,
-    execute_remove_listing, execute_withdraw_bucket, execute_withdraw_purchased,
+    execute_add_funds_to_sale, execute_add_to_bucket, execute_add_to_bucket_cw721,
+    execute_add_to_sale_cw721, execute_buy_listing, execute_change_ask, execute_create_bucket,
+    execute_create_bucket_cw721, execute_create_listing, execute_create_listing_cw20,
+    execute_create_listing_cw721, execute_finalize, execute_refund, execute_remove_listing,
+    execute_withdraw_bucket, execute_withdraw_purchased,
 };
 use crate::msg::{ExecuteMsg, InstantiateMsg, QueryMsg, ReceiveMsg, ReceiveNftMsg};
 use crate::query::{
     get_admin, get_all_listings, get_buckets, get_config, get_listing_info, get_listings_by_owner,
     get_listings_for_market,
 };
-use crate::state::{Config, Nft, CONFIG, WHITELIST_CW20, WHITELIST_NATIVE, WHITELIST_NFT};
-use crate::utils::is_nft_whitelisted;
+use crate::state::{Config, Nft, CONFIG};
 use std::str;
 
 const CONTRACT_NAME: &str = "crates.io:cyberswap_nft";
@@ -54,32 +53,6 @@ pub fn instantiate(
         )
         .map_err(|_e| ContractError::InitInvalidAddr)?;
 
-    for native in msg.native_whitelist {
-        WHITELIST_NATIVE
-            .save(deps.storage, native.clone(), &true)
-            .map_err(|_e| ContractError::InitInvalidAddr)?;
-    }
-
-    for cw20 in msg.cw20_whitelist {
-        let Ok(address) = deps.api.addr_validate(&cw20) else {
-            return Err(ContractError::InitInvalidAddr);
-        };
-
-        WHITELIST_CW20
-            .save(deps.storage, address, &true)
-            .map_err(|_e| ContractError::InitInvalidAddr)?;
-    }
-
-    for nft in msg.nft_whitelist {
-        let Ok(address) = deps.api.addr_validate(&nft) else {
-            return Err(ContractError::InitInvalidAddr);
-        };
-
-        WHITELIST_NFT
-            .save(deps.storage, address, &true)
-            .map_err(|_e| ContractError::InitInvalidAddr)?;
-    }
-
     Ok(Response::new().add_attribute("Called", "Instantiate"))
 }
 
@@ -99,12 +72,6 @@ pub fn execute(
         // Receive Wrappers
         ExecuteMsg::Receive(receive_msg) => execute_receive(deps, &env, &info, &receive_msg),
         ExecuteMsg::ReceiveNft(receive_nft_msg) => execute_receive_nft(deps, info, receive_nft_msg),
-        // ~~~~
-        // Admin only
-        ExecuteMsg::AddToWhitelist {
-            type_adding,
-            to_add,
-        } => add_to_whitelist(deps, &info.sender, type_adding, to_add),
         // ~~~~
         // Listing Executions
         ExecuteMsg::CreateListing {
@@ -187,9 +154,6 @@ pub fn execute_receive_nft(
     info: MessageInfo,
     wrapper: Cw721ReceiveMsg,
 ) -> Result<Response, ContractError> {
-    //let config = CONFIG.load(deps.storage)?;
-    is_nft_whitelisted(&info.sender, &deps)?;
-
     let msg: ReceiveNftMsg = from_binary(&wrapper.msg)?;
     let user_wallet = deps.api.addr_validate(&wrapper.sender)?;
 

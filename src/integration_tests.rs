@@ -12,8 +12,6 @@ use self::init_contracts::init_all_contracts;
 use crate::{msg::*, state::*};
 
 const VALID_NATIVE: &str = "ujunox";
-const INVALID_NATIVE: &str = "poopcoin";
-const INVALID_CW20: &str = "juno1as9d8falsjfs98a08u2390uas0f87dasdf98a79s8df7a89asdf987asd8";
 
 pub fn here(ctx: impl Display, line: impl Display, col: impl Display) -> String {
     format!(
@@ -55,7 +53,7 @@ pub mod create_contract {
 }
 
 pub mod create_users {
-    use super::{INVALID_NATIVE, VALID_NATIVE};
+    use super::VALID_NATIVE;
     use cosmwasm_std::Addr;
     use cw_multi_test::App;
     use std::borrow::BorrowMut;
@@ -73,14 +71,10 @@ pub mod create_users {
     }
 
     pub fn give_natives<'a>(user: &User, router: &'a mut App) -> &'a mut App {
-        let invalid_native = cosmwasm_std::coin(100, INVALID_NATIVE);
         let valid_native = cosmwasm_std::coin(100_000_000, VALID_NATIVE);
 
         router.borrow_mut().init_modules(|router, _, storage| {
-            router
-                .bank
-                .init_balance(storage, &user.address, vec![valid_native, invalid_native])
-                .unwrap()
+            router.bank.init_balance(storage, &user.address, vec![valid_native]).unwrap()
         });
 
         router
@@ -364,87 +358,6 @@ pub mod init_contracts {
     }
 }
 
-pub mod create_invalid_listing {
-    use crate::msg::ExecuteMsg;
-    use cosmwasm_std::{coin, Addr, Uint128}; //coins
-    use cw20::Cw20CoinVerified; // Cw20Coin};
-
-    use crate::{msg::CreateListingMsg, state::GenericBalance, state::Nft};
-
-    use super::{INVALID_CW20, INVALID_NATIVE, VALID_NATIVE};
-
-    pub fn askprice_invalid_native() -> ExecuteMsg {
-        let invalid_native = coin(10, INVALID_NATIVE);
-        let valid_native = coin(10, VALID_NATIVE);
-
-        let invalid_ask_price = GenericBalance {
-            native: vec![valid_native, invalid_native],
-            cw20: vec![],
-            nfts: vec![],
-        };
-
-        let cm = CreateListingMsg {
-            id: "invalid_ask".to_string(),
-            ask: invalid_ask_price,
-            whitelisted_purchasers: None,
-        };
-
-        crate::msg::ExecuteMsg::CreateListing {
-            create_msg: cm,
-        }
-    }
-
-    pub fn askprice_invalid_cw20() -> ExecuteMsg {
-        let valid_native = coin(10, VALID_NATIVE);
-
-        let invalid_cw20 = Cw20CoinVerified {
-            address: Addr::unchecked(INVALID_CW20),
-            amount: Uint128::from(10u32),
-        };
-
-        let invalid_ask_price = GenericBalance {
-            native: vec![valid_native],
-            cw20: vec![invalid_cw20],
-            nfts: vec![],
-        };
-
-        let cm = CreateListingMsg {
-            id: "invalid_ask_two".to_string(),
-            ask: invalid_ask_price,
-            whitelisted_purchasers: None,
-        };
-
-        crate::msg::ExecuteMsg::CreateListing {
-            create_msg: cm,
-        }
-    }
-
-    pub fn askprice_invalid_nft() -> ExecuteMsg {
-        let valid_native = coin(10, VALID_NATIVE);
-
-        let invalid_nft = Nft {
-            contract_address: Addr::unchecked(INVALID_CW20),
-            token_id: "2".to_string(),
-        };
-
-        let invalid_ask_price = GenericBalance {
-            native: vec![valid_native],
-            cw20: vec![],
-            nfts: vec![invalid_nft],
-        };
-
-        let cm = CreateListingMsg {
-            id: "invalid_ask_tre".to_string(),
-            ask: invalid_ask_price,
-            whitelisted_purchasers: None,
-        };
-
-        crate::msg::ExecuteMsg::CreateListing {
-            create_msg: cm,
-        }
-    }
-}
-
 pub mod create_valid_listing {
 
     use crate::msg::ExecuteMsg;
@@ -453,7 +366,7 @@ pub mod create_valid_listing {
 
     use crate::{msg::CreateListingMsg, state::GenericBalance, state::Nft};
 
-    use super::VALID_NATIVE; //INVALID_NATIVE, REAL_JVONE, INVALID_CW20, REAL_NEONPEEPZ};
+    use super::VALID_NATIVE; // REAL_JVONE, REAL_NEONPEEPZ};
 
     pub fn valid_ask_all(
         jvone_addr: Addr,
@@ -632,63 +545,11 @@ fn create_listing_should_fail() -> Result<(), anyhow::Error> {
         init_all_contracts(&mut router, &contract_admin, &john, &sam, &max)?;
 
     // Give native balances to all users
-    // Each user gets 100 VALID_NATIVE + 100 INVALID_NATIVE
+    // Each user gets 100 VALID_NATIVE
     let router = give_natives(&john, &mut router);
     let router = give_natives(&sam, router);
     let router = give_natives(&max, router);
     //let router = give_natives(&bad_actor, &mut router);
-
-    //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    // Invalid Native in ask
-    //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-    let askprice_invalid_native_msg = create_invalid_listing::askprice_invalid_native();
-    let one_juno = coins(1, "ujunox");
-
-    let res: Result<AppResponse> = router.execute_contract(
-        john.address.clone(),
-        junovaults.clone(),
-        &askprice_invalid_native_msg,
-        &one_juno,
-    );
-
-    // passes
-    ensure!(res.is_err(), here("'Invalid Native in Ask' failure", line!(), column!()));
-
-    //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    // Invalid CW20 in ask
-    //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-    let askprice_invalid_cw20_msg = create_invalid_listing::askprice_invalid_cw20();
-
-    let res2: Result<AppResponse> = router.execute_contract(
-        john.address.clone(),
-        junovaults.clone(),
-        &askprice_invalid_cw20_msg,
-        &one_juno,
-    );
-
-    // passes
-    ensure!(res2.is_err(), here("'Invalid CW20 in Ask' failure", line!(), column!()));
-
-    //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    // Invalid NFT in ask
-    //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-    let askprice_invalid_nft_msg = create_invalid_listing::askprice_invalid_nft();
-
-    let res3: Result<AppResponse> = router.execute_contract(
-        john.address.clone(),
-        junovaults.clone(),
-        &askprice_invalid_nft_msg,
-        &one_juno,
-    );
-
-    // passes
-    ensure!(res3.is_err(), here("'Invalid NFT in Ask' failure", line!(), column!()));
 
     //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -759,7 +620,7 @@ fn create_listing_should_pass() -> Result<(), anyhow::Error> {
     // 100 JVONE, JVTWO, JVTRE
     // 2 ShittyKittyz + 2 NeonPeepz
 
-    // Give each user 100 VALID_NATIVE + 100 INVALID_NATIVE
+    // Give each user 100 VALID_NATIVE
     let router = give_natives(&john, &mut router);
     let router = give_natives(&sam, router);
     let router = give_natives(&max, router);
@@ -879,7 +740,7 @@ fn add_to_listing() -> Result<(), anyhow::Error> {
     // 100 JVONE, JVTWO, JVTRE
     // 2 ShittyKittyz + 2 NeonPeepz
 
-    // Give each user 100 VALID_NATIVE + 100 INVALID_NATIVE
+    // Give each user 100 VALID_NATIVE
     let router = give_natives(&john, &mut router);
     let router = give_natives(&sam, router);
     let router = give_natives(&max, router);
@@ -1107,7 +968,7 @@ fn remove_a_listing() -> Result<(), anyhow::Error> {
     // 100 JVONE, JVTWO, JVTRE
     // 2 ShittyKittyz + 2 NeonPeepz
 
-    // Give each user 100 VALID_NATIVE + 100 INVALID_NATIVE
+    // Give each user 100 VALID_NATIVE
     let router = give_natives(&john, &mut router);
     let router = give_natives(&sam, router);
     let router = give_natives(&max, router);
@@ -1411,7 +1272,7 @@ fn finalize_a_listing() -> Result<(), anyhow::Error> {
     // 100 JVONE, JVTWO, JVTRE
     // 2 ShittyKittyz + 2 NeonPeepz
 
-    // Give each user 100 VALID_NATIVE + 100 INVALID_NATIVE
+    // Give each user 100 VALID_NATIVE
     let router = give_natives(&john, &mut router);
     let router = give_natives(&sam, router);
     let router = give_natives(&max, router);
@@ -1771,7 +1632,7 @@ fn expiration_checks() -> Result<(), anyhow::Error> {
     // 100 JVONE, JVTWO, JVTRE
     // 2 ShittyKittyz + 2 NeonPeepz
 
-    // Give each user 100 VALID_NATIVE + 100 INVALID_NATIVE
+    // Give each user 100 VALID_NATIVE
     let router = give_natives(&john, &mut router);
     let router = give_natives(&sam, router);
     let router = give_natives(&max, router);
@@ -2010,7 +1871,7 @@ fn create_bucket() -> Result<(), anyhow::Error> {
         init_all_contracts(&mut router, &contract_admin, &john, &sam, &max)?;
 
     // Give native balances to all users
-    // Each user gets 100 VALID_NATIVE + 100 INVALID_NATIVE
+    // Each user gets 100 VALID_NATIVE
     let router = give_natives(&john, &mut router);
     let router = give_natives(&sam, router);
     let router = give_natives(&max, router);
@@ -2246,7 +2107,7 @@ fn marketplace_sale() -> Result<(), anyhow::Error> {
         init_all_contracts(&mut router, &contract_admin, &john, &sam, &max)?;
 
     // Give native balances to all users
-    // Each user gets 100 VALID_NATIVE + 100 INVALID_NATIVE
+    // Each user gets 100 VALID_NATIVE
     let router = give_natives(&john, &mut router);
     let router = give_natives(&sam, router);
     let router = give_natives(&max, router);
@@ -2866,7 +2727,7 @@ fn cant_buy_expired() -> Result<(), anyhow::Error> {
         init_all_contracts(&mut router, &contract_admin, &john, &sam, &max)?;
 
     // Give native balances to all users
-    // Each user gets 100 VALID_NATIVE + 100 INVALID_NATIVE
+    // Each user gets 100 VALID_NATIVE
     let router = give_natives(&john, &mut router);
     let router = give_natives(&sam, router);
     let router = give_natives(&max, router);

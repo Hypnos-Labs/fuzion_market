@@ -1,68 +1,12 @@
 use crate::error::ContractError;
 use crate::msg::CreateListingMsg;
 use crate::state::{
-    genbal_from_nft, listingz, Bucket, Config, GenericBalance, GenericBalanceUtil, Listing, Nft,
-    Status, ToGenericBalance, BUCKETS, CONFIG, WHITELIST_CW20, WHITELIST_NATIVE, WHITELIST_NFT,
+    genbal_from_nft, listingz, Bucket, GenericBalance, GenericBalanceUtil, Listing, Nft, Status,
+    ToGenericBalance, BUCKETS,
 };
-use crate::utils::{
-    calc_fee, get_whitelisted_addresses, is_balance_whitelisted, is_genericbalance_whitelisted,
-    send_tokens_cosmos, EzTime,
-};
+use crate::utils::{calc_fee, get_whitelisted_addresses, send_tokens_cosmos, EzTime};
 use cosmwasm_std::{Addr, DepsMut, Env, Response};
 use cw20::Balance;
-
-//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-// Admin only
-//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-pub fn add_to_whitelist(
-    deps: DepsMut,
-    sender: &Addr,
-    type_adding: u8, // 1 = Native, 2 = CW20, 3 = NFT
-    //to_add: (String, String),
-    to_add: String,
-) -> Result<Response, ContractError> {
-    let config: Config = CONFIG.load(deps.storage)?;
-
-    if &config.admin != sender {
-        return Err(ContractError::Unauthorized {});
-    };
-
-    match type_adding {
-        1 => {
-            if WHITELIST_NATIVE.has(deps.storage, to_add.clone()) {
-                return Err(ContractError::GenericInvalid);
-            }
-            WHITELIST_NATIVE.save(deps.storage, to_add, &true)?;
-        }
-
-        2 => {
-            let Ok(valid) = deps.api.addr_validate(&to_add) else {
-                return Err(ContractError::ErrorAdding(to_add));
-            };
-
-            if WHITELIST_CW20.has(deps.storage, valid.clone()) {
-                return Err(ContractError::GenericInvalid);
-            }
-            WHITELIST_CW20.save(deps.storage, valid, &true)?;
-        }
-
-        3 => {
-            let Ok(valid) = deps.api.addr_validate(&to_add) else {
-                return Err(ContractError::ErrorAdding(to_add));
-            };
-
-            if WHITELIST_NFT.has(deps.storage, valid.clone()) {
-                return Err(ContractError::GenericInvalid);
-            }
-            WHITELIST_NFT.save(deps.storage, valid, &true)?;
-        }
-
-        _ => return Err(ContractError::GenericInvalid),
-    };
-
-    Ok(Response::default())
-}
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // Buckets
@@ -77,9 +21,6 @@ pub fn execute_create_bucket(
     if funds.is_empty() {
         return Err(ContractError::NoTokens {});
     }
-
-    // Check that balance sent in is on whitelist
-    is_balance_whitelisted(funds, &deps)?;
 
     // Check that bucket_id isn't used
     if BUCKETS.has(deps.storage, (creator.clone(), bucket_id)) {
@@ -136,9 +77,6 @@ pub fn execute_add_to_bucket(
     if funds.is_empty() {
         return Err(ContractError::NoTokens {});
     }
-
-    // Ensure coins sent in are in whitelist
-    is_balance_whitelisted(&funds, &deps)?;
 
     // Ensure bucket exists & Sender is owner
     let Some(the_bucket) = BUCKETS.may_load(deps.storage, (sender.clone(), &bucket_id))? else {
@@ -249,12 +187,6 @@ pub fn execute_create_listing(
         return Err(ContractError::NoTokens {});
     }
 
-    // Check that funds sent are whitelisted
-    is_balance_whitelisted(funds_sent, &deps)?;
-
-    // Check that funds in ask are whitelisted
-    is_genericbalance_whitelisted(&createlistingmsg.ask, &deps)?;
-
     // Check ID isn't taken
     if (listingz().idx.id.item(deps.storage, createlistingmsg.id.clone())?).is_some() {
         return Err(ContractError::IdAlreadyExists {});
@@ -297,12 +229,6 @@ pub fn execute_create_listing_cw20(
         return Err(ContractError::NoTokens {});
     }
 
-    // Check that funds sent are whitelisted
-    is_balance_whitelisted(funds_sent, &deps)?;
-
-    // Check that funds in ask are whitelisted
-    is_genericbalance_whitelisted(&createlistingmsg.ask, &deps)?;
-
     // Checking to make sure that listing_id isn't taken
     if (listingz().idx.id.item(deps.storage, createlistingmsg.id.clone())?).is_some() {
         return Err(ContractError::IdAlreadyExists {});
@@ -343,9 +269,6 @@ pub fn execute_create_listing_cw721(
     if (listingz().idx.id.item(deps.storage, createlistingmsg.id.clone())?).is_some() {
         return Err(ContractError::IdAlreadyExists {});
     }
-
-    // Check that funds in ask are whitelisted
-    is_genericbalance_whitelisted(&createlistingmsg.ask, &deps)?;
 
     let whitelisted_addrs =
         get_whitelisted_addresses(&deps, createlistingmsg.whitelisted_purchasers)?;
@@ -406,9 +329,6 @@ pub fn execute_change_ask(
         return Err(ContractError::Unauthorized {});
     }
 
-    // Check that new_ask is whitelisted
-    is_genericbalance_whitelisted(&new_ask, &deps)?;
-
     listingz().replace(
         deps.storage,
         (user_sender, listing_id.clone()),
@@ -457,9 +377,6 @@ pub fn execute_add_funds_to_sale(
     if listing.claimant.is_some() {
         return Err(ContractError::Unauthorized {});
     }
-
-    // Ensure coins sent in are in whitelist
-    is_balance_whitelisted(&balance, &deps)?;
 
     // Update old listing by adding tokens
     let new_listing = {
