@@ -124,7 +124,7 @@ mint_cw721 $CW721_CONTRACT 2 $KEY_ADDR "https://m.media-amazon.com/images/I/31E1
 
 # == Helper Functions ==
 function query_contract {
-    junod query wasm contract-state smart $1 $2 --output json
+    $BINARY query wasm contract-state smart $1 $2 --output json
 }
 function wasm_cmd {
     CONTRACT=$1
