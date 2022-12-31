@@ -1,19 +1,76 @@
-# https://github.com/CosmosContracts/juno -> `sh scripts/test_node.sh c`
-# Then run this from root of this directory
-# sh e2e/test.sh
-
-export KEY="juno1" 
+# used as our test account
 export KEY_ADDR="juno1hj5fveer5cjtn4wd6wstzugjfdxzl0xps73ftl"
-export KEYALGO="secp256k1"
-export JUNOD_CHAIN_ID="joe-1"
-export JUNOD_KEYRING_BACKEND="test"
-export JUNOD_NODE="http://localhost:26657"
-export JUNOD_COMMAND_ARGS="--gas 5000000 --gas-prices="0ujuno" -y --from $KEY --broadcast-mode block --output json --chain-id juno-t1 --fees 125000ujuno --node $JUNOD_NODE"
+
+# export KEY="juno1" 
+# export KEYALGO="secp256k1"
+# export JUNOD_CHAIN_ID="junod-1"
+# export JUNOD_KEYRING_BACKEND="test"
+# export JUNOD_NODE="http://localhost:26657"
+# export JUNOD_COMMAND_ARGS="--gas 5000000 --gas-prices="0ujuno" -y --from $KEY --broadcast-mode block --output json --chain-id juno-t1 --fees 125000ujuno --node $JUNOD_NODE"
+
+
+
+IMAGE_TAG=${2:-"v9.0.0"}
+CONTAINER_NAME="juno_cw_vaults"
+BINARY="docker exec -i $CONTAINER_NAME junod"
+DENOM='ujunox'
+JUNOD_CHAIN_ID='testing'
+JUNOD_NODE='http://localhost:26657/'
+# globalfee will break this in the future
+JUNOD_COMMAND_ARGS="--gas-prices 0.1$DENOM --gas auto --gas-adjustment 1.3 -y -b block --chain-id $JUNOD_CHAIN_ID --node $JUNOD_NODE"
+BLOCK_GAS_LIMIT=${GAS_LIMIT:-100000000} # mirrors mainnet
+
+echo "Building $IMAGE_TAG"
+echo "Configured Block Gas Limit: $BLOCK_GAS_LIMIT"
+
+docker kill $CONTAINER_NAME
+docker volume rm -f junod_data
+
+# run junod docker
+docker run --rm -d --name $CONTAINER_NAME \
+    -e STAKE_TOKEN=$DENOM \
+    -e GAS_LIMIT="$GAS_LIMIT" \
+    -e UNSAFE_CORS=true \
+    -p 1317:1317 -p 26656:26656 -p 26657:26657 \
+    --mount type=volume,source=junod_data,target=/root \
+    ghcr.io/cosmoscontracts/juno:$IMAGE_TAG /opt/setup_and_run.sh $KEY_ADDR
+
+# compile vaults contract
+docker run --rm -v "$(pwd)":/code \
+  --mount type=volume,source="$(basename "$(pwd)")_cache",target=/code/target \
+  --mount type=volume,source=registry_cache,target=/usr/local/cargo/registry \
+  cosmwasm/rust-optimizer:0.12.11
+
+# copy wasm to docker container
+docker cp artifacts/juno_vaults.wasm $CONTAINER_NAME:/juno_vaults.wasm
+# copy helper contracts to container
+docker cp e2e/cw20_base.wasm $CONTAINER_NAME:/cw20_base.wasm
+docker cp e2e/cw721_base.wasm $CONTAINER_NAME:/cw721_base.wasm
+
+# validator addr
+VALIDATOR_ADDR=$($BINARY keys show validator --address)
+echo "Validator address:"
+echo $VALIDATOR_ADDR
+
+BALANCE_1=$($BINARY q bank balances $VALIDATOR_ADDR)
+echo "Pre-store balance:"
+echo $BALANCE_1
+
+echo "Address to deploy contracts: $KEY_ADDR"
+echo "JUNOD_COMMAND_ARGS: $JUNOD_COMMAND_ARGS"
+
+# errors from this point on are no bueno
+set -e
+
+# provision juno default user i.e. juno16g2rahf5846rxzp3fwlswy08fz8ccuwk03k57y, account already has funds in the docker container
+echo "clip hire initial neck maid actor venue client foam budget lock catalog sweet steak waste crater broccoli pipe steak sister coyote moment obvious choose" | $BINARY keys add test-user --recover --keyring-backend test
+export TEST_ADDR=$($BINARY keys show test-user --address --keyring-backend test)
+
 
 function upload_vault {
     # == UPLOAD VAULT ==
     echo "Storing Vault contract..."
-    VAULT_UPLOAD=$(junod tx wasm store artifacts/juno_vaults.wasm $JUNOD_COMMAND_ARGS | jq -r '.txhash') && echo $VAULT_UPLOAD
+    VAULT_UPLOAD=$(junod tx wasm store /juno_vaults.wasm $JUNOD_COMMAND_ARGS | jq -r '.txhash') && echo $VAULT_UPLOAD
     VAULT_BASE_CODE_ID=$(junod q tx $VAULT_UPLOAD --output json | jq -r '.logs[0].events[] | select(.type == "store_code").attributes[] | select(.key == "code_id").value')
 
     # == INSTANTIATE ==
@@ -29,7 +86,7 @@ upload_vault
 
 function upload_cw721 {
     echo "Storing CW721 contract..."
-    TX721=$(junod tx wasm store e2e/cw721_base.wasm $JUNOD_COMMAND_ARGS | jq -r '.txhash') && echo "$TX721"
+    TX721=$(junod tx wasm store /cw721_base.wasm $JUNOD_COMMAND_ARGS | jq -r '.txhash') && echo "$TX721"
     CW721_CODE_ID=$(junod q tx $TX721 --output json | jq -r '.logs[0].events[] | select(.type == "store_code").attributes[] | select(.key == "code_id").value') && echo "Code Id: $CW721_CODE_ID"
     
     echo "Instantiating CW721 contract..."
@@ -88,6 +145,7 @@ function ASSERT_EQUAL() {
 function ASSERT_CONTAINS {
     if [[ "$1" != *"$2"* ]]; then
         echo "ERROR: $1 does not contain $2"
+        # exit 1
     fi
 }
 # ===
@@ -128,28 +186,28 @@ ASSERT_EQUAL $nft `printf '[["cw721","%s"]]' $CW721_CONTRACT`
 
 
 # LISTINGS
-wasm_cmd $VAULT_CONTRACT '{"create_listing":{"create_msg":{"id":"vault_1","ask":{"native":[{"denom":"ujuno","amount":"10"}],"cw20":[],"nfts":[]}}}}' "1ujuno"
+wasm_cmd $VAULT_CONTRACT '{"create_listing":{"create_msg":{"id":"vault_1","ask":{"native":[{"denom":"ujuno","amount":"10"}],"cw20":[],"nfts":[]}}}}' "1ujuno" show_log
 
 # test listing went up correctly
 listing_1=$(query_contract $VAULT_CONTRACT '{"get_listing_info":{"listing_id":"vault_1"}}')
 ASSERT_EQUAL "$listing_1" '{"data":{"creator":"juno1hj5fveer5cjtn4wd6wstzugjfdxzl0xps73ftl","status":"Being Prepared","for_sale":[["ujuno","1"]],"ask":[["ujuno","10"]],"expiration":"None"}}'
 
 # Duplicate vault id, fails
-wasm_cmd $VAULT_CONTRACT '{"create_listing":{"create_msg":{"id":"vault_1","ask":{"native":[{"denom":"ujuno","amount":"10"}],"cw20":[],"nfts":[]}}}}' "1ujuno"
+wasm_cmd $VAULT_CONTRACT '{"create_listing":{"create_msg":{"id":"vault_1","ask":{"native":[{"denom":"ujuno","amount":"10"}],"cw20":[],"nfts":[]}}}}' "1ujuno" show_log
 ASSERT_EQUAL "$CMD_LOG" 'failed to execute message; message index: 0: ID already taken: execute wasm contract failed'
 
 # Finalize the listing for purchase after everything is added
 wasm_cmd $VAULT_CONTRACT '{"finalize":{"listing_id":"vault_1","seconds":1000}}' "" show_log
 # try to finalize again, will fail
-wasm_cmd $VAULT_CONTRACT '{"finalize":{"listing_id":"vault_1","seconds":1000}}' ""
+wasm_cmd $VAULT_CONTRACT '{"finalize":{"listing_id":"vault_1","seconds":1000}}' "" show_log
 ASSERT_EQUAL "$CMD_LOG" 'failed to execute message; message index: 0: Listing already finalized: execute wasm contract failed'
 
 # Createe bucket so we can purchase the listing
-wasm_cmd $VAULT_CONTRACT '{"create_bucket":{"bucket_id":"buyer_a"}}' "10ujuno"
+wasm_cmd $VAULT_CONTRACT '{"create_bucket":{"bucket_id":"buyer_a"}}' "10ujuno" show_log
 # query_contract $VAULT_CONTRACT `printf '{"get_buckets":{"bucket_owner":"%s"}}' $KEY_ADDR`
 
 # purchase listing
-wasm_cmd $VAULT_CONTRACT '{"buy_listing":{"listing_id":"vault_1","bucket_id":"buyer_a"}}' "0ujuno" show_log
+wasm_cmd $VAULT_CONTRACT '{"buy_listing":{"listing_id":"vault_1","bucket_id":"buyer_a"}}' "" show_log
 # check users balance changes here
 
 # manual queries
