@@ -67,8 +67,8 @@ pub fn get_listing_info(deps: Deps, listing_id: String) -> StdResult<ListingInfo
     listing.for_sale.nfts.iter().for_each(|the_nft| {
         the_sale.push((
             the_nft.contract_address.to_string(),
-            the_nft.token_id.trim().parse::<u128>().unwrap(),
-        ))
+            the_nft.token_id.trim().parse::<u128>().expect("Invalid token ID"),
+        ));
     });
 
     // Getting the ask
@@ -89,27 +89,28 @@ pub fn get_listing_info(deps: Deps, listing_id: String) -> StdResult<ListingInfo
     listing.ask.nfts.iter().for_each(|the_nft| {
         the_ask.push((
             the_nft.contract_address.to_string(),
-            the_nft.token_id.trim().parse::<u128>().unwrap(),
-        ))
+            the_nft.token_id.trim().parse::<u128>().expect("Invalid token ID"),
+        ));
     });
 
+    // unwrap, if there are any, then map each Addr to a String
+    let whitelisted_accs =
+        listing.whitelisted_purchasers.unwrap_or_default().iter().map(|x| x.to_string()).collect();
+
+    let mut res: ListingInfoResponse = ListingInfoResponse {
+        creator: listing.creator.to_string(),
+        status,
+        for_sale: the_sale,
+        ask: the_ask,
+        expiration: "None".to_string(),
+        whitelisted_purchasers: whitelisted_accs,
+    };
+
     if let Some(x) = listing.expiration_time {
-        Ok(ListingInfoResponse {
-            creator: listing.creator.to_string(),
-            status,
-            for_sale: the_sale,
-            ask: the_ask,
-            expiration: x.eztime_string()?,
-        })
-    } else {
-        Ok(ListingInfoResponse {
-            creator: listing.creator.to_string(),
-            status,
-            for_sale: the_sale,
-            ask: the_ask,
-            expiration: "None".to_string(),
-        })
-    }
+        res.expiration = x.eztime_string()?;
+    };
+
+    Ok(res)
 }
 
 // Get all listings owned by an Address
@@ -202,4 +203,5 @@ pub struct ListingInfoResponse {
     pub for_sale: Vec<(String, u128)>,
     pub ask: Vec<(String, u128)>,
     pub expiration: String,
+    pub whitelisted_purchasers: Vec<String>,
 }
