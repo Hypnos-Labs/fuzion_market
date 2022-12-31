@@ -9,7 +9,8 @@ DENOM='ujunox'
 JUNOD_CHAIN_ID='testing'
 JUNOD_NODE='http://localhost:26657/'
 # globalfee will break this in the future
-JUNOD_COMMAND_ARGS="--gas-prices 0.1$DENOM --gas-prices="0ujunox" --gas 5000000 -y -b block --chain-id $JUNOD_CHAIN_ID --node $JUNOD_NODE --from test-user --output json"
+TX_FLAGS="--gas-prices 0.1$DENOM --gas-prices="0ujunox" --gas 5000000 -y -b block --chain-id $JUNOD_CHAIN_ID --node $JUNOD_NODE --output json"
+JUNOD_COMMAND_ARGS="$TX_FLAGS --from test-user"
 export KEY_ADDR="juno1hj5fveer5cjtn4wd6wstzugjfdxzl0xps73ftl"
 
 function stop_docker {
@@ -52,11 +53,9 @@ function compile_and_copy {
 }
 
 start_docker
+# the compile takes time for the docker container to start up
 compile_and_copy
 # docker exec -it $CONTAINER_NAME ls /
-
-# Wait for blocks to actually start
-sleep 7
 
 # validator addr
 VALIDATOR_ADDR=$($BINARY keys show validator --address) && echo "Validator address: $VALIDATOR_ADDR"
@@ -105,26 +104,39 @@ function wasm_cmd {
 }
 
 # == ASSERTS ==
+FINAL_STATUS_CODE=0
 function ASSERT_EQUAL() {
     # For logs, put in quotes. 
     # If $1 is from JQ, ensure its -r and don't put in quotes
-    if [ "$1" != "$2" ]; then
-        echo "ERROR: $1 != $2"        
+    if [ "$1" != "$2" ]; then        
+        echo "ERROR: $1 != $2" 1>&2
+        FINAL_STATUS_CODE=1 
+    else
+        echo "SUCCESS"
     fi
-    echo "SUCCESS"
 }
 function ASSERT_CONTAINS {
     if [[ "$1" != *"$2"* ]]; then
-        echo "ERROR: $1 does not contain $2"
-        # exit 1
+        echo "ERROR: $1 does not contain $2" 1>&2        
+        FINAL_STATUS_CODE=1 
+    else
+        echo "SUCCESS"
     fi
-    echo "SUCCESS"
 }
 # === COPY ALL ABOVE TO SET ENVIROMENT UP LOCALLY ====
 
 # === LOGIC ===
 # provision juno default user i.e. juno1hj5fveer5cjtn4wd6wstzugjfdxzl0xps73ftl
 echo "decorate bright ozone fork gallery riot bus exhaust worth way bone indoor calm squirrel merry zero scheme cotton until shop any excess stage laundry" | $BINARY keys add test-user --recover --keyring-backend test
+# juno1efd63aw40lxf3n4mhf7dzhjkr453axurv2zdzk
+echo "wealth flavor believe regret funny network recall kiss grape useless pepper cram hint member few certain unveil rather brick bargain curious require crowd raise" | $BINARY keys add other-user --recover --keyring-backend test
+
+# send some 10 junox funds to the user
+$BINARY tx bank send test-user juno1efd63aw40lxf3n4mhf7dzhjkr453axurv2zdzk 10000000ujunox $JUNOD_COMMAND_ARGS
+
+# check funds where sent
+other_balance=$($BINARY q bank balances juno1efd63aw40lxf3n4mhf7dzhjkr453axurv2zdzk --output json)
+ASSERT_EQUAL "$other_balance" '{"balances":[{"denom":"ujunox","amount":"10000000"}],"pagination":{"next_key":null,"total":"0"}}'
 
 function upload_vault {
     # == UPLOAD VAULT ==
@@ -143,6 +155,20 @@ function upload_vault {
 }
 upload_vault
 
+function upload_cw20 {
+    TYPE="CW20 Token"
+
+    echo "Storing $TYPE contract..."
+    TX=$($BINARY tx wasm store /cw20_base.wasm $JUNOD_COMMAND_ARGS | jq -r '.txhash') && echo "$TX"
+    CW_CODE_ID=$($BINARY q tx $TX --output json | jq -r '.logs[0].events[] | select(.type == "store_code").attributes[] | select(.key == "code_id").value') && echo "Code Id: $CW_CODE_ID"
+    
+    echo "Instantiating $TYPE contract..."
+    INIT_JSON=`printf '{"name":"e2e-test","symbol":"etoe","decimals":6,"initial_balances":[{"address":"%s","amount":"10000"}]}' $KEY_ADDR`
+    TX_UPLOAD=$($BINARY tx wasm instantiate "$CW_CODE_ID" $INIT_JSON --label "e2e-$TYPE" $JUNOD_COMMAND_ARGS --admin $KEY_ADDR | jq -r '.txhash') && echo $TX_UPLOAD
+    export CW20_CONTRACT=$($BINARY query tx $TX_UPLOAD --output json | jq -r '.logs[0].events[0].attributes[0].value') && echo "CW20_CONTRACT: $CW20_CONTRACT"        
+}
+upload_cw20
+
 function upload_cw721 {
     echo "Storing CW721 contract..."
     TX721=$($BINARY tx wasm store /cw721_base.wasm $JUNOD_COMMAND_ARGS | jq -r '.txhash') && echo "$TX721"
@@ -160,6 +186,10 @@ mint_cw721 $CW721_CONTRACT 2 $KEY_ADDR "https://m.media-amazon.com/images/I/31E1
 
 
 # == INITIAL TEST ==
+# Ensures we have the cw20 balance
+balance=$(query_contract $CW20_CONTRACT `printf '{"balance":{"address":"%s"}}' $KEY_ADDR`)
+ASSERT_EQUAL "$balance" '{"data":{"balance":"10000"}}'
+
 # Ensures CW721 was properly minted
 token_uri=$(query_contract $CW721_CONTRACT '{"all_nft_info":{"token_id":"1"}}' | jq -r '.data.info.token_uri')
 ASSERT_EQUAL "$token_uri" "https://m.media-amazon.com/images/I/21IAeMeSa5L.jpg"
@@ -168,25 +198,63 @@ ASSERT_EQUAL "$token_uri" "https://m.media-amazon.com/images/I/21IAeMeSa5L.jpg"
 admin=$(query_contract $VAULT_CONTRACT '{"get_config":{}}' | jq -r '.data.config.admin')
 ASSERT_EQUAL "$admin" $KEY_ADDR
 
-# == TRANSACTIONS ==
-# test cw20, nft, and native (as well as tokenfactory denoms for v12)
+# === LISTINGS TEST ===
 
-# == TEST == 
+# Selling 10ucosm for 5ujunox
+wasm_cmd $VAULT_CONTRACT '{"create_listing":{"create_msg":{"id":"vault_1","ask":{"native":[{"denom":"ujunox","amount":"5"}],"cw20":[],"nfts":[]}}}}' "10ucosm" show_log
 
-# Just an exmaple, remove
-# nft=$(query_contract $VAULT_CONTRACT '{"get_config":{}}' | jq -r '.data.config.whitelist_nft')
-# ASSERT_EQUAL $nft `printf '[["cw721","%s"]]' $CW721_CONTRACT`
-
-# LISTINGS - Selling 1ujunox (--amount) for 5 ucosm (in ask)
-wasm_cmd $VAULT_CONTRACT '{"create_listing":{"create_msg":{"id":"vault_1","ask":{"native":[{"denom":"ucosm","amount":"5"}],"cw20":[],"nfts":[]}}}}' "1ujunox" show_log
-
-# test listing went up correctly
+# Ensure listing went up correctly
 listing_1=$(query_contract $VAULT_CONTRACT '{"get_listing_info":{"listing_id":"vault_1"}}')
-ASSERT_EQUAL "$listing_1" '{"data":{"creator":"juno1hj5fveer5cjtn4wd6wstzugjfdxzl0xps73ftl","status":"Being Prepared","for_sale":[["ujunox","1"]],"ask":[["ucosm","5"]],"expiration":"None"}}'
+ASSERT_EQUAL "$listing_1" '{"data":{"creator":"juno1hj5fveer5cjtn4wd6wstzugjfdxzl0xps73ftl","status":"Being Prepared","for_sale":[["ucosm","10"]],"ask":[["ujunox","5"]],"expiration":"None"}}'
 
-# Duplicate vault id, fails
+# Duplicate vault id, expect fail
 wasm_cmd $VAULT_CONTRACT '{"create_listing":{"create_msg":{"id":"vault_1","ask":{"native":[{"denom":"ujunox","amount":"1"}],"cw20":[],"nfts":[]}}}}' "1ujunox"
 ASSERT_CONTAINS "$CMD_LOG" 'ID already taken'
+
+
+# CW721 NFTS
+function send_nft_to_listing {
+    INTERATING_CONTRACT=$1
+    CW721_CONTRACT_ADDR=$2
+    TOKEN_ID=$3
+    LISTING_ID=$4
+
+    # TODO: Does not update properly: https://github.com/LeTurt333/juno_vaults/issues/12    
+    NFT_LISTING_BASE64=`printf '{"add_to_listing_cw721":{"listing_id":"%s"}}' $LISTING_ID | base64 -w 0`    
+    SEND_NFT_JSON=`printf '{"send_nft":{"contract":"%s","token_id":"%s","msg":"%s"}}' $INTERATING_CONTRACT $TOKEN_ID $NFT_LISTING_BASE64`        
+
+    wasm_cmd $CW721_CONTRACT_ADDR "$SEND_NFT_JSON" "" show_log
+}
+
+# Contract does not update listing for some reason atm
+# echo "Sending NFT id 1 to the listing"
+# send_nft_to_listing $VAULT_CONTRACT $CW721_CONTRACT "3" "vault_1"
+# query_contract $VAULT_CONTRACT '{"get_listing_info":{"listing_id":"vault_1"}}'
+
+# owner should now be the VAULT_CONTRACT after sending
+# owner_of_nft=$(query_contract $CW721_CONTRACT '{"all_nft_info":{"token_id":"1"}}' | jq -r '.data.access.owner')
+# ASSERT_EQUAL "$owner_of_nft" "$VAULT_CONTRACT"
+
+
+function send_cw20_to_listing {
+    INTERATING_CONTRACT=$1
+    CW20_CONTRACT_ADDR=$2
+    AMOUNT=$3
+    LISTING_ID=$4
+    
+    LISTING_BASE64=`printf '{"add_funds_to_sale_cw20":{"listing_id":"%s"}}' $LISTING_ID | base64 -w 0`               
+    SEND_TOKEN_JSON=`printf '{"send":{"contract":"%s","amount":"%s","msg":"%s"}}' $INTERATING_CONTRACT $AMOUNT $LISTING_BASE64`        
+
+    wasm_cmd $CW20_CONTRACT_ADDR "$SEND_TOKEN_JSON" "" show_log
+}
+
+# Send 1 coin to the listing
+send_cw20_to_listing $VAULT_CONTRACT $CW20_CONTRACT "1" "vault_1"
+
+# Ensure the CW20 token is now apart of the listing
+listing_values=$(query_contract $VAULT_CONTRACT '{"get_listing_info":{"listing_id":"vault_1"}}' | jq -rc '.data.for_sale')
+ASSERT_EQUAL "$listing_values" '[["ucosm","10"],["juno1436kxs0w2es6xlqpp9rd35e3d0cjnw4sv8j3a7483sgks29jqwgs44adts","1"]]'
+
 
 # Finalize the listing for purchase after everything is added
 wasm_cmd $VAULT_CONTRACT '{"finalize":{"listing_id":"vault_1","seconds":5000}}' "" show_log
@@ -195,7 +263,7 @@ wasm_cmd $VAULT_CONTRACT '{"finalize":{"listing_id":"vault_1","seconds":100}}' "
 ASSERT_CONTAINS "$CMD_LOG" 'Listing already finalized'
 
 # Create bucket so we can purchase the listing
-wasm_cmd $VAULT_CONTRACT '{"create_bucket":{"bucket_id":"buyer_1"}}' "5ucosm" show_log
+wasm_cmd $VAULT_CONTRACT '{"create_bucket":{"bucket_id":"buyer_1"}}' "5ujunox" show_log
 # query_contract $VAULT_CONTRACT `printf '{"get_buckets":{"bucket_owner":"%s"}}' $KEY_ADDR`
 
 # purchase listing
@@ -210,7 +278,10 @@ wasm_cmd $VAULT_CONTRACT '{"withdraw_purchased":{"listing_id":"vault_1"}}' "" sh
 listings=$(query_contract $VAULT_CONTRACT '{"get_all_listings":{}}' | jq -r '.data.listings')
 ASSERT_EQUAL "$listings" '[]'
 
-echo -e "\n\nSuccessfull!"
+# Check they got their tokens (native, cw20, cw721)
+
+# 1 if any of the above test failed
+exit $FINAL_STATUS_CODE
 
 # manual queries
 # query_contract $VAULT_CONTRACT '{"get_config":{}}'
