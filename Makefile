@@ -13,6 +13,7 @@ compile:
 	cosmwasm/rust-optimizer:0.12.11
 
 all:
-	cargo schema
+	cargo schema	
 	cargo fmt
-	cargo clippy -- -D warnings
+	cargo test
+	cargo clippy -- -D warnings	
