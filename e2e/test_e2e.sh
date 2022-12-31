@@ -70,29 +70,29 @@ export TEST_ADDR=$($BINARY keys show test-user --address --keyring-backend test)
 function upload_vault {
     # == UPLOAD VAULT ==
     echo "Storing Vault contract..."
-    VAULT_UPLOAD=$(junod tx wasm store /juno_vaults.wasm $JUNOD_COMMAND_ARGS | jq -r '.txhash') && echo $VAULT_UPLOAD
-    VAULT_BASE_CODE_ID=$(junod q tx $VAULT_UPLOAD --output json | jq -r '.logs[0].events[] | select(.type == "store_code").attributes[] | select(.key == "code_id").value')
+    VAULT_UPLOAD=$(BINARY tx wasm store /juno_vaults.wasm $JUNOD_COMMAND_ARGS | jq -r '.txhash') && echo $VAULT_UPLOAD
+    VAULT_BASE_CODE_ID=$(BINARY q tx $VAULT_UPLOAD --output json | jq -r '.logs[0].events[] | select(.type == "store_code").attributes[] | select(.key == "code_id").value')
 
     # == INSTANTIATE ==
     ADMIN="$KEY_ADDR"
     # Do this after cw721 upload for testing cw721
     JSON_MSG=$(printf '{"admin":"%s","native_whitelist":[["JUNO","ujuno"]],"cw20_whitelist":[],"nft_whitelist":[]}' "$ADMIN")
-    VAULT_TX=$(junod tx wasm instantiate "$VAULT_BASE_CODE_ID" $JSON_MSG --label "vault" $JUNOD_COMMAND_ARGS --admin $KEY_ADDR | jq -r '.txhash') && echo $VAULT_TX
+    VAULT_TX=$(BINARY tx wasm instantiate "$VAULT_BASE_CODE_ID" $JSON_MSG --label "vault" $JUNOD_COMMAND_ARGS --admin $KEY_ADDR | jq -r '.txhash') && echo $VAULT_TX
 
     # == GET VAULT_CONTRACT ==
-    export VAULT_CONTRACT=$(junod query tx $VAULT_TX --output json | jq -r '.logs[0].events[0].attributes[0].value') && echo "Vault Addr: $VAULT_CONTRACT"
+    export VAULT_CONTRACT=$(BINARY query tx $VAULT_TX --output json | jq -r '.logs[0].events[0].attributes[0].value') && echo "Vault Addr: $VAULT_CONTRACT"
 }
 upload_vault
 
 function upload_cw721 {
     echo "Storing CW721 contract..."
-    TX721=$(junod tx wasm store /cw721_base.wasm $JUNOD_COMMAND_ARGS | jq -r '.txhash') && echo "$TX721"
-    CW721_CODE_ID=$(junod q tx $TX721 --output json | jq -r '.logs[0].events[] | select(.type == "store_code").attributes[] | select(.key == "code_id").value') && echo "Code Id: $CW721_CODE_ID"
+    TX721=$(BINARY tx wasm store /cw721_base.wasm $JUNOD_COMMAND_ARGS | jq -r '.txhash') && echo "$TX721"
+    CW721_CODE_ID=$(BINARY q tx $TX721 --output json | jq -r '.logs[0].events[] | select(.type == "store_code").attributes[] | select(.key == "code_id").value') && echo "Code Id: $CW721_CODE_ID"
     
     echo "Instantiating CW721 contract..."
     INIT_JSON=`printf '{"name":"e2e-test","symbol":"e2e","minter":"%s"}' $KEY_ADDR`
-    IMAGE_TX_UPLOAD=$(junod tx wasm instantiate "$CW721_CODE_ID" $INIT_JSON --label "e2e-nfts-label" $JUNOD_COMMAND_ARGS --admin $KEY_ADDR | jq -r '.txhash') && echo $IMAGE_TX_UPLOAD
-    export CW721_CONTRACT=$(junod query tx $IMAGE_TX_UPLOAD --output json | jq -r '.logs[0].events[0].attributes[0].value') && echo "CW721_CONTRACT: $CW721_CONTRACT"        
+    IMAGE_TX_UPLOAD=$(BINARY tx wasm instantiate "$CW721_CODE_ID" $INIT_JSON --label "e2e-nfts-label" $JUNOD_COMMAND_ARGS --admin $KEY_ADDR | jq -r '.txhash') && echo $IMAGE_TX_UPLOAD
+    export CW721_CONTRACT=$(BINARY query tx $IMAGE_TX_UPLOAD --output json | jq -r '.logs[0].events[0].attributes[0].value') && echo "CW721_CONTRACT: $CW721_CONTRACT"        
 }
 upload_cw721
 
@@ -102,7 +102,7 @@ function mint_cw721() {
     OWNER=$3
     TOKEN_URI=$4
     EXECUTED_MINT_JSON=`printf '{"mint":{"token_id":"%s","owner":"%s","token_uri":"%s"}}' $TOKEN_ID $OWNER $TOKEN_URI`
-    TXMINT=$(junod tx wasm execute "$CONTRACT_ADDR" "$EXECUTED_MINT_JSON" $JUNOD_COMMAND_ARGS | jq -r '.txhash') && echo $TXMINT
+    TXMINT=$(BINARY tx wasm execute "$CONTRACT_ADDR" "$EXECUTED_MINT_JSON" $JUNOD_COMMAND_ARGS | jq -r '.txhash') && echo $TXMINT
 }
 
 echo "Minting NFTs..."
@@ -127,8 +127,8 @@ function wasm_cmd {
         FUNDS="--amount $FUNDS"
     fi
 
-    tx_hash=$(junod tx wasm execute $CONTRACT $MESSAGE $FUNDS $JUNOD_COMMAND_ARGS | jq -r '.txhash')
-    export CMD_LOG=$(junod query tx $tx_hash --output json | jq -r '.raw_log')    
+    tx_hash=$(BINARY tx wasm execute $CONTRACT $MESSAGE $FUNDS $JUNOD_COMMAND_ARGS | jq -r '.txhash')
+    export CMD_LOG=$(BINARY query tx $tx_hash --output json | jq -r '.raw_log')    
     if [ "$SHOW_LOG" == "show_log" ]; then
         echo "raw_log: $CMD_LOG"
     fi    
