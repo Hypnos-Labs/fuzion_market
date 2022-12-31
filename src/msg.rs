@@ -1,3 +1,4 @@
+#[allow(unused_imports)]
 use crate::query::{
     AdminResponse, ConfigResponse, GetBucketsResponse, ListingInfoResponse, MultiListingResponse,
 };

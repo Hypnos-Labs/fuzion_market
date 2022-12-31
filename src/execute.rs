@@ -4,7 +4,9 @@ use crate::state::{
     genbal_from_nft, listingz, Bucket, GenericBalance, GenericBalanceUtil, Listing, Nft, Status,
     ToGenericBalance, BUCKETS,
 };
-use crate::utils::{calc_fee, get_whitelisted_addresses, send_tokens_cosmos, EzTime};
+use crate::utils::{
+    calc_fee, get_whitelisted_addresses, normalize_ask, send_tokens_cosmos, EzTime,
+};
 use cosmwasm_std::{Addr, DepsMut, Env, Response};
 use cw20::Balance;
 
@@ -197,6 +199,8 @@ pub fn execute_create_listing(
     let whitelisted_addrs =
         get_whitelisted_addresses(&deps, createlistingmsg.whitelisted_purchasers)?;
 
+    let ask_tokens = normalize_ask(createlistingmsg.ask);
+
     // Save listing
     listingz().save(
         deps.storage,
@@ -208,7 +212,7 @@ pub fn execute_create_listing(
             expiration_time: None,
             status: Status::BeingPrepared,
             for_sale: funds_sent.to_generic(),
-            ask: createlistingmsg.ask.clone(),
+            ask: ask_tokens,
             claimant: None,
             whitelisted_purchasers: whitelisted_addrs,
         },
@@ -239,6 +243,8 @@ pub fn execute_create_listing_cw20(
     let whitelisted_addrs =
         get_whitelisted_addresses(&deps, createlistingmsg.whitelisted_purchasers)?;
 
+    let ask_tokens = normalize_ask(createlistingmsg.ask);
+
     listingz().save(
         deps.storage,
         (user_address, createlistingmsg.id.clone()),
@@ -249,7 +255,7 @@ pub fn execute_create_listing_cw20(
             expiration_time: None,
             status: Status::BeingPrepared,
             for_sale: funds_sent.to_generic(),
-            ask: createlistingmsg.ask,
+            ask: ask_tokens,
             claimant: None,
             whitelisted_purchasers: whitelisted_addrs,
         },
@@ -275,6 +281,8 @@ pub fn execute_create_listing_cw721(
     let whitelisted_addrs =
         get_whitelisted_addresses(&deps, createlistingmsg.whitelisted_purchasers)?;
 
+    let ask_tokens = normalize_ask(createlistingmsg.ask);
+
     listingz().save(
         deps.storage,
         (user_wallet, createlistingmsg.id.clone()),
@@ -285,7 +293,7 @@ pub fn execute_create_listing_cw721(
             expiration_time: None,
             status: Status::BeingPrepared,
             for_sale: genbal_from_nft(nft),
-            ask: createlistingmsg.ask,
+            ask: ask_tokens,
             claimant: None,
             whitelisted_purchasers: whitelisted_addrs,
         },
@@ -331,11 +339,13 @@ pub fn execute_change_ask(
         return Err(ContractError::Unauthorized {});
     }
 
+    let new_ask_tokens = normalize_ask(new_ask);
+
     listingz().replace(
         deps.storage,
         (user_sender, listing_id.clone()),
         Some(&Listing {
-            ask: new_ask,
+            ask: new_ask_tokens,
             ..listing.clone()
         }),
         Some(&listing),
@@ -636,7 +646,7 @@ pub fn execute_buy_listing(
     // Check that bucket contains required purchase price
     if the_bucket.funds != the_listing.ask {
         return Err(ContractError::FundsSentNotFundsAsked {
-            which: format!("Bucket ID: {}", bucket_id),
+            which: format!("Bucket ID: {bucket_id}"),
         });
     }
     // Check that listing is ready for purchase

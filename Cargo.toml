@@ -49,6 +49,6 @@ serde = { version = "1.0.148", default-features = false, features = ["derive"] }
 thiserror = { version = "1.0.37" }
 
 [dev-dependencies]
-cw-multi-test = "0.16.1"
-cw20-base = { version = "1.0.0", features = ["library"] }
+cw-multi-test = "0.16.2"
+cw20-base = { version = "1.0.1", features = ["library"] }
 cw721-base = "0.16.0"

@@ -956,7 +956,8 @@
         "creator",
         "expiration",
         "for_sale",
-        "status"
+        "status",
+        "whitelisted_purchasers"
       ],
       "properties": {
         "ask": {
@@ -1003,6 +1004,12 @@
         },
         "status": {
           "type": "string"
+        },
+        "whitelisted_purchasers": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
         }
       },
       "additionalProperties": false

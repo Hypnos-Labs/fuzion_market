@@ -1,8 +1,7 @@
 /target
 /artifacts
-/ts-codegen
+/ts_codegen
 
-Cargo.lock
 .editorconfig
 WORKSPACE.md
 .cargo-ok

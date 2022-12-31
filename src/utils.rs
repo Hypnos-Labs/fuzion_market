@@ -68,6 +68,39 @@ pub fn send_tokens_cosmos(to: &Addr, balance: &GenericBalance) -> StdResult<Vec<
     Ok(msgs)
 }
 
+pub fn normalize_ask(ask: GenericBalance) -> GenericBalance {
+    let mut normalized = ask;
+
+    // drop 0's
+    normalized.native.retain(|c| c.amount.u128() != 0);
+    // sort
+    normalized.native.sort_unstable_by(|a, b| a.denom.cmp(&b.denom));
+
+    // find all i where (self[i-1].denom == self[i].denom).
+    let mut dups: Vec<usize> = normalized
+        .native
+        .iter()
+        .enumerate()
+        .filter_map(|(i, c)| {
+            if i != 0 && c.denom == normalized.native[i - 1].denom {
+                Some(i)
+            } else {
+                None
+            }
+        })
+        .collect();
+    dups.reverse();
+
+    // we go through the dups in reverse order (to avoid shifting indexes of other ones)
+    for dup in dups {
+        let add = normalized.native[dup].amount;
+        normalized.native[dup - 1].amount += add;
+        normalized.native.remove(dup);
+    }
+
+    normalized
+}
+
 pub fn calc_fee(balance: &GenericBalance) -> StdResult<Option<(CosmosMsg, GenericBalance)>> {
     let juno_in_balance = balance.native.iter().find(|n| n.denom == *"ujunox");
 
@@ -78,6 +111,11 @@ pub fn calc_fee(balance: &GenericBalance) -> StdResult<Option<(CosmosMsg, Generi
     if let Some(juno) = juno_in_balance {
         // 0.1% = amount * 1 / 1000
         let ten_pips = juno.amount.multiply_ratio(1_u128, 1000_u128);
+
+        // small amounts (like 1ujuno) will be 0
+        if ten_pips.is_zero() {
+            return Ok(None);
+        }
 
         let fee_msg: CosmosMsg<Empty> = CosmosMsg::from(BankMsg::Send {
             to_address: COMMUNITY_POOL.to_string(),
