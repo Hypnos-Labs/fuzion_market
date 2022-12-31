@@ -1,7 +1,13 @@
 use crate::error::ContractError;
-use crate::msg::*;
-use crate::state::*;
-use crate::utils::*;
+use crate::msg::CreateListingMsg;
+use crate::state::{
+    genbal_from_nft, listingz, Bucket, Config, GenericBalance, GenericBalanceUtil, Listing, Nft,
+    Status, ToGenericBalance, BUCKETS, CONFIG, WHITELIST_CW20, WHITELIST_NATIVE, WHITELIST_NFT,
+};
+use crate::utils::{
+    calc_fee, get_whitelisted_addresses, is_balance_whitelisted, is_genericbalance_whitelisted,
+    send_tokens_cosmos, EzTime,
+};
 use cosmwasm_std::{Addr, DepsMut, Env, Response};
 use cw20::Balance;
 
@@ -26,9 +32,8 @@ pub fn add_to_whitelist(
         1 => {
             if WHITELIST_NATIVE.has(deps.storage, to_add.clone()) {
                 return Err(ContractError::GenericInvalid);
-            } else {
-                WHITELIST_NATIVE.save(deps.storage, to_add, &true)?;
-            };
+            }
+            WHITELIST_NATIVE.save(deps.storage, to_add, &true)?;
         }
 
         2 => {
@@ -38,9 +43,8 @@ pub fn add_to_whitelist(
 
             if WHITELIST_CW20.has(deps.storage, valid.clone()) {
                 return Err(ContractError::GenericInvalid);
-            } else {
-                WHITELIST_CW20.save(deps.storage, valid, &true)?;
-            };
+            }
+            WHITELIST_CW20.save(deps.storage, valid, &true)?;
         }
 
         3 => {
@@ -50,9 +54,8 @@ pub fn add_to_whitelist(
 
             if WHITELIST_NFT.has(deps.storage, valid.clone()) {
                 return Err(ContractError::GenericInvalid);
-            } else {
-                WHITELIST_NFT.save(deps.storage, valid, &true)?;
-            };
+            }
+            WHITELIST_NFT.save(deps.storage, valid, &true)?;
         }
 
         _ => return Err(ContractError::GenericInvalid),
@@ -238,7 +241,7 @@ pub fn execute_withdraw_bucket(
 pub fn execute_create_listing(
     deps: DepsMut,
     user_address: &Addr,
-    funds_sent: Balance,
+    funds_sent: &Balance,
     createlistingmsg: CreateListingMsg,
 ) -> Result<Response, ContractError> {
     // Check that some tokens were sent with message
@@ -247,7 +250,7 @@ pub fn execute_create_listing(
     }
 
     // Check that funds sent are whitelisted
-    is_balance_whitelisted(&funds_sent, &deps)?;
+    is_balance_whitelisted(funds_sent, &deps)?;
 
     // Check that funds in ask are whitelisted
     is_genericbalance_whitelisted(&createlistingmsg.ask, &deps)?;

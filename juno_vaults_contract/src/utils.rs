@@ -1,5 +1,5 @@
-use crate::error::*;
-use crate::state::*;
+use crate::error::ContractError;
+use crate::state::{GenericBalance, WHITELIST_CW20, WHITELIST_NATIVE, WHITELIST_NFT};
 use chrono::{Datelike, NaiveDateTime, Timelike};
 use cosmwasm_schema::cw_serde;
 
@@ -104,10 +104,9 @@ pub fn is_balance_whitelisted(balance: &Balance, deps: &DepsMut) -> Result<(), C
         Balance::Native(natives) => {
             natives.0.iter().try_for_each(|native| -> Result<(), ContractError> {
                 if !WHITELIST_NATIVE.has(deps.storage, native.denom.clone()) {
-                    Err(ContractError::NotWhitelisted {})
-                } else {
-                    Ok(())
+                    return Err(ContractError::NotWhitelisted {});
                 }
+                Ok(())
             })?;
 
             Ok(())
@@ -115,10 +114,10 @@ pub fn is_balance_whitelisted(balance: &Balance, deps: &DepsMut) -> Result<(), C
 
         Balance::Cw20(cw20) => {
             if !WHITELIST_CW20.has(deps.storage, cw20.address.clone()) {
-                Err(ContractError::NotWhitelisted {})
-            } else {
-                Ok(())
+                return Err(ContractError::NotWhitelisted {});
             }
+
+            Ok(())
         }
     }
 }
@@ -159,7 +158,7 @@ pub fn is_genericbalance_whitelisted(
 }
 
 pub fn is_nft_whitelisted(nft_addr: &Addr, deps: &DepsMut) -> Result<(), ContractError> {
-    if !WHITELIST_NFT.has(deps.storage, nft_addr.to_owned()) {
+    if !WHITELIST_NFT.has(deps.storage, nft_addr.clone()) {
         return Err(ContractError::NotWhitelisted {});
     };
 
@@ -183,7 +182,7 @@ pub fn get_whitelisted_addresses(
     let valid: Vec<Addr> = addrs
         .iter()
         .map(|address| {
-            deps.api.addr_validate(address).map_err(|_| ContractError::InvalidAddressFormat)
+            deps.api.addr_validate(address).map_err(|_foo| ContractError::InvalidAddressFormat)
         })
         .collect::<Result<Vec<Addr>, ContractError>>()?;
 

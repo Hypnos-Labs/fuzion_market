@@ -1,4 +1,6 @@
-use crate::query::*;
+use crate::query::{
+    AdminResponse, ConfigResponse, GetBucketsResponse, ListingInfoResponse, MultiListingResponse,
+};
 use crate::state::GenericBalance;
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cw20::Cw20ReceiveMsg;
