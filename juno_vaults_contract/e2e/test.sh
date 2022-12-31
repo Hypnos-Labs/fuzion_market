@@ -2,10 +2,6 @@
 # Then run this from root of this directory
 # sh e2e/test.sh
 
-# TODO: 
-# - timeout_commit = "500ms" for test_node.sh
-# - put test into their own function?
-
 export KEY="juno1" 
 export KEY_ADDR="juno1hj5fveer5cjtn4wd6wstzugjfdxzl0xps73ftl"
 export KEYALGO="secp256k1"
@@ -60,12 +56,38 @@ mint_cw721 $CW721_CONTRACT 2 $KEY_ADDR "https://m.media-amazon.com/images/I/31E1
 function query_contract {
     junod query wasm contract-state smart $1 $2 --output json
 }
+function wasm_cmd {
+    CONTRACT=$1
+    MESSAGE=$2
+    FUNDS=$3
+    SHOW_LOG=${4:dont_show}
+    echo "Running... $CONTRACT: $MESSAGE"
 
+    # if length of funds is 0, then don't add funds
+    if [ -z "$FUNDS" ]; then
+        FUNDS=""
+    else
+        FUNDS="--amount $FUNDS"
+    fi
+
+    tx_hash=$(junod tx wasm execute $CONTRACT $MESSAGE $FUNDS $JUNOD_COMMAND_ARGS | jq -r '.txhash')
+    export CMD_LOG=$(junod query tx $tx_hash --output json | jq -r '.raw_log')    
+    if [ "$SHOW_LOG" == "show_log" ]; then
+        echo "raw_log: $CMD_LOG"
+    fi    
+}
+
+# == ASSERTS ==
 function ASSERT_EQUAL() {
     # For logs, put in quotes. 
     # If $1 is from JQ, ensure its -r and don't put in quotes
     if [ "$1" != "$2" ]; then
         echo "ERROR: $1 != $2"        
+    fi
+}
+function ASSERT_CONTAINS {
+    if [[ "$1" != *"$2"* ]]; then
+        echo "ERROR: $1 does not contain $2"
     fi
 }
 # ===
@@ -87,37 +109,12 @@ ASSERT_EQUAL $whitelist_native '[["JUNO","ujuno"]]'
 
 
 # == TRANSACTIONS ==
-# test cw20, nft, and native (as well as tokenfactory for v12)
-
-function wasm_cmd {
-    CONTRACT=$1
-    MESSAGE=$2
-    FUNDS=$3
-    SHOW_LOG=${4:dont_show}
-    echo "Running... $CONTRACT: $MESSAGE"
-
-    # if length of funds is 0, then don't add funds
-    if [ -z "$FUNDS" ]; then
-        FUNDS=""
-    else
-        FUNDS="--amount $FUNDS"
-    fi
-
-    tx_hash=$(junod tx wasm execute $CONTRACT $MESSAGE $FUNDS $JUNOD_COMMAND_ARGS | jq -r '.txhash')
-
-    export CMD_LOG=$(junod query tx $tx_hash --output json | jq -r '.raw_log')    
-    if [ "$SHOW_LOG" == "show_log" ]; then
-        echo "raw_log: $CMD_LOG"
-    fi    
-}
+# test cw20, nft, and native (as well as tokenfactory denoms for v12)
 
 # type_adding: 1 = Native, 2 = CW20, 3 = NFT
 wasm_cmd $VAULT_CONTRACT '{"add_to_whitelist":{"type_adding":1,"to_add":["NEW","unew"]}}' ""
 # add nft
 wasm_cmd $VAULT_CONTRACT `printf '{"add_to_whitelist":{"type_adding":3,"to_add":["cw721","%s"]}}' $CW721_CONTRACT`
-
-# TODO: don't allow multiple of the same add to whitelist, ensure this errors in the future
-# wasm_cmd $VAULT_CONTRACT `printf '{"add_to_whitelist":{"type_adding":3,"to_add":["cw721","%s"]}}' $CW721_CONTRACT`
 
 
 # == TEST == 
@@ -131,8 +128,6 @@ ASSERT_EQUAL $nft `printf '[["cw721","%s"]]' $CW721_CONTRACT`
 
 
 # LISTINGS
-
-# TODO: make ask Optionals?
 wasm_cmd $VAULT_CONTRACT '{"create_listing":{"create_msg":{"id":"vault_1","ask":{"native":[{"denom":"ujuno","amount":"10"}],"cw20":[],"nfts":[]}}}}' "1ujuno"
 
 # test listing went up correctly
@@ -144,7 +139,6 @@ wasm_cmd $VAULT_CONTRACT '{"create_listing":{"create_msg":{"id":"vault_1","ask":
 ASSERT_EQUAL "$CMD_LOG" 'failed to execute message; message index: 0: ID already taken: execute wasm contract failed'
 
 # Finalize the listing for purchase after everything is added
-# TODO: optional set expire at block height?
 wasm_cmd $VAULT_CONTRACT '{"finalize":{"listing_id":"vault_1","seconds":1000}}' "" show_log
 # try to finalize again, will fail
 wasm_cmd $VAULT_CONTRACT '{"finalize":{"listing_id":"vault_1","seconds":1000}}' ""
@@ -154,15 +148,11 @@ ASSERT_EQUAL "$CMD_LOG" 'failed to execute message; message index: 0: Listing al
 wasm_cmd $VAULT_CONTRACT '{"create_bucket":{"bucket_id":"buyer_a"}}' "10ujuno"
 # query_contract $VAULT_CONTRACT `printf '{"get_buckets":{"bucket_owner":"%s"}}' $KEY_ADDR`
 
-
 # purchase listing
 wasm_cmd $VAULT_CONTRACT '{"buy_listing":{"listing_id":"vault_1","bucket_id":"buyer_a"}}' "0ujuno" show_log
-
-# TODO: after we buy a listing (status closed), remove it from the store to save data. No need to save it. Maybe move to another store for X past listing if you want.
-# Then as new listings come in, remove the oldest listing from that store
+# check users balance changes here
 
 # manual queries
-# TODO: add get-bucket_info?
 # query_contract $VAULT_CONTRACT '{"get_config":{}}'
 # query_contract $VAULT_CONTRACT '{"get_all_listings":{}}'
 # query_contract $VAULT_CONTRACT '{"get_listing_info":{"listing_id":"1"}}'
