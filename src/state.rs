@@ -51,7 +51,7 @@ pub fn listingz<'a>() -> IndexedMap<'a, (&'a Addr, String), Listing, ListingInde
     let indexes = ListingIndexes {
         id: UniqueIndex::new(|a_listing| a_listing.id.clone(), "listing__id"),
         finalized_date: MultiIndex::new(
-            |_pk, a_listing| a_listing.finalized_time.map_or(0_u64, |x| x.seconds() as u64),
+            |_pk, a_listing| a_listing.finalized_time.map_or(0_u64, |x| x.seconds()),
             "listings_im",
             "listing__finalized__date",
         ),

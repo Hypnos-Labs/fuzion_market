@@ -330,7 +330,7 @@ pub fn execute_create_listing_cw20(
     Ok(Response::new()
         .add_attribute("method", "create cw20 listing")
         .add_attribute("listing id", &createlistingmsg.id)
-        .add_attribute("creator", &user_address.to_string()))
+        .add_attribute("creator", user_address.to_string()))
 }
 
 pub fn execute_create_listing_cw721(
@@ -369,7 +369,7 @@ pub fn execute_create_listing_cw721(
     Ok(Response::new()
         .add_attribute("method", "create cw721 listing")
         .add_attribute("listing id", &createlistingmsg.id)
-        .add_attribute("creator", &user_wallet.to_string()))
+        .add_attribute("creator", user_wallet.to_string()))
 }
 
 pub fn execute_change_ask(
@@ -632,7 +632,7 @@ pub fn execute_finalize(
     Ok(Response::new()
         .add_attribute("method", "finalize")
         .add_attribute("listing ID", &listing_id)
-        .add_attribute("expiration time", &expiration.to_string()))
+        .add_attribute("expiration time", expiration.to_string()))
 }
 
 pub fn execute_refund(
