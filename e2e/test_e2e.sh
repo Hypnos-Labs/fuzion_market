@@ -69,20 +69,73 @@ echo "JUNOD_COMMAND_ARGS: $JUNOD_COMMAND_ARGS"
 # errors from this point on are no bueno
 set -e
 
+
+# == Helper Functions ==
+function query_contract {
+    $BINARY query wasm contract-state smart $1 $2 --output json
+}
+function mint_cw721() {
+    CONTRACT_ADDR=$1
+    TOKEN_ID=$2
+    OWNER=$3
+    TOKEN_URI=$4
+    EXECUTED_MINT_JSON=`printf '{"mint":{"token_id":"%s","owner":"%s","token_uri":"%s"}}' $TOKEN_ID $OWNER $TOKEN_URI`
+    TXMINT=$($BINARY tx wasm execute "$CONTRACT_ADDR" "$EXECUTED_MINT_JSON" $JUNOD_COMMAND_ARGS | jq -r '.txhash') && echo $TXMINT
+}
+function wasm_cmd {
+    CONTRACT=$1
+    MESSAGE=$2
+    FUNDS=$3
+    SHOW_LOG=${4:dont_show}
+    echo "Running... $CONTRACT: $MESSAGE"
+
+    # if length of funds is 0, then no funds are sent
+    if [ -z "$FUNDS" ]; then
+        FUNDS=""
+    else
+        FUNDS="--amount $FUNDS"
+        echo "FUNDS: $FUNDS"
+    fi
+
+    tx_hash=$($BINARY tx wasm execute $CONTRACT $MESSAGE $FUNDS $JUNOD_COMMAND_ARGS | jq -r '.txhash')
+    export CMD_LOG=$($BINARY query tx $tx_hash --output json | jq -r '.raw_log')    
+    if [ "$SHOW_LOG" == "show_log" ]; then
+        echo -e "raw_log: $CMD_LOG\n================================\n"
+    fi    
+}
+
+# == ASSERTS ==
+function ASSERT_EQUAL() {
+    # For logs, put in quotes. 
+    # If $1 is from JQ, ensure its -r and don't put in quotes
+    if [ "$1" != "$2" ]; then
+        echo "ERROR: $1 != $2"        
+    fi
+    echo "SUCCESS"
+}
+function ASSERT_CONTAINS {
+    if [[ "$1" != *"$2"* ]]; then
+        echo "ERROR: $1 does not contain $2"
+        # exit 1
+    fi
+    echo "SUCCESS"
+}
+# === COPY ALL ABOVE TO SET ENVIROMENT UP LOCALLY ====
+
+# === LOGIC ===
 # provision juno default user i.e. juno1hj5fveer5cjtn4wd6wstzugjfdxzl0xps73ftl
 echo "decorate bright ozone fork gallery riot bus exhaust worth way bone indoor calm squirrel merry zero scheme cotton until shop any excess stage laundry" | $BINARY keys add test-user --recover --keyring-backend test
-
 
 function upload_vault {
     # == UPLOAD VAULT ==
     echo "Storing Vault contract..."
     VAULT_UPLOAD=$($BINARY tx wasm store /juno_vaults.wasm $JUNOD_COMMAND_ARGS | jq -r '.txhash') && echo $VAULT_UPLOAD
-    VAULT_BASE_CODE_ID=$($BINARY q tx $VAULT_UPLOAD --output json | jq -r '.logs[0].events[] | select(.type == "store_code").attributes[] | select(.key == "code_id").value')
+    VAULT_BASE_CODE_ID=$($BINARY q tx $VAULT_UPLOAD --output json | jq -r '.logs[0].events[] | select(.type == "store_code").attributes[] | select(.key == "code_id").value') && echo "Code Id: $VAULT_BASE_CODE_ID"
 
     # == INSTANTIATE ==
     ADMIN="$KEY_ADDR"
     # Do this after cw721 upload for testing cw721
-    JSON_MSG=$(printf '{"admin":"%s","native_whitelist":["ujunox"],"cw20_whitelist":[],"nft_whitelist":[]}' "$ADMIN")
+    JSON_MSG=$(printf '{"admin":"%s"}' "$ADMIN")
     VAULT_TX=$($BINARY tx wasm instantiate "$VAULT_BASE_CODE_ID" $JSON_MSG --label "vault" $JUNOD_COMMAND_ARGS --admin $KEY_ADDR | jq -r '.txhash') && echo $VAULT_TX
 
     # == GET VAULT_CONTRACT ==
@@ -102,59 +155,12 @@ function upload_cw721 {
 }
 upload_cw721
 
-function mint_cw721() {
-    CONTRACT_ADDR=$1
-    TOKEN_ID=$2
-    OWNER=$3
-    TOKEN_URI=$4
-    EXECUTED_MINT_JSON=`printf '{"mint":{"token_id":"%s","owner":"%s","token_uri":"%s"}}' $TOKEN_ID $OWNER $TOKEN_URI`
-    TXMINT=$($BINARY tx wasm execute "$CONTRACT_ADDR" "$EXECUTED_MINT_JSON" $JUNOD_COMMAND_ARGS | jq -r '.txhash') && echo $TXMINT
-}
+
+
 
 echo "Minting NFTs..."
-mint_cw721 $CW721_CONTRACT 1 $KEY_ADDR "https://m.media-amazon.com/images/I/21IAeMeSa5L.jpg"
+mint_cw721 $CW721_CONTRACT 1 "$KEY_ADDR" "https://m.media-amazon.com/images/I/21IAeMeSa5L.jpg"
 mint_cw721 $CW721_CONTRACT 2 $KEY_ADDR "https://m.media-amazon.com/images/I/31E1mBJT-7L.jpg"
-
-# == Helper Functions ==
-function query_contract {
-    $BINARY query wasm contract-state smart $1 $2 --output json
-}
-function wasm_cmd {
-    CONTRACT=$1
-    MESSAGE=$2
-    FUNDS=$3
-    SHOW_LOG=${4:dont_show}
-    echo "Running... $CONTRACT: $MESSAGE"
-
-    # if length of funds is 0, then no funds are sent
-    if [ -z "$FUNDS" ]; then
-        FUNDS=""
-    else
-        FUNDS="--amount $FUNDS"
-    fi
-
-    tx_hash=$($BINARY tx wasm execute $CONTRACT $MESSAGE $FUNDS $JUNOD_COMMAND_ARGS | jq -r '.txhash')
-    export CMD_LOG=$($BINARY query tx $tx_hash --output json | jq -r '.raw_log')    
-    if [ "$SHOW_LOG" == "show_log" ]; then
-        echo -e "raw_log: $CMD_LOG\n================================\n"
-    fi    
-}
-
-# == ASSERTS ==
-function ASSERT_EQUAL() {
-    # For logs, put in quotes. 
-    # If $1 is from JQ, ensure its -r and don't put in quotes
-    if [ "$1" != "$2" ]; then
-        echo "ERROR: $1 != $2"        
-    fi
-}
-function ASSERT_CONTAINS {
-    if [[ "$1" != *"$2"* ]]; then
-        echo "ERROR: $1 does not contain $2"
-        # exit 1
-    fi
-}
-# ===
 
 
 # == INITIAL TEST ==
@@ -162,62 +168,51 @@ function ASSERT_CONTAINS {
 token_uri=$(query_contract $CW721_CONTRACT '{"all_nft_info":{"token_id":"1"}}' | jq -r '.data.info.token_uri')
 ASSERT_EQUAL "$token_uri" "https://m.media-amazon.com/images/I/21IAeMeSa5L.jpg"
 
-# Ensure admin is correct from insntiation
+# Ensure admin is correct from instantiation
 admin=$(query_contract $VAULT_CONTRACT '{"get_config":{}}' | jq -r '.data.config.admin')
 ASSERT_EQUAL "$admin" $KEY_ADDR
-
-# Check whitelist is set to what we requested (add cw721 here in the future too)
-whitelist_native=$(query_contract $VAULT_CONTRACT '{"get_config":{}}' | jq -r '.data.config.whitelist_native')
-# no longer returns this?:
-# ASSERT_EQUAL $whitelist_native '[["JUNO","ujunox"]]'
-
-
 
 # == TRANSACTIONS ==
 # test cw20, nft, and native (as well as tokenfactory denoms for v12)
 
-# type_adding: 1 = Native, 2 = CW20, 3 = NFT
-# TODO: IF KEY IS ALREADY IN MAP, DO NOT PANIC HERE - ERROR PROPERLY (not: failed to execute message; message index: 0: Generic Invalid: execute wasm contract failed)
-wasm_cmd $VAULT_CONTRACT '{"add_to_whitelist":{"type_adding":1,"to_add":"unew"}}' "" show_log
-# add nft
-wasm_cmd $VAULT_CONTRACT `printf '{"add_to_whitelist":{"type_adding":3,"to_add":"%s"}}' $CW721_CONTRACT` "" show_log
-
-
 # == TEST == 
-# Check that whitelist was updated
-# TODO: THIS QUERY WAS REMOVED? HOW TO SEE WHAT IS ALLOWED?
-# native=$(query_contract $VAULT_CONTRACT '{"get_config":{}}' | jq -r '.data.config.whitelist_native')
-# ASSERT_EQUAL $native '[["JUNO","ujunox"],["NEW","unew"]'
-# # test nft
+
+# Just an exmaple, remove
 # nft=$(query_contract $VAULT_CONTRACT '{"get_config":{}}' | jq -r '.data.config.whitelist_nft')
 # ASSERT_EQUAL $nft `printf '[["cw721","%s"]]' $CW721_CONTRACT`
 
-
-
-# LISTINGS
-wasm_cmd $VAULT_CONTRACT '{"create_listing":{"create_msg":{"id":"vault_1","ask":{"native":[{"denom":"ujunox","amount":"10"}],"cw20":[],"nfts":[]}}}}' "10ujunox" show_log
+# LISTINGS 0 selling 1ujunox (--amount) for 5 ujunox (in ask)
+wasm_cmd $VAULT_CONTRACT '{"create_listing":{"create_msg":{"id":"vault_1","ask":{"native":[{"denom":"ujunox","amount":"5"}],"cw20":[],"nfts":[]}}}}' "1ujunox" show_log
 
 # test listing went up correctly
 listing_1=$(query_contract $VAULT_CONTRACT '{"get_listing_info":{"listing_id":"vault_1"}}')
-ASSERT_EQUAL "$listing_1" '{"data":{"creator":"juno1hj5fveer5cjtn4wd6wstzugjfdxzl0xps73ftl","status":"Being Prepared","for_sale":[["ujunox","1"]],"ask":[["ujunox","10"]],"expiration":"None"}}'
+ASSERT_EQUAL "$listing_1" '{"data":{"creator":"juno1hj5fveer5cjtn4wd6wstzugjfdxzl0xps73ftl","status":"Being Prepared","for_sale":[["ujunox","1"]],"ask":[["ujunox","5"]],"expiration":"None"}}'
 
 # Duplicate vault id, fails
 wasm_cmd $VAULT_CONTRACT '{"create_listing":{"create_msg":{"id":"vault_1","ask":{"native":[{"denom":"ujunox","amount":"10"}],"cw20":[],"nfts":[]}}}}' "1ujunox"
 ASSERT_CONTAINS "$CMD_LOG" 'ID already taken'
 
 # Finalize the listing for purchase after everything is added
-wasm_cmd $VAULT_CONTRACT '{"finalize":{"listing_id":"vault_1","seconds":1000}}' "" show_log
+wasm_cmd $VAULT_CONTRACT '{"finalize":{"listing_id":"vault_1","seconds":5000}}' "" show_log
 # try to finalize again, will fail
-wasm_cmd $VAULT_CONTRACT '{"finalize":{"listing_id":"vault_1","seconds":1000}}' "" show_log
+wasm_cmd $VAULT_CONTRACT '{"finalize":{"listing_id":"vault_1","seconds":100}}' ""
 ASSERT_CONTAINS "$CMD_LOG" 'Listing already finalized'
 
 # Create bucket so we can purchase the listing
-wasm_cmd $VAULT_CONTRACT '{"create_bucket":{"bucket_id":"buyer_a"}}' "10ujunox" show_log
+wasm_cmd $VAULT_CONTRACT '{"create_bucket":{"bucket_id":"buyer_a"}}' "5ujunox" show_log
 # query_contract $VAULT_CONTRACT `printf '{"get_buckets":{"bucket_owner":"%s"}}' $KEY_ADDR`
 
 # purchase listing
 wasm_cmd $VAULT_CONTRACT '{"buy_listing":{"listing_id":"vault_1","bucket_id":"buyer_a"}}' "" show_log
 # check users balance changes here after we  execute_withdraw_purchased
+# query_contract $VAULT_CONTRACT '{"get_listing_info":{"listing_id":"vault_1"}}' <- ensure it is closed, but I feel when we buy it should auto transfer? Why not?
+
+# withdraw purchase
+wasm_cmd $VAULT_CONTRACT '{"withdraw_purchased":{"listing_id":"vault_1"}}' "" show_log
+
+
+tx_hash=$($BINARY tx wasm execute $VAULT_CONTRACT '{"withdraw_purchased":{"listing_id":"vault_1"}}' $JUNOD_COMMAND_ARGS | jq -r '.txhash')
+export CMD_LOG=$($BINARY query tx $tx_hash --output json | jq -r '.raw_log')   
 
 echo -e "\n\nSuccessfull!"
 
