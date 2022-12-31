@@ -271,6 +271,9 @@ pub fn execute_create_listing(
         return Err(ContractError::IdAlreadyExists {});
     }
 
+    let whitelisted_addrs =
+        get_whitelisted_addresses(&deps, createlistingmsg.whitelisted_purchasers)?;
+
     // Save listing
     listingz().save(
         deps.storage,
@@ -284,6 +287,7 @@ pub fn execute_create_listing(
             for_sale: funds_sent.to_generic(),
             ask: createlistingmsg.ask.clone(),
             claimant: None,
+            whitelisted_purchasers: whitelisted_addrs,
         },
     )?;
 
@@ -316,6 +320,9 @@ pub fn execute_create_listing_cw20(
         return Err(ContractError::IdAlreadyExists {});
     }
 
+    let whitelisted_addrs =
+        get_whitelisted_addresses(&deps, createlistingmsg.whitelisted_purchasers)?;
+
     listingz().save(
         deps.storage,
         (user_address, createlistingmsg.id.clone()),
@@ -328,6 +335,7 @@ pub fn execute_create_listing_cw20(
             for_sale: funds_sent.to_generic(),
             ask: createlistingmsg.ask,
             claimant: None,
+            whitelisted_purchasers: whitelisted_addrs,
         },
     )?;
 
@@ -352,6 +360,9 @@ pub fn execute_create_listing_cw721(
     let config = CONFIG.load(deps.storage)?;
     is_genericbalance_whitelisted(&createlistingmsg.ask, &config)?;
 
+    let whitelisted_addrs =
+        get_whitelisted_addresses(&deps, createlistingmsg.whitelisted_purchasers)?;
+
     listingz().save(
         deps.storage,
         (user_wallet, createlistingmsg.id.clone()),
@@ -364,6 +375,7 @@ pub fn execute_create_listing_cw721(
             for_sale: genbal_from_nft(nft),
             ask: createlistingmsg.ask,
             claimant: None,
+            whitelisted_purchasers: whitelisted_addrs,
         },
     )?;
 
@@ -726,6 +738,12 @@ pub fn execute_buy_listing(
     // Check that listing is ready for purchase
     if the_listing.status != Status::FinalizedReady {
         return Err(ContractError::NotPurchasable {});
+    }
+    // Check that the user buying is whitelisted
+    if let Some(whitelist) = the_listing.whitelisted_purchasers.clone() {
+        if !whitelist.contains(buyer) {
+            return Err(ContractError::NotWhitelisted {});
+        }
     }
     // Check that there's no existing claimant on listing
     if the_listing.claimant.is_some() {

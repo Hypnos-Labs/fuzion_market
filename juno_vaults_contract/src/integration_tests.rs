@@ -392,6 +392,7 @@ pub mod create_invalid_listing {
         let cm = CreateListingMsg {
             id: "invalid_ask".to_string(),
             ask: invalid_ask_price,
+            whitelisted_purchasers: None,
         };
 
         crate::msg::ExecuteMsg::CreateListing {
@@ -416,6 +417,7 @@ pub mod create_invalid_listing {
         let cm = CreateListingMsg {
             id: "invalid_ask_two".to_string(),
             ask: invalid_ask_price,
+            whitelisted_purchasers: None,
         };
 
         crate::msg::ExecuteMsg::CreateListing {
@@ -440,6 +442,7 @@ pub mod create_invalid_listing {
         let cm = CreateListingMsg {
             id: "invalid_ask_tre".to_string(),
             ask: invalid_ask_price,
+            whitelisted_purchasers: None,
         };
 
         crate::msg::ExecuteMsg::CreateListing {
@@ -486,6 +489,7 @@ pub mod create_valid_listing {
         let cm = CreateListingMsg {
             id: "valid_ask".to_string(),
             ask: valid_ask_price,
+            whitelisted_purchasers: None,
         };
 
         crate::msg::ExecuteMsg::CreateListing {
@@ -510,6 +514,8 @@ pub mod create_valid_listing {
 
         sk_addr: Option<Addr>,
         sk_id: Option<String>,
+
+        whitelisted_purchasers: Option<Vec<String>>,
     ) -> ExecuteMsg {
         let native_ask = match juno_amt {
             None => vec![],
@@ -564,6 +570,7 @@ pub mod create_valid_listing {
         let cm = CreateListingMsg {
             id: listing_id,
             ask: valid_ask_price,
+            whitelisted_purchasers: whitelisted_purchasers,
         };
 
         crate::msg::ExecuteMsg::CreateListing {
@@ -575,6 +582,7 @@ pub mod create_valid_listing {
         listing_id: String,
         jvone_addr: Addr,
         np_addr: Addr,
+        whitelist: Option<Vec<Addr>>,
     ) -> CreateListingMsg {
         let native_ask = cosmwasm_std::coins(1, "ujunox");
 
@@ -594,9 +602,13 @@ pub mod create_valid_listing {
             nfts: nft_ask,
         };
 
+        let whitelist =
+            whitelist.map(|wl| wl.iter().map(|addr| addr.to_string()).collect::<Vec<String>>());
+
         CreateListingMsg {
             id: listing_id,
             ask: ask_price,
+            whitelisted_purchasers: whitelist,
         }
     }
 }
@@ -702,6 +714,7 @@ fn create_listing_should_fail() -> Result<(), anyhow::Error> {
         Some("3".to_string()),
         Some(shittykittyz.addr()),
         Some("3".to_string()),
+        None,
     );
     let one_juno = coins(1, "ujunox");
     let res: Result<AppResponse> = router.execute_contract(
@@ -776,6 +789,7 @@ fn create_listing_should_pass() -> Result<(), anyhow::Error> {
         Some("3".to_string()),
         Some(shittykittyz.addr()),
         Some("3".to_string()),
+        None,
     );
     let one_juno = coins(1, "ujunox");
     let res: Result<AppResponse> = router.execute_contract(
@@ -802,6 +816,7 @@ fn create_listing_should_pass() -> Result<(), anyhow::Error> {
         "john_2".to_string(),
         jvone.addr(),
         neonpeepz.addr(),
+        None,
     );
     let cmsg = to_binary(&crate::msg::ReceiveMsg::CreateListingCw20 {
         create_msg: cm,
@@ -824,6 +839,7 @@ fn create_listing_should_pass() -> Result<(), anyhow::Error> {
         "john_3".to_string(),
         jvone.addr(),
         neonpeepz.addr(),
+        None,
     );
     let cmsg_nft = to_binary(&crate::msg::ReceiveNftMsg::CreateListingCw721 {
         create_msg: cm,
@@ -885,6 +901,7 @@ fn add_to_listing() -> Result<(), anyhow::Error> {
         Some(10),
         Some(jvone.addr()),
         Some(Uint128::from(25u32)),
+        None,
         None,
         None,
         None,
@@ -1130,6 +1147,8 @@ fn remove_a_listing() -> Result<(), anyhow::Error> {
         // ShittyKittyz in ask
         None,
         None,
+        // whitelisted purchasers
+        None,
     );
     // For sale 1 ujunox
     let one_juno = coins(1, "ujunox");
@@ -1171,6 +1190,8 @@ fn remove_a_listing() -> Result<(), anyhow::Error> {
         None,
         // ShittyKittyz in ask
         None,
+        None,
+        // whitelisted purchasers
         None,
     );
     // Listing for sale, 1 ujunox
@@ -1429,6 +1450,8 @@ fn finalize_a_listing() -> Result<(), anyhow::Error> {
         // ShittyKittyz in ask
         None,
         None,
+        // whitelisted purchasers
+        None,
     );
     // For sale 1 ujunox
     let one_juno = coins(1, "ujunox");
@@ -1470,6 +1493,8 @@ fn finalize_a_listing() -> Result<(), anyhow::Error> {
         None,
         // ShittyKittyz in ask
         None,
+        None,
+        // whitelisted purchasers
         None,
     );
     // Listing for sale, 1 ujunox
@@ -1784,6 +1809,8 @@ fn expiration_checks() -> Result<(), anyhow::Error> {
         None,
         // ShittyKittyz in ask
         None,
+        None,
+        // whitelisted purchasers
         None,
     );
     // For sale 1 ujunox
@@ -2202,6 +2229,7 @@ fn create_bucket() -> Result<(), anyhow::Error> {
 // <X> Correct assets in Bucket required for purchase
 // <X> Bucket creator cannot interact with Bucket after it's been used to purchase
 // <X> Listing creator cannot interact with Listing after it's been sold
+// <X> Purchased Listing only if they are whitelisted, if one is set
 // <X> Bucket sale proceeds can only be removed once
 // <X> Purchased Listing can only be removed once
 // <X> Balance checks after Bucket Removal
@@ -2253,7 +2281,8 @@ fn marketplace_sale() -> Result<(), anyhow::Error> {
     };
     let cl = CreateListingMsg {
         id: "john_listing_1".to_string(),
-        ask: ask_price,
+        ask: ask_price.clone(),
+        whitelisted_purchasers: Some(vec![sam.address.to_string(), john.address.to_string()]),
     };
     let clm = crate::msg::ExecuteMsg::CreateListing {
         create_msg: cl,
@@ -2545,6 +2574,35 @@ fn marketplace_sale() -> Result<(), anyhow::Error> {
         router.execute_contract(sam.address.clone(), junovaults.clone(), &rem, &[]);
     ensure!(res.is_ok(), here("sam remove bucket wrong", line!(), column!()));
 
+    //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    // Everything correct except not whitelisted (max)
+    //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+    // Create with 20 JVTWO <Listing price is 20 JVTWO>
+    let sam_msg = to_binary(&crate::msg::ReceiveMsg::CreateBucketCw20 {
+        bucket_id: "not_whitelist_1".to_string(),
+    })
+    .unwrap();
+    let sam_c_msg = cw20_base::msg::ExecuteMsg::Send {
+        contract: junovaults.clone().to_string(),
+        amount: Uint128::from(20u32),
+        msg: sam_msg,
+    };
+
+    let res: Result<AppResponse> =
+        router.execute_contract(sam.address.clone(), jvtwo.addr(), &sam_c_msg, &[]);
+    ensure!(res.is_ok(), here("sam create bucket correct", line!(), column!()));
+
+    // Try to buy listing not whitelisted for, should fail
+    let buy_msg = crate::msg::ExecuteMsg::BuyListing {
+        listing_id: "john_listing_1".to_string(),
+        bucket_id: "not_whitelist_1".to_string(),
+    };
+    let res: Result<AppResponse> =
+        router.execute_contract(max.address.clone(), junovaults.clone(), &buy_msg, &[]);
+    ensure!(res.is_err(), here("Max tried to buy a listing not whitelisted", line!(), column!()));
+
     //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~//
 
     //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -2750,7 +2808,7 @@ fn marketplace_sale() -> Result<(), anyhow::Error> {
     );
 
     assert_eq!(jvone.balance(&router.wrap(), sam.address.clone()), Ok(Uint128::from(110u32)));
-    assert_eq!(jvtwo.balance(&router.wrap(), sam.address.clone()), Ok(Uint128::from(80u32)));
+    assert_eq!(jvtwo.balance(&router.wrap(), sam.address.clone()), Ok(Uint128::from(60u32)));
 
     let sam_neonpeepz =
         neonpeepz.tokens(&router.wrap(), sam.address.clone().to_string(), None, None).unwrap();
@@ -2844,6 +2902,7 @@ fn cant_buy_expired() -> Result<(), anyhow::Error> {
     let cl = CreateListingMsg {
         id: "john_listing_1".to_string(),
         ask: ask_price,
+        whitelisted_purchasers: None,
     };
     let clm = crate::msg::ExecuteMsg::CreateListing {
         create_msg: cl,

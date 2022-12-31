@@ -69,6 +69,7 @@ pub struct Listing {
     pub expiration_time: Option<Timestamp>,
     pub status: Status,
     pub claimant: Option<Addr>,
+    pub whitelisted_purchasers: Option<Vec<Addr>>,
 
     pub for_sale: GenericBalance,
 
