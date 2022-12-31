@@ -148,19 +148,10 @@ pub mod init_contracts {
         Cw721Contract(addr, PhantomData, PhantomData)
     }
 
-    pub fn init_jv_contract(
-        router: &mut App,
-        admin: &Addr,
-        native_wl: Vec<String>,
-        cw20_wl: Vec<String>,
-        nft_wl: Vec<String>,
-    ) -> Addr {
+    pub fn init_jv_contract(router: &mut App, admin: &Addr) -> Addr {
         let jv_id = router.store_code(junovaults_contract());
         let msg = InstantiateMsg {
             admin: None,
-            native_whitelist: native_wl,
-            cw20_whitelist: cw20_wl,
-            nft_whitelist: nft_wl,
         };
 
         let addr =
@@ -221,9 +212,6 @@ pub mod init_contracts {
             &max.address,
         );
 
-        let cw20_whitelist =
-            vec![jvone.addr().to_string(), jvtwo.addr().to_string(), jvtre.addr().to_string()];
-
         //~~~~~~~~~~~~~~~~~~~~~
         // Init NFT Contracts
         let neonpeepz = init_contracts::init_cw721_contract(
@@ -240,17 +228,9 @@ pub mod init_contracts {
             "SHITKIT".to_string(),
         );
 
-        let nft_whitelist = vec![shittykittyz.addr().to_string(), neonpeepz.addr().to_string()];
-
         //~~~~~~~~~~~~~~~~~~~~~
         // Init JunoVaults Contract
-        let junovaults = init_contracts::init_jv_contract(
-            router,
-            &contract_admin.address,
-            vec!["ujunox".to_string()],
-            cw20_whitelist,
-            nft_whitelist,
-        );
+        let junovaults = init_contracts::init_jv_contract(router, &contract_admin.address);
 
         //~~~~~~~~~~~~~~~~~~~~~
         // Give 2 NFTs of each collection to John, Sam, Max

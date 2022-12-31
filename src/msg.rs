@@ -12,12 +12,6 @@ use cw721::Cw721ReceiveMsg;
 #[cw_serde]
 pub struct InstantiateMsg {
     pub admin: Option<String>,
-    pub native_whitelist: Vec<String>,
-    pub cw20_whitelist: Vec<String>,
-    pub nft_whitelist: Vec<String>,
-    // pub native_whitelist: Vec<(String, String)>,
-    // pub cw20_whitelist: Vec<(String, String)>,
-    // pub nft_whitelist: Vec<(String, String)>,
 }
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
