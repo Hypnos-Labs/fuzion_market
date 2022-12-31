@@ -253,7 +253,7 @@ send_cw20_to_listing $VAULT_CONTRACT $CW20_CONTRACT "1" "vault_1"
 
 # Ensure the CW20 token is now apart of the listing
 listing_values=$(query_contract $VAULT_CONTRACT '{"get_listing_info":{"listing_id":"vault_1"}}' | jq -rc '.data.for_sale')
-ASSERT_EQUAL "$listing_values" `printf '[["ucosm","10"],["%s","1"]]' $CW20_ADDRESS`
+ASSERT_EQUAL "$listing_values" `printf '[["ucosm","10"],["%s","1"]]' $CW20_CONTRACT`
 
 
 # Finalize the listing for purchase after everything is added
