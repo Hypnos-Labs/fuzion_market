@@ -4,7 +4,7 @@ use chrono::{Datelike, NaiveDateTime, Timelike};
 use cosmwasm_schema::cw_serde;
 
 use cosmwasm_std::coins;
-use cosmwasm_std::{to_binary, Addr, BankMsg, CosmosMsg, Empty, StdError, StdResult, WasmMsg};
+use cosmwasm_std::{DepsMut, to_binary, Addr, BankMsg, CosmosMsg, Empty, StdError, StdResult, WasmMsg};
 use cw20::{Balance, Cw20ExecuteMsg};
 use cw721::Cw721ExecuteMsg;
 
