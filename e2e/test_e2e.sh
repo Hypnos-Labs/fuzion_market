@@ -299,12 +299,7 @@ test_duplicate_ask_denoms
 test_whitelist # run before test_whitelist since we check balances here
 test_all_listings
 
-
-# ! TODO: experation should return seconds, not convert to human readable - do that on the frontend
-
-
-
-# 1 if any of the above test failed
+# 1 if any of the above test failed, this way it will ensure to X the github
 exit $FINAL_STATUS_CODE
 
 # manual queries
