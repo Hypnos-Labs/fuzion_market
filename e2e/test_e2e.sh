@@ -136,7 +136,7 @@ function wasm_cmd {
     tx_hash=$($BINARY tx wasm execute $CONTRACT $MESSAGE $FUNDS $JUNOD_COMMAND_ARGS | jq -r '.txhash')
     export CMD_LOG=$($BINARY query tx $tx_hash --output json | jq -r '.raw_log')    
     if [ "$SHOW_LOG" == "show_log" ]; then
-        echo "raw_log: $CMD_LOG"
+        echo -e "raw_log: $CMD_LOG\n================================\n"
     fi    
 }
 
@@ -202,14 +202,14 @@ listing_1=$(query_contract $VAULT_CONTRACT '{"get_listing_info":{"listing_id":"v
 ASSERT_EQUAL "$listing_1" '{"data":{"creator":"juno1hj5fveer5cjtn4wd6wstzugjfdxzl0xps73ftl","status":"Being Prepared","for_sale":[["ujunox","1"]],"ask":[["ujunox","10"]],"expiration":"None"}}'
 
 # Duplicate vault id, fails
-wasm_cmd $VAULT_CONTRACT '{"create_listing":{"create_msg":{"id":"vault_1","ask":{"native":[{"denom":"ujunox","amount":"10"}],"cw20":[],"nfts":[]}}}}' "1ujunox" show_log
-ASSERT_CONTAINS "$CMD_LOG" 'failed to execute message; message index: 0: ID already taken: execute wasm contract failed'
+wasm_cmd $VAULT_CONTRACT '{"create_listing":{"create_msg":{"id":"vault_1","ask":{"native":[{"denom":"ujunox","amount":"10"}],"cw20":[],"nfts":[]}}}}' "1ujunox"
+ASSERT_CONTAINS "$CMD_LOG" 'ID already taken'
 
 # Finalize the listing for purchase after everything is added
 wasm_cmd $VAULT_CONTRACT '{"finalize":{"listing_id":"vault_1","seconds":1000}}' "" show_log
 # try to finalize again, will fail
 wasm_cmd $VAULT_CONTRACT '{"finalize":{"listing_id":"vault_1","seconds":1000}}' "" show_log
-ASSERT_CONTAINS "$CMD_LOG" 'failed to execute message; message index: 0: Listing already finalized: execute wasm contract failed'
+ASSERT_CONTAINS "$CMD_LOG" 'Listing already finalized'
 
 # Create bucket so we can purchase the listing
 wasm_cmd $VAULT_CONTRACT '{"create_bucket":{"bucket_id":"buyer_a"}}' "10ujunox" show_log
@@ -218,6 +218,8 @@ wasm_cmd $VAULT_CONTRACT '{"create_bucket":{"bucket_id":"buyer_a"}}' "10ujunox" 
 # purchase listing
 wasm_cmd $VAULT_CONTRACT '{"buy_listing":{"listing_id":"vault_1","bucket_id":"buyer_a"}}' "" show_log
 # check users balance changes here after we  execute_withdraw_purchased
+
+echo -e "\n\nSuccessfull!"
 
 # manual queries
 # query_contract $VAULT_CONTRACT '{"get_config":{}}'
