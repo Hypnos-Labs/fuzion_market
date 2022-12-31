@@ -1,9 +1,8 @@
 /target
-
-/juno_vaults_contract/artifacts
-/ts_codegen
-
-
+/artifacts
+Cargo.lock
+.editorconfig
+WORKSPACE.md
 .cargo-ok
 **/*.rs.bk
 *.iml
