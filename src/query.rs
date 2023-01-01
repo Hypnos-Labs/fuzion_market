@@ -49,7 +49,7 @@ pub fn get_listing_info(deps: Deps, listing_id: String) -> StdResult<ListingInfo
     };
 
     // Getting the sale
-    let mut the_sale: Vec<(String, u128)> = vec![];
+    let mut the_sale: Vec<(String, u128)> = Vec::new();
 
     listing
         .for_sale
@@ -71,7 +71,7 @@ pub fn get_listing_info(deps: Deps, listing_id: String) -> StdResult<ListingInfo
     });
 
     // Getting the ask
-    let mut the_ask: Vec<(String, u128)> = vec![];
+    let mut the_ask: Vec<(String, u128)> = Vec::new();
 
     listing
         .ask

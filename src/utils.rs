@@ -32,7 +32,7 @@ pub fn send_tokens_cosmos(to: &Addr, balance: &GenericBalance) -> StdResult<Vec<
             let exec = CosmosMsg::from(WasmMsg::Execute {
                 contract_addr: c.address.to_string(),
                 msg: to_binary(&msg)?,
-                funds: vec![],
+                funds: Vec::new(),
             });
             Ok(exec)
         })
@@ -50,7 +50,7 @@ pub fn send_tokens_cosmos(to: &Addr, balance: &GenericBalance) -> StdResult<Vec<
             let exec = CosmosMsg::from(WasmMsg::Execute {
                 contract_addr: n.contract_address.to_string(),
                 msg: to_binary(&msg)?,
-                funds: vec![],
+                funds: Vec::new(),
             });
             Ok(exec)
         })

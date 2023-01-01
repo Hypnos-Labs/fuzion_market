@@ -405,11 +405,11 @@ pub mod create_valid_listing {
         whitelisted_purchasers: Option<Vec<String>>,
     ) -> ExecuteMsg {
         let native_ask = match juno_amt {
-            None => vec![],
+            None => Vec::new(),
             Some(a) => vec![coin(a, VALID_NATIVE)],
         };
 
-        let mut cw20_ask: Vec<Cw20CoinVerified> = vec![];
+        let mut cw20_ask: Vec<Cw20CoinVerified> = Vec::new();
 
         if let Some(jvoneaddr) = jvone_addr {
             cw20_ask.push(Cw20CoinVerified {
@@ -432,7 +432,7 @@ pub mod create_valid_listing {
             })
         };
 
-        let mut nft_ask: Vec<Nft> = vec![];
+        let mut nft_ask: Vec<Nft> = Vec::new();
 
         if let Some(npaddr) = np_addr {
             nft_ask.push(Nft {
@@ -2110,7 +2110,7 @@ fn marketplace_sale() -> Result<(), anyhow::Error> {
         token_id: "3".to_string(),
     }];
     let ask_price = GenericBalance {
-        native: vec![],
+        native: Vec::new(),
         cw20: cw20_ask,
         nfts: nft_ask,
     };
@@ -2573,9 +2573,9 @@ fn marketplace_sale() -> Result<(), anyhow::Error> {
         amount: Uint128::from(20u32),
     }];
     let ask_price = GenericBalance {
-        native: vec![],
+        native: Vec::new(),
         cw20: cw20_ask,
-        nfts: vec![],
+        nfts: Vec::new(),
     };
     let edit_price = crate::msg::ExecuteMsg::ChangeAsk {
         listing_id: "john_listing_1".to_string(),
@@ -2730,7 +2730,7 @@ fn cant_buy_expired() -> Result<(), anyhow::Error> {
         token_id: "3".to_string(),
     }];
     let ask_price = GenericBalance {
-        native: vec![],
+        native: Vec::new(),
         cw20: cw20_ask,
         nfts: nft_ask,
     };
