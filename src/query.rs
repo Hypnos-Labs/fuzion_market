@@ -137,7 +137,7 @@ pub fn get_all_listings(deps: Deps) -> StdResult<MultiListingResponse> {
     })
 }
 
-// Query w filter & pagination
+// Query w filter & pagination, ignore whitelist'ed assets
 pub fn get_listings_for_market(
     deps: Deps,
     env: &Env,
@@ -163,6 +163,7 @@ pub fn get_listings_for_market(
         .skip(to_skip_usize)
         .take(20)
         .map(|entry| entry.1.clone())
+        .filter(|entry| entry.whitelisted_buyer.is_some())
         .collect();
 
     Ok(MultiListingResponse {

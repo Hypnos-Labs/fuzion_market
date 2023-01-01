@@ -279,6 +279,12 @@ function test_whitelist {
     listing_1=$(query_contract $VAULT_CONTRACT '{"get_listing_info":{"listing_id":"vault_2"}}')
     ASSERT_EQUAL "$listing_1" '{"data":{"creator":"juno1hj5fveer5cjtn4wd6wstzugjfdxzl0xps73ftl","status":"Being Prepared","for_sale":[["ucosm","25"]],"ask":[["ujunox","5"]],"expiration":"None","whitelisted_buyer":"juno1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq93ryqp"}}'
 
+    # is hidden from market listings, but would be found in the all listings query
+    listings=$(query_contract $VAULT_CONTRACT '{"get_listings_for_market":{"page_num":1}}' | jq -r '.data.listings')
+    ASSERT_EQUAL "$listings" '[]'
+
+    # TODO: get all listings that whitelisted buyer `juno1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq93ryqp` has
+
     # remove whitelisted buyer test
     wasm_cmd $VAULT_CONTRACT '{"remove_whitelisted_buyer":{"listing_id":"vault_2"}}' "" show_log
     listing_1_change=$(query_contract $VAULT_CONTRACT '{"get_listing_info":{"listing_id":"vault_2"}}')
