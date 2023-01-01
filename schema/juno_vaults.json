@@ -114,6 +114,52 @@
       {
         "type": "object",
         "required": [
+          "change_whitelisted_buyer"
+        ],
+        "properties": {
+          "change_whitelisted_buyer": {
+            "type": "object",
+            "required": [
+              "listing_id",
+              "new_address"
+            ],
+            "properties": {
+              "listing_id": {
+                "type": "string"
+              },
+              "new_address": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "type": "object",
+        "required": [
+          "remove_whitelisted_buyer"
+        ],
+        "properties": {
+          "remove_whitelisted_buyer": {
+            "type": "object",
+            "required": [
+              "listing_id"
+            ],
+            "properties": {
+              "listing_id": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "type": "object",
+        "required": [
           "remove_listing"
         ],
         "properties": {
@@ -954,7 +1000,8 @@
         "creator",
         "expiration",
         "for_sale",
-        "status"
+        "status",
+        "whitelisted_buyer"
       ],
       "properties": {
         "ask": {
@@ -1003,10 +1050,7 @@
           "type": "string"
         },
         "whitelisted_buyer": {
-          "type": [
-            "string",
-            "null"
-          ]
+          "type": "string"
         }
       },
       "additionalProperties": false

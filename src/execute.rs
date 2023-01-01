@@ -379,6 +379,37 @@ pub fn execute_change_ask(
         .add_attribute("listing_id", &listing_id))
 }
 
+pub fn execute_modify_whitelisted_buyer(
+    deps: DepsMut,
+    user_sender: &Addr,
+    listing_id: String,
+    new_whitelisted_buyer: Option<String>,
+) -> Result<Response, ContractError> {
+    let listing = validate_basic_listings(&deps, user_sender, &listing_id, false)?;
+
+    let whitelisted_buyer: Option<Addr> = if let Some(new_whitelisted_buyer) = new_whitelisted_buyer
+    {
+        let addr = deps.api.addr_validate(&new_whitelisted_buyer)?;
+        Some(addr)
+    } else {
+        None
+    };
+
+    listingz().replace(
+        deps.storage,
+        (user_sender, listing_id.clone()),
+        Some(&Listing {
+            whitelisted_buyer,
+            ..listing.clone()
+        }),
+        Some(&listing),
+    )?;
+
+    Ok(Response::new()
+        .add_attribute("attribute", "execute_modify_whitelisted_buyer")
+        .add_attribute("listing_id", &listing_id))
+}
+
 pub fn execute_add_funds_to_sale(
     deps: DepsMut,
     balance: Balance,

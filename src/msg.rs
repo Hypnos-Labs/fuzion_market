@@ -35,6 +35,13 @@ pub enum ExecuteMsg {
         listing_id: String,
         new_ask: GenericBalance,
     },
+    ChangeWhitelistedBuyer {
+        listing_id: String,
+        new_address: String,
+    },
+    RemoveWhitelistedBuyer {
+        listing_id: String,
+    },
     RemoveListing {
         listing_id: String,
     },

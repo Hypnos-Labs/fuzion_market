@@ -227,7 +227,7 @@ function test_all_listings {
 
     # Ensure listing went up correctly
     listing_1=$(query_contract $VAULT_CONTRACT '{"get_listing_info":{"listing_id":"vault_1"}}')
-    ASSERT_EQUAL "$listing_1" '{"data":{"creator":"juno1hj5fveer5cjtn4wd6wstzugjfdxzl0xps73ftl","status":"Being Prepared","for_sale":[["ucosm","10"]],"ask":[["ujunox","5"]],"expiration":"None","whitelisted_purchasers":[]}}'
+    ASSERT_EQUAL "$listing_1" '{"data":{"creator":"juno1hj5fveer5cjtn4wd6wstzugjfdxzl0xps73ftl","status":"Being Prepared","for_sale":[["ucosm","10"]],"ask":[["ujunox","5"]],"expiration":"None","whitelisted_buyer":"None"}}'
 
     # Ensure duplicate vault_id fails
     wasm_cmd $VAULT_CONTRACT '{"create_listing":{"create_msg":{"id":"vault_1","ask":{"native":[{"denom":"ujunox","amount":"1"}],"cw20":[],"nfts":[]}}}}' "1ujunox"
@@ -261,7 +261,7 @@ function test_all_listings {
     wasm_cmd $VAULT_CONTRACT '{"create_bucket":{"bucket_id":"buyer_1"}}' "5ujunox" show_log
     # purchase listing
     wasm_cmd $VAULT_CONTRACT '{"buy_listing":{"listing_id":"vault_1","bucket_id":"buyer_1"}}' "" show_log
-    echo "Withdrawing rewaords... (Should do this in buy listing function"
+    echo "Withdrawing rewards... (Should do this in buy listing function?)"
 
     # check users balance changes here after we  execute_withdraw_purchased
     # query_contract $VAULT_CONTRACT '{"get_listing_info":{"listing_id":"vault_1"}}' <- ensure it is closed, but I feel when we buy it should auto transfer? Why not?
@@ -272,13 +272,23 @@ function test_all_listings {
     ASSERT_EQUAL "$listings" '[]'
 }
 
-function test_whitelist {
-    # === WHITELIST ONLY ===
-    # Selling 25ucosm for 5ujunox - only other account can purchase
-    wasm_cmd $VAULT_CONTRACT '{"create_listing":{"create_msg":{"id":"vault_2","ask":{"native":[{"denom":"ujunox","amount":"5"}],"cw20":[],"nfts":[]},"whitelisted_buyer":"juno1efd63aw40lxf3n4mhf7dzhjkr453axurv2zdzk"}}}' "25ucosm" show_log
+function test_whitelist {    
+    # Selling 25ucosm for 5ujunox
+    wasm_cmd $VAULT_CONTRACT '{"create_listing":{"create_msg":{"id":"vault_2","ask":{"native":[{"denom":"ujunox","amount":"5"}],"cw20":[],"nfts":[]},"whitelisted_buyer":"juno1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq93ryqp"}}}' "25ucosm" show_log
     # Ensure listing went up correctly
     listing_1=$(query_contract $VAULT_CONTRACT '{"get_listing_info":{"listing_id":"vault_2"}}')
-    ASSERT_EQUAL "$listing_1" '{"data":{"creator":"juno1hj5fveer5cjtn4wd6wstzugjfdxzl0xps73ftl","status":"Being Prepared","for_sale":[["ucosm","25"]],"ask":[["ujunox","5"]],"expiration":"None","whitelisted_buyer":"juno1efd63aw40lxf3n4mhf7dzhjkr453axurv2zdzk"}}'
+    ASSERT_EQUAL "$listing_1" '{"data":{"creator":"juno1hj5fveer5cjtn4wd6wstzugjfdxzl0xps73ftl","status":"Being Prepared","for_sale":[["ucosm","25"]],"ask":[["ujunox","5"]],"expiration":"None","whitelisted_buyer":"juno1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq93ryqp"}}'
+
+    # remove whitelisted buyer test
+    wasm_cmd $VAULT_CONTRACT '{"remove_whitelisted_buyer":{"listing_id":"vault_2"}}' "" show_log
+    listing_1_change=$(query_contract $VAULT_CONTRACT '{"get_listing_info":{"listing_id":"vault_2"}}')
+    ASSERT_EQUAL "$listing_1_change" '{"data":{"creator":"juno1hj5fveer5cjtn4wd6wstzugjfdxzl0xps73ftl","status":"Being Prepared","for_sale":[["ucosm","25"]],"ask":[["ujunox","5"]],"expiration":"None","whitelisted_buyer":"None"}}'
+
+    # change whitelisted buyer to correct address - ChangeWhitelistedBuyer
+    wasm_cmd $VAULT_CONTRACT '{"change_whitelisted_buyer":{"listing_id":"vault_2","new_address":"juno1efd63aw40lxf3n4mhf7dzhjkr453axurv2zdzk"}}' "" show_log
+    listing_1_change=$(query_contract $VAULT_CONTRACT '{"get_listing_info":{"listing_id":"vault_2"}}')
+    ASSERT_EQUAL "$listing_1_change" '{"data":{"creator":"juno1hj5fveer5cjtn4wd6wstzugjfdxzl0xps73ftl","status":"Being Prepared","for_sale":[["ucosm","25"]],"ask":[["ujunox","5"]],"expiration":"None","whitelisted_buyer":"juno1efd63aw40lxf3n4mhf7dzhjkr453axurv2zdzk"}}'
+
     # finalize just the natives
     wasm_cmd $VAULT_CONTRACT '{"finalize":{"listing_id":"vault_2","seconds":5000}}' "" show_log
 

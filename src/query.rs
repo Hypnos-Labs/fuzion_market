@@ -92,7 +92,8 @@ pub fn get_listing_info(deps: Deps, listing_id: String) -> StdResult<ListingInfo
         ));
     });
 
-    let whitelist_buyer: Option<String> = listing.whitelisted_buyer.map(|x| x.to_string());
+    let whitelist_buyer: String =
+        listing.whitelisted_buyer.map(|x| x.to_string()).unwrap_or_else(|| "None".to_string());
 
     let mut res: ListingInfoResponse = ListingInfoResponse {
         creator: listing.creator.to_string(),
@@ -200,5 +201,5 @@ pub struct ListingInfoResponse {
     pub for_sale: Vec<(String, u128)>,
     pub ask: Vec<(String, u128)>,
     pub expiration: String,
-    pub whitelisted_buyer: Option<String>,
+    pub whitelisted_buyer: String,
 }
