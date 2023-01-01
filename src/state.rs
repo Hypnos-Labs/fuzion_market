@@ -32,7 +32,13 @@ pub struct ListingIndexes<'a> {
 
 impl IndexList<Listing> for ListingIndexes<'_> {
     fn get_indexes(&'_ self) -> Box<dyn Iterator<Item = &'_ dyn Index<Listing>> + '_> {
-        let v: Vec<&dyn Index<Listing>> = vec![&self.id, &self.finalized_date, &self.whitelisted_one, &self.whitelisted_two, &self.whitelisted_three];
+        let v: Vec<&dyn Index<Listing>> = vec![
+            &self.id,
+            &self.finalized_date,
+            &self.whitelisted_one,
+            &self.whitelisted_two,
+            &self.whitelisted_three,
+        ];
         Box::new(v.into_iter())
     }
 }
@@ -49,35 +55,38 @@ pub fn listingz<'a>() -> IndexedMap<'a, (&'a Addr, String), Listing, ListingInde
         whitelisted_one: UniqueIndex::new(
             |listing| {
                 (
-                    listing.whitelisted_buyer_one
+                    listing
+                        .whitelisted_buyer_one
                         .clone()
                         .map_or_else(|| "1".to_string(), |addr| addr.to_string()),
-                    listing.id.clone()
+                    listing.id.clone(),
                 )
             },
-            "listing__whitelisted__one"
+            "listing__whitelisted__one",
         ),
         whitelisted_two: UniqueIndex::new(
             |listing| {
                 (
-                    listing.whitelisted_buyer_two
+                    listing
+                        .whitelisted_buyer_two
                         .clone()
                         .map_or_else(|| "2".to_string(), |addr| addr.to_string()),
-                    listing.id.clone()
+                    listing.id.clone(),
                 )
             },
-            "listing__whitelisted__two"
+            "listing__whitelisted__two",
         ),
         whitelisted_three: UniqueIndex::new(
             |listing| {
                 (
-                    listing.whitelisted_buyer_three
+                    listing
+                        .whitelisted_buyer_three
                         .clone()
                         .map_or_else(|| "3".to_string(), |addr| addr.to_string()),
-                    listing.id.clone()
+                    listing.id.clone(),
                 )
             },
-            "listing__whitelisted__three"
+            "listing__whitelisted__three",
         ),
     };
 

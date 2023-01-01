@@ -5,7 +5,8 @@ use crate::state::{
     ToGenericBalance, BUCKETS,
 };
 use crate::utils::{
-    calc_fee, get_whitelisted_addresses, normalize_ask, send_tokens_cosmos, get_whitelisted_buyers, check_buyer_whitelisted,
+    calc_fee, check_buyer_whitelisted, get_whitelisted_addresses, get_whitelisted_buyers,
+    normalize_ask, send_tokens_cosmos,
 };
 use cosmwasm_std::{Addr, DepsMut, Env, Response};
 use cw20::Balance;
@@ -199,14 +200,12 @@ pub fn execute_create_listing(
     // let whitelisted_addrs =
     //     get_whitelisted_addresses(&deps, createlistingmsg.whitelisted_purchasers)?;
 
-    let (wl_buyer_one, wl_buyer_two, wl_buyer_three) = 
-        get_whitelisted_buyers(
-            &deps, 
-            createlistingmsg.whitelist_buyer_one,
-            createlistingmsg.whitelist_buyer_two,
-            createlistingmsg.whitelist_buyer_three
-        )?;
-
+    let (wl_buyer_one, wl_buyer_two, wl_buyer_three) = get_whitelisted_buyers(
+        &deps,
+        createlistingmsg.whitelist_buyer_one,
+        createlistingmsg.whitelist_buyer_two,
+        createlistingmsg.whitelist_buyer_three,
+    )?;
 
     let ask_tokens = normalize_ask(createlistingmsg.ask);
 
@@ -226,7 +225,7 @@ pub fn execute_create_listing(
             //whitelisted_purchasers: whitelisted_addrs,
             whitelisted_buyer_one: wl_buyer_one,
             whitelisted_buyer_two: wl_buyer_two,
-            whitelisted_buyer_three: wl_buyer_three
+            whitelisted_buyer_three: wl_buyer_three,
         },
     )?;
 
@@ -255,13 +254,12 @@ pub fn execute_create_listing_cw20(
     // let whitelisted_addrs =
     //     get_whitelisted_addresses(&deps, createlistingmsg.whitelisted_purchasers)?;
 
-    let (wl_buyer_one, wl_buyer_two, wl_buyer_three) = 
-        get_whitelisted_buyers(
-            &deps, 
-            createlistingmsg.whitelist_buyer_one,
-            createlistingmsg.whitelist_buyer_two,
-            createlistingmsg.whitelist_buyer_three
-        )?;
+    let (wl_buyer_one, wl_buyer_two, wl_buyer_three) = get_whitelisted_buyers(
+        &deps,
+        createlistingmsg.whitelist_buyer_one,
+        createlistingmsg.whitelist_buyer_two,
+        createlistingmsg.whitelist_buyer_three,
+    )?;
 
     let ask_tokens = normalize_ask(createlistingmsg.ask);
 
@@ -280,7 +278,7 @@ pub fn execute_create_listing_cw20(
             //whitelisted_purchasers: whitelisted_addrs,
             whitelisted_buyer_one: wl_buyer_one,
             whitelisted_buyer_two: wl_buyer_two,
-            whitelisted_buyer_three: wl_buyer_three
+            whitelisted_buyer_three: wl_buyer_three,
         },
     )?;
 
@@ -304,13 +302,12 @@ pub fn execute_create_listing_cw721(
     // let whitelisted_addrs =
     //     get_whitelisted_addresses(&deps, createlistingmsg.whitelisted_purchasers)?;
 
-    let (wl_buyer_one, wl_buyer_two, wl_buyer_three) = 
-        get_whitelisted_buyers(
-            &deps, 
-            createlistingmsg.whitelist_buyer_one,
-            createlistingmsg.whitelist_buyer_two,
-            createlistingmsg.whitelist_buyer_three
-        )?;
+    let (wl_buyer_one, wl_buyer_two, wl_buyer_three) = get_whitelisted_buyers(
+        &deps,
+        createlistingmsg.whitelist_buyer_one,
+        createlistingmsg.whitelist_buyer_two,
+        createlistingmsg.whitelist_buyer_three,
+    )?;
 
     let ask_tokens = normalize_ask(createlistingmsg.ask);
 
@@ -329,7 +326,7 @@ pub fn execute_create_listing_cw721(
             //whitelisted_purchasers: whitelisted_addrs,
             whitelisted_buyer_one: wl_buyer_one,
             whitelisted_buyer_two: wl_buyer_two,
-            whitelisted_buyer_three: wl_buyer_three
+            whitelisted_buyer_three: wl_buyer_three,
         },
     )?;
 

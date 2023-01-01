@@ -379,7 +379,7 @@ pub mod create_valid_listing {
             //whitelisted_purchasers: None,
             whitelist_buyer_one: None,
             whitelist_buyer_two: None,
-            whitelist_buyer_three: None
+            whitelist_buyer_three: None,
         };
 
         crate::msg::ExecuteMsg::CreateListing {
@@ -408,7 +408,7 @@ pub mod create_valid_listing {
         //whitelisted_purchasers: Option<Vec<String>>,
         whitelist_buyer_one: Option<String>,
         whitelist_buyer_two: Option<String>,
-        whitelist_buyer_three: Option<String>
+        whitelist_buyer_three: Option<String>,
     ) -> ExecuteMsg {
         let native_ask = match juno_amt {
             None => vec![],
@@ -466,7 +466,7 @@ pub mod create_valid_listing {
             //whitelisted_purchasers: whitelisted_purchasers,
             whitelist_buyer_one,
             whitelist_buyer_two,
-            whitelist_buyer_three
+            whitelist_buyer_three,
         };
 
         crate::msg::ExecuteMsg::CreateListing {
@@ -481,8 +481,7 @@ pub mod create_valid_listing {
         //whitelist: Option<Vec<Addr>>,
         whitelist_buyer_one: Option<String>,
         whitelist_buyer_two: Option<String>,
-        whitelist_buyer_three: Option<String>
-
+        whitelist_buyer_three: Option<String>,
     ) -> CreateListingMsg {
         let native_ask = cosmwasm_std::coins(1, "ujunox");
 
@@ -644,7 +643,7 @@ fn create_listing_should_pass() -> Result<(), anyhow::Error> {
         Some("3".to_string()),
         None,
         None,
-        None
+        None,
     );
     let one_juno = coins(1, "ujunox");
     let res: Result<AppResponse> = router.execute_contract(
@@ -673,7 +672,7 @@ fn create_listing_should_pass() -> Result<(), anyhow::Error> {
         neonpeepz.addr(),
         None,
         None,
-        None
+        None,
     );
     let cmsg = to_binary(&crate::msg::ReceiveMsg::CreateListingCw20 {
         create_msg: cm,
@@ -770,7 +769,7 @@ fn add_to_listing() -> Result<(), anyhow::Error> {
         None,
         None,
         None,
-        None
+        None,
     );
     let one_juno = coins(1, "ujunox");
     let res: Result<AppResponse> = router.execute_contract(
@@ -1011,7 +1010,7 @@ fn remove_a_listing() -> Result<(), anyhow::Error> {
         // whitelisted purchasers
         None,
         None,
-        None
+        None,
     );
     // For sale 1 ujunox
     let one_juno = coins(1, "ujunox");
@@ -1057,7 +1056,7 @@ fn remove_a_listing() -> Result<(), anyhow::Error> {
         // whitelisted purchasers
         None,
         None,
-        None
+        None,
     );
     // Listing for sale, 1 ujunox
     let one_juno = coins(1, "ujunox");
@@ -1318,7 +1317,7 @@ fn finalize_a_listing() -> Result<(), anyhow::Error> {
         // whitelisted purchasers
         None,
         None,
-        None
+        None,
     );
     // For sale 1 ujunox
     let one_juno = coins(1, "ujunox");
@@ -1364,7 +1363,7 @@ fn finalize_a_listing() -> Result<(), anyhow::Error> {
         // whitelisted purchasers
         None,
         None,
-        None
+        None,
     );
     // Listing for sale, 1 ujunox
     let one_juno = coins(1, "ujunox");
@@ -1682,7 +1681,7 @@ fn expiration_checks() -> Result<(), anyhow::Error> {
         // whitelisted purchasers
         None,
         None,
-        None
+        None,
     );
     // For sale 1 ujunox
     let one_juno = coins(1, "ujunox");
@@ -2156,7 +2155,7 @@ fn marketplace_sale() -> Result<(), anyhow::Error> {
         //whitelisted_purchasers: Some(vec![sam.address.to_string(), john.address.to_string()]),
         whitelist_buyer_one: Some(sam.address.to_string()),
         whitelist_buyer_two: Some(john.address.to_string()),
-        whitelist_buyer_three: None
+        whitelist_buyer_three: None,
     };
     let clm = crate::msg::ExecuteMsg::CreateListing {
         create_msg: cl,
@@ -2779,7 +2778,7 @@ fn cant_buy_expired() -> Result<(), anyhow::Error> {
         //whitelisted_purchasers: None,
         whitelist_buyer_one: None,
         whitelist_buyer_two: None,
-        whitelist_buyer_three: None
+        whitelist_buyer_three: None,
     };
     let clm = crate::msg::ExecuteMsg::CreateListing {
         create_msg: cl,
