@@ -5,8 +5,7 @@ use crate::state::{
     ToGenericBalance, BUCKETS,
 };
 use crate::utils::{
-    calc_fee, check_buyer_whitelisted, get_whitelisted_addresses, get_whitelisted_buyers,
-    normalize_ask, send_tokens_cosmos,
+    calc_fee, get_whitelisted_addresses, normalize_ask, send_tokens_cosmos, EzTime,
 };
 use cosmwasm_std::{Addr, DepsMut, Env, Response};
 use cw20::Balance;
@@ -197,15 +196,8 @@ pub fn execute_create_listing(
         return Err(ContractError::IdAlreadyExists {});
     }
 
-    // let whitelisted_addrs =
-    //     get_whitelisted_addresses(&deps, createlistingmsg.whitelisted_purchasers)?;
-
-    let (wl_buyer_one, wl_buyer_two, wl_buyer_three) = get_whitelisted_buyers(
-        &deps,
-        createlistingmsg.whitelist_buyer_one,
-        createlistingmsg.whitelist_buyer_two,
-        createlistingmsg.whitelist_buyer_three,
-    )?;
+    let whitelisted_addrs =
+        get_whitelisted_addresses(&deps, createlistingmsg.whitelisted_purchasers)?;
 
     let ask_tokens = normalize_ask(createlistingmsg.ask);
 
@@ -222,10 +214,7 @@ pub fn execute_create_listing(
             for_sale: funds_sent.to_generic(),
             ask: ask_tokens,
             claimant: None,
-            //whitelisted_purchasers: whitelisted_addrs,
-            whitelisted_buyer_one: wl_buyer_one,
-            whitelisted_buyer_two: wl_buyer_two,
-            whitelisted_buyer_three: wl_buyer_three,
+            whitelisted_purchasers: whitelisted_addrs,
         },
     )?;
 
@@ -251,15 +240,8 @@ pub fn execute_create_listing_cw20(
         return Err(ContractError::IdAlreadyExists {});
     }
 
-    // let whitelisted_addrs =
-    //     get_whitelisted_addresses(&deps, createlistingmsg.whitelisted_purchasers)?;
-
-    let (wl_buyer_one, wl_buyer_two, wl_buyer_three) = get_whitelisted_buyers(
-        &deps,
-        createlistingmsg.whitelist_buyer_one,
-        createlistingmsg.whitelist_buyer_two,
-        createlistingmsg.whitelist_buyer_three,
-    )?;
+    let whitelisted_addrs =
+        get_whitelisted_addresses(&deps, createlistingmsg.whitelisted_purchasers)?;
 
     let ask_tokens = normalize_ask(createlistingmsg.ask);
 
@@ -275,10 +257,7 @@ pub fn execute_create_listing_cw20(
             for_sale: funds_sent.to_generic(),
             ask: ask_tokens,
             claimant: None,
-            //whitelisted_purchasers: whitelisted_addrs,
-            whitelisted_buyer_one: wl_buyer_one,
-            whitelisted_buyer_two: wl_buyer_two,
-            whitelisted_buyer_three: wl_buyer_three,
+            whitelisted_purchasers: whitelisted_addrs,
         },
     )?;
 
@@ -299,15 +278,8 @@ pub fn execute_create_listing_cw721(
         return Err(ContractError::IdAlreadyExists {});
     }
 
-    // let whitelisted_addrs =
-    //     get_whitelisted_addresses(&deps, createlistingmsg.whitelisted_purchasers)?;
-
-    let (wl_buyer_one, wl_buyer_two, wl_buyer_three) = get_whitelisted_buyers(
-        &deps,
-        createlistingmsg.whitelist_buyer_one,
-        createlistingmsg.whitelist_buyer_two,
-        createlistingmsg.whitelist_buyer_three,
-    )?;
+    let whitelisted_addrs =
+        get_whitelisted_addresses(&deps, createlistingmsg.whitelisted_purchasers)?;
 
     let ask_tokens = normalize_ask(createlistingmsg.ask);
 
@@ -323,10 +295,7 @@ pub fn execute_create_listing_cw721(
             for_sale: genbal_from_nft(nft),
             ask: ask_tokens,
             claimant: None,
-            //whitelisted_purchasers: whitelisted_addrs,
-            whitelisted_buyer_one: wl_buyer_one,
-            whitelisted_buyer_two: wl_buyer_two,
-            whitelisted_buyer_three: wl_buyer_three,
+            whitelisted_purchasers: whitelisted_addrs,
         },
     )?;
 
@@ -677,7 +646,7 @@ pub fn execute_buy_listing(
     // Check that bucket contains required purchase price
     if the_bucket.funds != the_listing.ask {
         return Err(ContractError::FundsSentNotFundsAsked {
-            which: format!("Bucket ID: {}", bucket_id),
+            which: format!("Bucket ID: {bucket_id}"),
         });
     }
     // Check that listing is ready for purchase
@@ -685,13 +654,11 @@ pub fn execute_buy_listing(
         return Err(ContractError::NotPurchasable {});
     }
     // Check that the user buying is whitelisted
-    check_buyer_whitelisted(buyer, &the_listing)?;
-    // if let Some(whitelist) = the_listing.whitelisted_purchasers.clone() {
-    //     if !whitelist.contains(buyer) {
-    //         return Err(ContractError::NotWhitelisted {});
-    //     }
-    // }
-
+    if let Some(whitelist) = the_listing.whitelisted_purchasers.clone() {
+        if !whitelist.contains(buyer) {
+            return Err(ContractError::NotWhitelisted {});
+        }
+    }
     // Check that there's no existing claimant on listing
     if the_listing.claimant.is_some() {
         return Err(ContractError::NotPurchasable {});

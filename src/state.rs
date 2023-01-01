@@ -23,22 +23,11 @@ pub struct Config {
 pub struct ListingIndexes<'a> {
     pub id: UniqueIndex<'a, String, Listing, (&'a Addr, String)>,
     pub finalized_date: MultiIndex<'a, u64, Listing, (&'a Addr, String)>,
-
-    // Key = (whitelisted buyer, listing_id)
-    pub whitelisted_one: UniqueIndex<'a, (String, String), Listing, (&'a Addr, String)>,
-    pub whitelisted_two: UniqueIndex<'a, (String, String), Listing, (&'a Addr, String)>,
-    pub whitelisted_three: UniqueIndex<'a, (String, String), Listing, (&'a Addr, String)>,
 }
 
 impl IndexList<Listing> for ListingIndexes<'_> {
     fn get_indexes(&'_ self) -> Box<dyn Iterator<Item = &'_ dyn Index<Listing>> + '_> {
-        let v: Vec<&dyn Index<Listing>> = vec![
-            &self.id,
-            &self.finalized_date,
-            &self.whitelisted_one,
-            &self.whitelisted_two,
-            &self.whitelisted_three,
-        ];
+        let v: Vec<&dyn Index<Listing>> = vec![&self.id, &self.finalized_date];
         Box::new(v.into_iter())
     }
 }
@@ -51,42 +40,6 @@ pub fn listingz<'a>() -> IndexedMap<'a, (&'a Addr, String), Listing, ListingInde
             |_pk, a_listing| a_listing.finalized_time.map_or(0_u64, |x| x.seconds()),
             "listings_im",
             "listing__finalized__date",
-        ),
-        whitelisted_one: UniqueIndex::new(
-            |listing| {
-                (
-                    listing
-                        .whitelisted_buyer_one
-                        .clone()
-                        .map_or_else(|| "1".to_string(), |addr| addr.to_string()),
-                    listing.id.clone(),
-                )
-            },
-            "listing__whitelisted__one",
-        ),
-        whitelisted_two: UniqueIndex::new(
-            |listing| {
-                (
-                    listing
-                        .whitelisted_buyer_two
-                        .clone()
-                        .map_or_else(|| "2".to_string(), |addr| addr.to_string()),
-                    listing.id.clone(),
-                )
-            },
-            "listing__whitelisted__two",
-        ),
-        whitelisted_three: UniqueIndex::new(
-            |listing| {
-                (
-                    listing
-                        .whitelisted_buyer_three
-                        .clone()
-                        .map_or_else(|| "3".to_string(), |addr| addr.to_string()),
-                    listing.id.clone(),
-                )
-            },
-            "listing__whitelisted__three",
         ),
     };
 
@@ -110,10 +63,7 @@ pub struct Listing {
     pub expiration_time: Option<Timestamp>,
     pub status: Status,
     pub claimant: Option<Addr>,
-    //pub whitelisted_purchasers: Option<Vec<Addr>>,
-    pub whitelisted_buyer_one: Option<Addr>,
-    pub whitelisted_buyer_two: Option<Addr>,
-    pub whitelisted_buyer_three: Option<Addr>,
+    pub whitelisted_purchasers: Option<Vec<Addr>>,
 
     pub for_sale: GenericBalance,
 
