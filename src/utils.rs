@@ -1,12 +1,8 @@
 use crate::error::ContractError;
 use crate::state::GenericBalance;
-use chrono::{Datelike, NaiveDateTime, Timelike};
-use cosmwasm_schema::cw_serde;
 
 use cosmwasm_std::coins;
-use cosmwasm_std::{
-    to_binary, Addr, BankMsg, CosmosMsg, DepsMut, Empty, StdError, StdResult, WasmMsg,
-};
+use cosmwasm_std::{to_binary, Addr, BankMsg, CosmosMsg, DepsMut, Empty, StdResult, WasmMsg};
 use cw20::Cw20ExecuteMsg;
 use cw721::Cw721ExecuteMsg;
 
@@ -68,37 +64,33 @@ pub fn send_tokens_cosmos(to: &Addr, balance: &GenericBalance) -> StdResult<Vec<
     Ok(msgs)
 }
 
-pub fn normalize_ask(ask: GenericBalance) -> GenericBalance {
+// Validate Ask
+// Removes any 0 values, returns error if duplicate is found
+pub fn normalize_ask_error_on_dup(ask: GenericBalance) -> Result<GenericBalance, ContractError> {
     let mut normalized = ask;
 
-    // drop 0's
+    // Remove 0 values
     normalized.native.retain(|c| c.amount.u128() != 0);
-    // sort
-    normalized.native.sort_unstable_by(|a, b| a.denom.cmp(&b.denom));
 
-    // find all i where (self[i-1].denom == self[i].denom).
-    let mut dups: Vec<usize> = normalized
-        .native
-        .iter()
-        .enumerate()
-        .filter_map(|(i, c)| {
-            if i != 0 && c.denom == normalized.native[i - 1].denom {
-                Some(i)
-            } else {
-                None
-            }
-        })
-        .collect();
-    dups.reverse();
+    let dup_check = |mut val: GenericBalance| -> Result<(), ContractError> {
+        // Sort
+        val.native.sort_unstable_by(|a, b| a.denom.cmp(&b.denom));
+        // Length of original
+        let len_pre_dedup = val.native.len();
+        // Dedup
+        val.native.dedup_by_key(|i| i.denom.clone());
+        // Length after dedup
+        let len_post_dedup = val.native.len();
+        // If lengths different, dupes were found so return error
+        if len_pre_dedup != len_post_dedup {
+            return Err(ContractError::GenericError("Duplicates found in Ask Price".to_string()));
+        };
 
-    // we go through the dups in reverse order (to avoid shifting indexes of other ones)
-    for dup in dups {
-        let add = normalized.native[dup].amount;
-        normalized.native[dup - 1].amount += add;
-        normalized.native.remove(dup);
-    }
+        Ok(())
+    };
 
-    normalized
+    dup_check(normalized.clone())?;
+    Ok(normalized)
 }
 
 pub fn calc_fee(balance: &GenericBalance) -> StdResult<Option<(CosmosMsg, GenericBalance)>> {

@@ -5,7 +5,7 @@ use crate::state::{
     ToGenericBalance, BUCKETS,
 };
 use crate::utils::{
-    calc_fee, get_whitelisted_addresses, normalize_ask, send_tokens_cosmos, EzTime,
+    calc_fee, get_whitelisted_addresses, normalize_ask_error_on_dup, send_tokens_cosmos,
 };
 use cosmwasm_std::{Addr, DepsMut, Env, Response};
 use cw20::Balance;
@@ -199,7 +199,7 @@ pub fn execute_create_listing(
     let whitelisted_addrs =
         get_whitelisted_addresses(&deps, createlistingmsg.whitelisted_purchasers)?;
 
-    let ask_tokens = normalize_ask(createlistingmsg.ask);
+    let ask_tokens = normalize_ask_error_on_dup(createlistingmsg.ask)?;
 
     // Save listing
     listingz().save(
@@ -243,7 +243,7 @@ pub fn execute_create_listing_cw20(
     let whitelisted_addrs =
         get_whitelisted_addresses(&deps, createlistingmsg.whitelisted_purchasers)?;
 
-    let ask_tokens = normalize_ask(createlistingmsg.ask);
+    let ask_tokens = normalize_ask_error_on_dup(createlistingmsg.ask)?;
 
     listingz().save(
         deps.storage,
@@ -281,7 +281,7 @@ pub fn execute_create_listing_cw721(
     let whitelisted_addrs =
         get_whitelisted_addresses(&deps, createlistingmsg.whitelisted_purchasers)?;
 
-    let ask_tokens = normalize_ask(createlistingmsg.ask);
+    let ask_tokens = normalize_ask_error_on_dup(createlistingmsg.ask)?;
 
     listingz().save(
         deps.storage,
@@ -339,7 +339,7 @@ pub fn execute_change_ask(
         return Err(ContractError::Unauthorized {});
     }
 
-    let new_ask_tokens = normalize_ask(new_ask);
+    let new_ask_tokens = normalize_ask_error_on_dup(new_ask)?;
 
     listingz().replace(
         deps.storage,
