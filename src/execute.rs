@@ -69,6 +69,23 @@ pub fn execute_create_bucket_cw721(
     Ok(Response::default())
 }
 
+fn get_bucket_if_sender_is_owner(
+    deps: &DepsMut,
+    sender: &Addr,
+    bucket_id: &str,
+) -> Result<Bucket, ContractError> {
+    let Some(the_bucket) = BUCKETS.may_load(deps.storage, (sender.clone(), bucket_id))? else {
+        return Err(ContractError::NotFound { typ: "Bucket".to_string(), id: bucket_id.to_string() })
+    };
+
+    // Authorized check
+    if sender != &the_bucket.owner {
+        return Err(ContractError::Unauthorized {});
+    }
+
+    Ok(the_bucket)
+}
+
 pub fn execute_add_to_bucket(
     deps: DepsMut,
     funds: Balance,
@@ -80,15 +97,7 @@ pub fn execute_add_to_bucket(
         return Err(ContractError::NoTokens {});
     }
 
-    // Ensure bucket exists & Sender is owner
-    let Some(the_bucket) = BUCKETS.may_load(deps.storage, (sender.clone(), &bucket_id))? else {
-        return Err(ContractError::NotFound { typ: "Bucket".to_string(), id: bucket_id })
-    };
-
-    // Authorized check
-    if sender != &the_bucket.owner {
-        return Err(ContractError::Unauthorized {});
-    }
+    let the_bucket = get_bucket_if_sender_is_owner(&deps, sender, &bucket_id)?;
 
     // Add tokens
     let new_bucket = {
@@ -116,15 +125,7 @@ pub fn execute_add_to_bucket_cw721(
     nft: Nft,
     bucket_id: String,
 ) -> Result<Response, ContractError> {
-    // Ensure bucket exists & Sender is owner
-    let Some(the_bucket) = BUCKETS.may_load(deps.storage, (user_wallet.clone(), &bucket_id))? else {
-        return Err(ContractError::NotFound { typ: "Bucket".to_string(), id: bucket_id })
-    };
-
-    // Authorized check
-    if user_wallet != &the_bucket.owner {
-        return Err(ContractError::Unauthorized {});
-    }
+    let the_bucket = get_bucket_if_sender_is_owner(&deps, user_wallet, &bucket_id)?;
 
     // Create updated bucket
     let new_bucket = {
@@ -153,22 +154,16 @@ pub fn execute_add_to_bucket_cw721(
 
 pub fn execute_withdraw_bucket(
     deps: DepsMut,
-    user: &Addr,
+    user_wallet: &Addr,
     bucket_id: &str,
 ) -> Result<Response, ContractError> {
-    // Get Bucket
-    let the_bucket = BUCKETS.load(deps.storage, (user.clone(), bucket_id))?;
-
-    // Check sender is owner
-    if &the_bucket.owner != user {
-        return Err(ContractError::Unauthorized {});
-    }
+    let the_bucket = get_bucket_if_sender_is_owner(&deps, user_wallet, bucket_id)?;
 
     // Create Send Msgs
-    let msgs = send_tokens_cosmos(user, &the_bucket.funds)?;
+    let msgs = send_tokens_cosmos(user_wallet, &the_bucket.funds)?;
 
     // Remove Bucket
-    BUCKETS.remove(deps.storage, (user.clone(), bucket_id));
+    BUCKETS.remove(deps.storage, (user_wallet.clone(), bucket_id));
 
     Ok(Response::new()
         .add_attribute("action", "empty_bucket")
@@ -179,6 +174,23 @@ pub fn execute_withdraw_bucket(
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // Listings
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+fn validate_basic_new_listing(
+    deps: &DepsMut,
+    listing_id: &str,
+    bal: GenericBalance,
+) -> Result<GenericBalance, ContractError> {
+    // Check ID isn't taken
+    if (listingz().idx.id.item(deps.storage, listing_id.to_string())?).is_some() {
+        return Err(ContractError::IdAlreadyExists {});
+    }
+
+    let ask_tokens = normalize_ask_error_on_dup(bal)?;
+
+    // todo: add get_whitelisted_addresses here too
+
+    Ok(ask_tokens)
+}
 
 pub fn execute_create_listing(
     deps: DepsMut,
@@ -191,15 +203,10 @@ pub fn execute_create_listing(
         return Err(ContractError::NoTokens {});
     }
 
-    // Check ID isn't taken
-    if (listingz().idx.id.item(deps.storage, createlistingmsg.id.clone())?).is_some() {
-        return Err(ContractError::IdAlreadyExists {});
-    }
+    let ask_tokens = validate_basic_new_listing(&deps, &createlistingmsg.id, createlistingmsg.ask)?;
 
     let whitelisted_addrs =
         get_whitelisted_addresses(&deps, createlistingmsg.whitelisted_purchasers)?;
-
-    let ask_tokens = normalize_ask_error_on_dup(createlistingmsg.ask)?;
 
     // Save listing
     listingz().save(
@@ -235,15 +242,10 @@ pub fn execute_create_listing_cw20(
         return Err(ContractError::NoTokens {});
     }
 
-    // Checking to make sure that listing_id isn't taken
-    if (listingz().idx.id.item(deps.storage, createlistingmsg.id.clone())?).is_some() {
-        return Err(ContractError::IdAlreadyExists {});
-    }
+    let ask_tokens = validate_basic_new_listing(&deps, &createlistingmsg.id, createlistingmsg.ask)?;
 
     let whitelisted_addrs =
         get_whitelisted_addresses(&deps, createlistingmsg.whitelisted_purchasers)?;
-
-    let ask_tokens = normalize_ask_error_on_dup(createlistingmsg.ask)?;
 
     listingz().save(
         deps.storage,
@@ -273,15 +275,10 @@ pub fn execute_create_listing_cw721(
     nft: Nft,
     createlistingmsg: CreateListingMsg,
 ) -> Result<Response, ContractError> {
-    // Checking to make sure that listing_id isn't taken
-    if (listingz().idx.id.item(deps.storage, createlistingmsg.id.clone())?).is_some() {
-        return Err(ContractError::IdAlreadyExists {});
-    }
+    let ask_tokens = validate_basic_new_listing(&deps, &createlistingmsg.id, createlistingmsg.ask)?;
 
     let whitelisted_addrs =
         get_whitelisted_addresses(&deps, createlistingmsg.whitelisted_purchasers)?;
-
-    let ask_tokens = normalize_ask_error_on_dup(createlistingmsg.ask)?;
 
     listingz().save(
         deps.storage,
@@ -305,17 +302,16 @@ pub fn execute_create_listing_cw721(
         .add_attribute("creator", user_wallet.to_string()))
 }
 
-pub fn execute_change_ask(
-    deps: DepsMut,
+fn validate_basic_listings(
+    deps: &DepsMut,
     user_sender: &Addr,
-    listing_id: String,
-    new_ask: GenericBalance,
-) -> Result<Response, ContractError> {
+    listing_id: &str,
+) -> Result<Listing, ContractError> {
     // Ensure listing exists, sender is owner, & get listing
-    let Some(listing) = listingz().may_load(deps.storage, (user_sender, listing_id.clone()))? else {
+    let Some(listing) = listingz().may_load(deps.storage, (user_sender, listing_id.to_string()))? else {
         return Err(ContractError::NotFound {
             typ: "Listing".to_string(),
-            id: listing_id
+            id: listing_id.to_string()
         });
     };
 
@@ -338,6 +334,17 @@ pub fn execute_change_ask(
     if listing.claimant.is_some() {
         return Err(ContractError::Unauthorized {});
     }
+
+    Ok(listing)
+}
+
+pub fn execute_change_ask(
+    deps: DepsMut,
+    user_sender: &Addr,
+    listing_id: String,
+    new_ask: GenericBalance,
+) -> Result<Response, ContractError> {
+    let listing = validate_basic_listings(&deps, user_sender, &listing_id)?;
 
     let new_ask_tokens = normalize_ask_error_on_dup(new_ask)?;
 
@@ -367,28 +374,7 @@ pub fn execute_add_funds_to_sale(
         return Err(ContractError::NoTokens {});
     }
 
-    // Ensure listing exists & get listing
-    let Some(listing) = listingz().may_load(deps.storage, (user_sender, listing_id.clone()))? else {
-        return Err(ContractError::NotFound {
-            typ: "Listing".to_string(),
-            id: listing_id
-        });
-    };
-
-    // Ensure sender is Creator
-    if user_sender != &listing.creator {
-        return Err(ContractError::Unauthorized {});
-    }
-
-    // Ensure status is InPreperation
-    if listing.status != Status::BeingPrepared {
-        return Err(ContractError::AlreadyFinalized {});
-    }
-
-    // Ensure no claimant <not already purchased>
-    if listing.claimant.is_some() {
-        return Err(ContractError::Unauthorized {});
-    }
+    let listing = validate_basic_listings(&deps, user_sender, &listing_id)?;
 
     // Update old listing by adding tokens
     let new_listing = {
@@ -420,28 +406,7 @@ pub fn execute_add_to_sale_cw721(
     nft: Nft,
     listing_id: String,
 ) -> Result<Response, ContractError> {
-    // Ensure listing exists & get listing
-    let Some(old_listing) = listingz().may_load(deps.storage, (user_wallet, listing_id.clone()))? else {
-        return Err(ContractError::NotFound {
-            typ: "Listing".to_string(),
-            id: listing_id,
-        });
-    };
-
-    // Ensure sender is Creator
-    if user_wallet != &old_listing.creator {
-        return Err(ContractError::Unauthorized {});
-    }
-
-    // Ensure status is InPreperation
-    if old_listing.status != Status::BeingPrepared {
-        return Err(ContractError::AlreadyFinalized {});
-    }
-
-    // Ensure no claimant <not already purchased>
-    if old_listing.claimant.is_some() {
-        return Err(ContractError::Unauthorized {});
-    }
+    let old_listing = validate_basic_listings(&deps, user_wallet, &listing_id)?;
 
     // Create updated listing
     let new_listing = {
@@ -471,28 +436,7 @@ pub fn execute_remove_listing(
     user_sender: &Addr,
     listing_id: String,
 ) -> Result<Response, ContractError> {
-    // Check listing exists & get listing
-    let Some(listing) = listingz().may_load(deps.storage, (user_sender, listing_id.clone()))? else {
-        return Err(ContractError::NotFound {
-            typ: "Listing".to_string(),
-            id: listing_id,
-        });
-    };
-
-    // Only listing creator can remove listing
-    if &listing.creator != user_sender {
-        return Err(ContractError::Unauthorized {});
-    }
-
-    // Only can be removed if status is BeingPrepared
-    if listing.status != Status::BeingPrepared {
-        return Err(ContractError::AlreadyFinalized {});
-    }
-
-    // Only can be removed if has not yet been purchased
-    if listing.claimant.is_some() {
-        return Err(ContractError::Unauthorized {});
-    }
+    let listing = validate_basic_listings(&deps, user_sender, &listing_id)?;
 
     // Delete listing & send funds back to user
     let msgs = send_tokens_cosmos(&listing.creator, &listing.for_sale)?;
@@ -505,37 +449,11 @@ pub fn execute_remove_listing(
 pub fn execute_finalize(
     deps: DepsMut,
     env: &Env,
-    sender: &Addr,
+    user_sender: &Addr,
     listing_id: String,
     seconds: u64,
 ) -> Result<Response, ContractError> {
-    // Ensure listing exists & get listing
-    let Some(listing) = listingz().may_load(deps.storage, (sender, listing_id.clone()))? else {
-        return Err(ContractError::NotFound {
-            typ: "Listing".to_string(),
-            id: listing_id,
-        });
-    };
-
-    // Ensure sender is owner
-    if sender != &listing.creator {
-        return Err(ContractError::Unauthorized {});
-    }
-
-    // Ensure no finalized time
-    if listing.finalized_time.is_some() {
-        return Err(ContractError::AlreadyFinalized {});
-    }
-
-    // Ensure being prepared
-    if listing.status != Status::BeingPrepared {
-        return Err(ContractError::AlreadyFinalized {});
-    }
-
-    // Ensure no Claimant
-    if listing.claimant.is_some() {
-        return Err(ContractError::Unauthorized {});
-    }
+    let listing = validate_basic_listings(&deps, user_sender, &listing_id)?;
 
     // max expiration is 1209600 seconds <14 days>
     // min expiration is 600 seconds <10 minutes>
@@ -548,7 +466,7 @@ pub fn execute_finalize(
 
     listingz().replace(
         deps.storage,
-        (sender, listing_id.clone()),
+        (user_sender, listing_id.clone()),
         Some(&Listing {
             finalized_time: Some(finalized_at),
             expiration_time: Some(expiration),
@@ -700,6 +618,7 @@ pub fn execute_buy_listing(
         .add_attribute("listing_purchased:", &listing_id))
 }
 
+// TODO: merge this in with buy_listing function above
 pub fn execute_withdraw_purchased(
     deps: DepsMut,
     withdrawer: &Addr,
