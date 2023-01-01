@@ -28,13 +28,6 @@ pub struct ListingIndexes<'a> {
     pub whitelisted_one: UniqueIndex<'a, (String, String), Listing, (&'a Addr, String)>,
     pub whitelisted_two: UniqueIndex<'a, (String, String), Listing, (&'a Addr, String)>,
     pub whitelisted_three: UniqueIndex<'a, (String, String), Listing, (&'a Addr, String)>,
-
-
-
-    //pub whitelisted_buyers: MultiIndex<'a, 
-    // Index here takes all whitelisted buyers, turns the addresses into strings, then concatenates them into 
-    // 1 single string seperated by ,
-    // when querying for a listing that contains 1, we 
 }
 
 impl IndexList<Listing> for ListingIndexes<'_> {

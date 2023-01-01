@@ -5,7 +5,7 @@ use crate::state::{
     ToGenericBalance, BUCKETS,
 };
 use crate::utils::{
-    calc_fee, get_whitelisted_addresses, normalize_ask, send_tokens_cosmos, EzTime, get_whitelisted_buyers, check_buyer_whitelisted,
+    calc_fee, get_whitelisted_addresses, normalize_ask, send_tokens_cosmos, get_whitelisted_buyers, check_buyer_whitelisted,
 };
 use cosmwasm_std::{Addr, DepsMut, Env, Response};
 use cw20::Balance;
@@ -635,7 +635,7 @@ pub fn execute_refund(
         Some(timestamp) => {
             if env.block.time < timestamp {
                 return Err(ContractError::NotExpired {
-                    x: timestamp.eztime_string()?,
+                    x: timestamp.seconds().to_string(),
                 });
             }
         }

@@ -1,5 +1,4 @@
 use crate::state::{listingz, Bucket, Config, Listing, Status, BUCKETS, CONFIG};
-use crate::utils::EzTime;
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{StdError, Addr};
 use cosmwasm_std::{Deps, Env, Order, StdResult};
@@ -113,7 +112,7 @@ pub fn get_listing_info(deps: Deps, listing_id: String) -> StdResult<ListingInfo
     };
 
     if let Some(x) = listing.expiration_time {
-        res.expiration = x.eztime_string()?;
+        res.expiration = x.seconds().to_string();
     };
 
     Ok(res)

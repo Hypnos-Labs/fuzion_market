@@ -1,7 +1,5 @@
 use crate::error::ContractError;
 use crate::state::{GenericBalance, Listing};
-use chrono::{Datelike, NaiveDateTime, Timelike};
-use cosmwasm_schema::cw_serde;
 
 use cosmwasm_std::coins;
 use cosmwasm_std::{
@@ -104,7 +102,6 @@ pub fn normalize_ask_error_on_dup(ask: GenericBalance) -> Result<GenericBalance,
     };
 }
 
-
 pub fn normalize_ask(ask: GenericBalance) -> GenericBalance {
     let mut normalized = ask;
 
@@ -181,12 +178,6 @@ pub fn get_whitelisted_buyers(
     wl_three: Option<String>
 ) -> Result<(Option<Addr>, Option<Addr>, Option<Addr>), ContractError> {
 
-    // let wl_one = createlistingmsg
-    //     .whitelist_buyer_one
-    //     .and_then(|addr| Some(deps.api.addr_validate(&addr)))
-    //     .transpose()
-    //     .map_err(|_| ContractError::GenericError("Invalid whitelisted purchaser one".to_string()))?;
-
     let buyer_one = wl_one
         .and_then(|addr| Some(deps.api.addr_validate(&addr)))
         .transpose()
@@ -229,9 +220,6 @@ pub fn check_buyer_whitelisted(
 
 }
 
-
-
-
 /// Get allowed purchasers for a given listing.
 /// If any address string is not valid, returns an error
 pub fn get_whitelisted_addresses(
@@ -255,150 +243,4 @@ pub fn get_whitelisted_addresses(
         .collect::<Result<Vec<Addr>, ContractError>>()?;
 
     Ok(Some(valid))
-}
-
-#[cw_serde]
-pub struct EzTimeStruct {
-    pub year: u32,
-    pub month: u32,
-    pub day: u32,
-    pub hour: u32,
-    pub minute: u32,
-    pub second: u32,
-}
-
-pub trait EzTime {
-    fn eztime_struct(&self) -> StdResult<EzTimeStruct>;
-    fn eztime_string(&self) -> StdResult<String>;
-}
-
-impl EzTime for cosmwasm_std::Timestamp {
-    fn eztime_struct(&self) -> StdResult<EzTimeStruct> {
-        let seconds = &self.seconds();
-        let nano = &self.subsec_nanos();
-
-        let Some(dt) = NaiveDateTime::from_timestamp_opt(*seconds as i64, *nano as u32) else {
-            return Err(StdError::GenericErr { msg: "Invalid Timestamp".to_string() });
-        };
-
-        Ok(EzTimeStruct {
-            year: dt.year() as u32,
-            month: dt.month(),
-            day: dt.day(),
-            hour: dt.hour(),
-            minute: dt.minute(),
-            second: dt.second(),
-        })
-    }
-
-    fn eztime_string(&self) -> StdResult<String> {
-        let seconds = &self.seconds();
-        let nano = &self.subsec_nanos();
-
-        let Some(dt) = NaiveDateTime::from_timestamp_opt(*seconds as i64, *nano as u32) else {
-            return Err(StdError::GenericErr { msg: "Invalid Timestamp".to_string() });
-        };
-
-        match dt.month() {
-            1 => Ok(format!(
-                "January {}, {} | {}:{}:{} UTC",
-                dt.day(),
-                dt.year(),
-                dt.hour(),
-                dt.minute(),
-                dt.second()
-            )),
-            2 => Ok(format!(
-                "February {}, {} | {}:{}:{} UTC",
-                dt.day(),
-                dt.year(),
-                dt.hour(),
-                dt.minute(),
-                dt.second()
-            )),
-            3 => Ok(format!(
-                "March {}, {} | {}:{}:{} UTC",
-                dt.day(),
-                dt.year(),
-                dt.hour(),
-                dt.minute(),
-                dt.second()
-            )),
-            4 => Ok(format!(
-                "April {}, {} | {}:{}:{} UTC",
-                dt.day(),
-                dt.year(),
-                dt.hour(),
-                dt.minute(),
-                dt.second()
-            )),
-            5 => Ok(format!(
-                "May {}, {} | {}:{}:{} UTC",
-                dt.day(),
-                dt.year(),
-                dt.hour(),
-                dt.minute(),
-                dt.second()
-            )),
-            6 => Ok(format!(
-                "June {}, {} | {}:{}:{} UTC",
-                dt.day(),
-                dt.year(),
-                dt.hour(),
-                dt.minute(),
-                dt.second()
-            )),
-            7 => Ok(format!(
-                "July {}, {} | {}:{}:{} UTC",
-                dt.day(),
-                dt.year(),
-                dt.hour(),
-                dt.minute(),
-                dt.second()
-            )),
-            8 => Ok(format!(
-                "August {}, {} | {}:{}:{} UTC",
-                dt.day(),
-                dt.year(),
-                dt.hour(),
-                dt.minute(),
-                dt.second()
-            )),
-            9 => Ok(format!(
-                "September {}, {} | {}:{}:{} UTC",
-                dt.day(),
-                dt.year(),
-                dt.hour(),
-                dt.minute(),
-                dt.second()
-            )),
-            10 => Ok(format!(
-                "October {}, {} | {}:{}:{} UTC",
-                dt.day(),
-                dt.year(),
-                dt.hour(),
-                dt.minute(),
-                dt.second()
-            )),
-            11 => Ok(format!(
-                "November {}, {} | {}:{}:{} UTC",
-                dt.day(),
-                dt.year(),
-                dt.hour(),
-                dt.minute(),
-                dt.second()
-            )),
-            12 => Ok(format!(
-                "December {}, {} | {}:{}:{} UTC",
-                dt.day(),
-                dt.year(),
-                dt.hour(),
-                dt.minute(),
-                dt.second()
-            )),
-            _ => Err(StdError::GenericErr {
-                msg: "Invalid Timestamp".to_string(),
-            }),
-        }
-    }
 }
