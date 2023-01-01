@@ -1,10 +1,8 @@
 use crate::error::ContractError;
-use crate::state::{GenericBalance, Listing};
+use crate::state::GenericBalance;
 
 use cosmwasm_std::coins;
-use cosmwasm_std::{
-    to_binary, Addr, BankMsg, CosmosMsg, DepsMut, Empty, StdError, StdResult, WasmMsg,
-};
+use cosmwasm_std::{to_binary, Addr, BankMsg, CosmosMsg, DepsMut, Empty, StdResult, WasmMsg};
 use cw20::Cw20ExecuteMsg;
 use cw721::Cw721ExecuteMsg;
 
@@ -13,22 +11,22 @@ const COMMUNITY_POOL: &str = "juno1jv65s3grqf6v6jl3dp4t6c9t9rk99cd83d88wr";
 // use fake contract address for testnet
 //const COMMUNITY_POOL: &str = ""
 
-pub fn send_tokens_cosmos(to: &Addr, balance: &GenericBalance) -> StdResult<Vec<CosmosMsg>> {
-    let native_balance = &balance.native;
-    let mut msgs: Vec<CosmosMsg> = if native_balance.is_empty() {
-        vec![]
-    } else {
-        vec![CosmosMsg::from(BankMsg::Send {
-            to_address: to.into(),
-            amount: native_balance.clone(),
-        })]
-    };
+const NATIVE: &str = "ujunox";
 
-    let cw20_balance = &balance.cw20;
-    let cw20_msgs: StdResult<Vec<_>> = cw20_balance
+pub fn send_tokens_cosmos(to: &Addr, balance: &GenericBalance) -> StdResult<Vec<CosmosMsg>> {
+    let mut msgs = Vec::new();
+
+    if !balance.native.is_empty() {
+        msgs.push(CosmosMsg::from(BankMsg::Send {
+            to_address: to.into(),
+            amount: balance.native.clone(),
+        }));
+    }
+
+    let cw20_msgs: StdResult<Vec<_>> = balance
+        .cw20
         .iter()
         .map(|c| {
-            // Only works if recipient is User Address, doesn't work for DAO / Contracts
             let msg = Cw20ExecuteMsg::Transfer {
                 recipient: to.into(),
                 amount: c.amount,
@@ -36,16 +34,15 @@ pub fn send_tokens_cosmos(to: &Addr, balance: &GenericBalance) -> StdResult<Vec<
             let exec = CosmosMsg::from(WasmMsg::Execute {
                 contract_addr: c.address.to_string(),
                 msg: to_binary(&msg)?,
-                funds: vec![],
+                funds: Vec::new(),
             });
             Ok(exec)
         })
         .collect();
-
     msgs.extend(cw20_msgs?);
 
-    let nft_balance = &balance.nfts;
-    let nft_msgs: StdResult<Vec<CosmosMsg<Empty>>> = nft_balance
+    let nft_msgs: StdResult<Vec<CosmosMsg<Empty>>> = balance
+        .nfts
         .iter()
         .map(|n| {
             let msg = Cw721ExecuteMsg::TransferNft {
@@ -55,12 +52,11 @@ pub fn send_tokens_cosmos(to: &Addr, balance: &GenericBalance) -> StdResult<Vec<
             let exec = CosmosMsg::from(WasmMsg::Execute {
                 contract_addr: n.contract_address.to_string(),
                 msg: to_binary(&msg)?,
-                funds: vec![],
+                funds: Vec::new(),
             });
             Ok(exec)
         })
         .collect();
-
     msgs.extend(nft_msgs?);
 
     Ok(msgs)
@@ -91,50 +87,12 @@ pub fn normalize_ask_error_on_dup(ask: GenericBalance) -> Result<GenericBalance,
         Ok(())
     };
 
-    // If error, return that error
-    if let Err(e) = dup_check(normalized.clone()) {
-        return Err(e);
-    // Else return normalized after removing the 0 values
-    } else {
-        return Ok(normalized);
-    };
-}
-
-pub fn normalize_ask(ask: GenericBalance) -> GenericBalance {
-    let mut normalized = ask;
-
-    // drop 0's
-    normalized.native.retain(|c| c.amount.u128() != 0);
-    // sort
-    normalized.native.sort_unstable_by(|a, b| a.denom.cmp(&b.denom));
-
-    // find all i where (self[i-1].denom == self[i].denom).
-    let mut dups: Vec<usize> = normalized
-        .native
-        .iter()
-        .enumerate()
-        .filter_map(|(i, c)| {
-            if i != 0 && c.denom == normalized.native[i - 1].denom {
-                Some(i)
-            } else {
-                None
-            }
-        })
-        .collect();
-    dups.reverse();
-
-    // we go through the dups in reverse order (to avoid shifting indexes of other ones)
-    for dup in dups {
-        let add = normalized.native[dup].amount;
-        normalized.native[dup - 1].amount += add;
-        normalized.native.remove(dup);
-    }
-
-    normalized
+    dup_check(normalized.clone())?;
+    Ok(normalized)
 }
 
 pub fn calc_fee(balance: &GenericBalance) -> StdResult<Option<(CosmosMsg, GenericBalance)>> {
-    let juno_in_balance = balance.native.iter().find(|n| n.denom == *"ujunox");
+    let juno_in_balance = balance.native.iter().find(|n| n.denom == *NATIVE);
 
     // If balance DOES NOT contain juno, return Ok(None)
     // If balance DOES contain juno, calculate 0.1% of the JUNO in the balance,
@@ -151,15 +109,15 @@ pub fn calc_fee(balance: &GenericBalance) -> StdResult<Option<(CosmosMsg, Generi
 
         let fee_msg: CosmosMsg<Empty> = CosmosMsg::from(BankMsg::Send {
             to_address: COMMUNITY_POOL.to_string(),
-            amount: coins(ten_pips.u128(), "ujunox"),
+            amount: coins(ten_pips.u128(), NATIVE),
         });
 
         let juno_amount_after_fee_removed = juno.amount.checked_sub(ten_pips)?;
 
         let balance_with_fee_removed = {
             let mut x = balance.clone();
-            x.native.retain(|n| n.denom != *"ujunox");
-            x.native.append(&mut coins(juno_amount_after_fee_removed.u128(), "ujunox"));
+            x.native.retain(|n| n.denom != *NATIVE);
+            x.native.append(&mut coins(juno_amount_after_fee_removed.u128(), NATIVE));
             x
         };
 
@@ -169,72 +127,26 @@ pub fn calc_fee(balance: &GenericBalance) -> StdResult<Option<(CosmosMsg, Generi
     }
 }
 
-pub fn get_whitelisted_buyers(
-    deps: &DepsMut,
-    wl_one: Option<String>,
-    wl_two: Option<String>,
-    wl_three: Option<String>,
-) -> Result<(Option<Addr>, Option<Addr>, Option<Addr>), ContractError> {
-    let buyer_one =
-        wl_one.and_then(|addr| Some(deps.api.addr_validate(&addr))).transpose().map_err(|_| {
-            ContractError::GenericError("Invalid whitelisted purchaser one".to_string())
-        })?;
-
-    let buyer_two =
-        wl_two.and_then(|addr| Some(deps.api.addr_validate(&addr))).transpose().map_err(|_| {
-            ContractError::GenericError("Invalid whitelisted purchaser two".to_string())
-        })?;
-
-    let buyer_three =
-        wl_three.and_then(|addr| Some(deps.api.addr_validate(&addr))).transpose().map_err(
-            |_| ContractError::GenericError("Invalid whitelisted purchaser three".to_string()),
-        )?;
-
-    Ok((buyer_one, buyer_two, buyer_three))
-}
-
-pub fn check_buyer_whitelisted(
-    the_buyer: &Addr,
-    the_listing: &Listing,
-) -> Result<(), ContractError> {
-    // Is a vector containing whitelisted buyers, empty vector if no whitelisted buyers
-    let whitelisters: Vec<Addr> = vec![
-        the_listing.whitelisted_buyer_one.clone(),
-        the_listing.whitelisted_buyer_two.clone(),
-        the_listing.whitelisted_buyer_three.clone(),
-    ]
-    .into_iter()
-    .flatten()
-    .collect();
-
-    // If theres > 0 whitelisted buyers & the_buyer is not one of them
-    if whitelisters.len() > 0 && !whitelisters.contains(the_buyer) {
-        return Err(ContractError::NotWhitelisted {});
-    };
-
-    Ok(())
-}
-
 /// Get allowed purchasers for a given listing.
 /// If any address string is not valid, returns an error
 pub fn get_whitelisted_addresses(
     deps: &DepsMut,
     whitelisted_addrs: Option<Vec<String>>,
 ) -> Result<Option<Vec<Addr>>, ContractError> {
-    let Some(addrs) = whitelisted_addrs else {
-        return Ok(None);
-    };
+    if let Some(addrs) = whitelisted_addrs {
+        if addrs.is_empty() {
+            return Ok(None);
+        }
 
-    if addrs.is_empty() {
-        return Ok(None);
-    };
+        let valid: Vec<Addr> = addrs
+            .iter()
+            .map(|address| {
+                deps.api.addr_validate(address).map_err(|_err| ContractError::InvalidAddressFormat)
+            })
+            .collect::<Result<Vec<Addr>, ContractError>>()?;
 
-    let valid: Vec<Addr> = addrs
-        .iter()
-        .map(|address| {
-            deps.api.addr_validate(address).map_err(|_foo| ContractError::InvalidAddressFormat)
-        })
-        .collect::<Result<Vec<Addr>, ContractError>>()?;
-
-    Ok(Some(valid))
+        Ok(Some(valid))
+    } else {
+        Ok(None)
+    }
 }

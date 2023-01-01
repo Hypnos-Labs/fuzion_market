@@ -2,6 +2,8 @@
 # ./github/workflows/e2e.yml
 #
 # sh ./e2e/test_e2e.sh
+#
+# NOTES: anytime you use jq, use `jq -rc` for ASSERT_* functions (-c removes format, -r is raw to remove \" quotes)
 
 # get functions from helpers file 
 # -> query_contract, wasm_cmd, mint_cw721, send_nft_to_listing, send_cw20_to_listing
@@ -167,8 +169,8 @@ compile_and_copy # the compile takes time for the docker container to start up
 set -e
 
 health_status
-add_accounts
 
+add_accounts
 upload_vault
 upload_cw20
 upload_cw721
@@ -198,17 +200,21 @@ ASSERT_EQUAL "$token_uri" "https://m.media-amazon.com/images/I/21IAeMeSa5L.jpg"
 function test_duplicate_ask_denoms {
     # make a listing with 2 unique but duplicate denoms, ensure the denoms are merged correctly on ask
     # failure to do this = the user can not purchase the listing, even if they sent 2ujunox
-    wasm_cmd $VAULT_CONTRACT '{"create_listing":{"create_msg":{"id":"vault_combine","ask":{"native":[{"denom":"ujunox","amount":"1"},{"denom":"ujunox","amount":"1"}],"cw20":[],"nfts":[]}}}}' "1ucosm" dont_show "$JUNOD_COMMAND_ARGS"
-    asking_values=$(query_contract $VAULT_CONTRACT '{"get_listing_info":{"listing_id":"vault_combine"}}' | jq -r '.data.ask')
-    ASSERT_EQUAL $asking_values '[["ujunox","2"]]'
+    wasm_cmd $VAULT_CONTRACT '{"create_listing":{"create_msg":{"id":"vault_duplicate","ask":{"native":[{"denom":"ujunox","amount":"1"},{"denom":"ujunox","amount":"1"}],"cw20":[],"nfts":[]}}}}' "1ucosm" show_logs
+    ASSERT_CONTAINS "$CMD_LOG" "Duplicates found in Ask Price"
+
+    # ensure it removes and 0 denoms, but does not error if no duplicates
+    wasm_cmd $VAULT_CONTRACT '{"create_listing":{"create_msg":{"id":"vault_c1","ask":{"native":[{"denom":"ujunox","amount":"2"},{"denom":"ujunox","amount":"0"}],"cw20":[],"nfts":[]}}}}' "1ucosm" show_logs    
+    asking_values=$(query_contract $VAULT_CONTRACT '{"get_listing_info":{"listing_id":"vault_c1"}}' | jq -rc '.data.ask')
+    ASSERT_EQUAL "$asking_values" '[["ujunox","2"]]'
 
     # finalize
-    wasm_cmd $VAULT_CONTRACT '{"finalize":{"listing_id":"vault_combine","seconds":5000}}' "" show_log
+    wasm_cmd $VAULT_CONTRACT '{"finalize":{"listing_id":"vault_c1","seconds":5000}}' "" show_log
 
     # buy the listing to keep future test clean
     wasm_cmd $VAULT_CONTRACT '{"create_bucket":{"bucket_id":"buyer_com"}}' "2ujunox" show_log
-    wasm_cmd $VAULT_CONTRACT '{"buy_listing":{"listing_id":"vault_combine","bucket_id":"buyer_com"}}' "" show_log 
-    wasm_cmd $VAULT_CONTRACT '{"withdraw_purchased":{"listing_id":"vault_combine"}}' "" dont_show
+    wasm_cmd $VAULT_CONTRACT '{"buy_listing":{"listing_id":"vault_c1","bucket_id":"buyer_com"}}' "" show_log 
+    wasm_cmd $VAULT_CONTRACT '{"withdraw_purchased":{"listing_id":"vault_c1"}}' "" dont_show
 
     # ensure the listing was removed        
     listings=$(query_contract $VAULT_CONTRACT '{"get_all_listings":{}}' --output json)       
