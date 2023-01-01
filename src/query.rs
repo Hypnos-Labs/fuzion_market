@@ -1,7 +1,7 @@
 use crate::state::{listingz, Bucket, Config, Listing, Status, BUCKETS, CONFIG};
 use crate::utils::EzTime;
 use cosmwasm_schema::cw_serde;
-use cosmwasm_std::StdError;
+use cosmwasm_std::{StdError, Addr};
 use cosmwasm_std::{Deps, Env, Order, StdResult};
 use cw_storage_plus::PrefixBound;
 
@@ -93,9 +93,15 @@ pub fn get_listing_info(deps: Deps, listing_id: String) -> StdResult<ListingInfo
         ));
     });
 
+    let whitelisted_accs: Vec<String> = vec![
+        listing.whitelisted_buyer_one,
+        listing.whitelisted_buyer_two,
+        listing.whitelisted_buyer_three
+    ].into_iter().flatten().map(|x: Addr| x.to_string()).collect();
+
     // unwrap, if there are any, then map each Addr to a String
-    let whitelisted_accs =
-        listing.whitelisted_purchasers.unwrap_or_default().iter().map(|x| x.to_string()).collect();
+    // let whitelisted_accs =
+    //     listing.whitelisted_purchasers.unwrap_or_default().iter().map(|x| x.to_string()).collect();
 
     let mut res: ListingInfoResponse = ListingInfoResponse {
         creator: listing.creator.to_string(),
@@ -125,6 +131,71 @@ pub fn get_listings_by_owner(deps: Deps, owner: &str) -> StdResult<MultiListingR
     Ok(MultiListingResponse {
         listings: listing_data,
     })
+}
+
+pub fn get_users_whitelisted_listings(
+    deps: Deps,
+    owner: &str,
+) -> StdResult<MultiListingResponse> {
+
+    let search_whitelist_one: Vec<_> = listingz()
+        .idx
+        .whitelisted_one
+        .prefix(owner.to_string())
+        .range(
+            deps.storage,
+            None,
+            None,
+            Order::Ascending,
+        )
+        .collect::<StdResult<Vec<_>>>() // StdResult<Vec<(PK, Listing)>>
+        .unwrap_or_default()
+        .iter()
+        .map(|entry| entry.1.clone())
+        .collect();
+
+    let search_whitelist_two: Vec<_> = listingz()
+        .idx
+        .whitelisted_two
+        .prefix(owner.to_string())
+        .range(
+            deps.storage,
+            None,
+            None,
+            Order::Ascending,
+        )
+        .collect::<StdResult<Vec<_>>>()
+        .unwrap_or_default()
+        .iter()
+        .map(|entry| entry.1.clone())
+        .collect();
+
+    let search_whitelist_three: Vec<_> = listingz()
+        .idx
+        .whitelisted_three
+        .prefix(owner.to_string())
+        .range(
+            deps.storage,
+            None,
+            None,
+            Order::Ascending,
+        )
+        .collect::<StdResult<Vec<_>>>()
+        .unwrap_or_default()
+        .iter()
+        .map(|entry| entry.1.clone())
+        .collect();
+
+    let all_listings: Vec<_> = search_whitelist_one
+        .into_iter()
+        .chain(search_whitelist_two.into_iter())
+        .chain(search_whitelist_three.into_iter())
+        .collect();
+
+    Ok(MultiListingResponse {
+        listings: all_listings,
+    })
+    
 }
 
 // Limited to 100
@@ -171,6 +242,8 @@ pub fn get_listings_for_market(
         listings: listings_in_range,
     })
 }
+
+
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // Responses

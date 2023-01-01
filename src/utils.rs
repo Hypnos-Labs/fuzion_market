@@ -1,5 +1,5 @@
 use crate::error::ContractError;
-use crate::state::GenericBalance;
+use crate::state::{GenericBalance, Listing};
 use chrono::{Datelike, NaiveDateTime, Timelike};
 use cosmwasm_schema::cw_serde;
 
@@ -67,6 +67,43 @@ pub fn send_tokens_cosmos(to: &Addr, balance: &GenericBalance) -> StdResult<Vec<
 
     Ok(msgs)
 }
+
+
+// Validate Ask
+// Removes any 0 values, returns error if duplicate is found
+pub fn normalize_ask_error_on_dup(ask: GenericBalance) -> Result<GenericBalance, ContractError> {
+
+    let mut normalized = ask;
+
+    // Remove 0 values
+    normalized.native.retain(|c| c.amount.u128() != 0);
+
+    let dup_check = |mut val: GenericBalance| -> Result<(), ContractError> {
+        // Sort 
+        val.native.sort_unstable_by(|a, b| a.denom.cmp(&b.denom));
+        // Length of original
+        let len_pre_dedup = val.native.len();
+        // Dedup
+        val.native.dedup_by_key(|i| i.denom.clone());
+        // Length after dedup
+        let len_post_dedup = val.native.len();
+        // If lengths different, dupes were found so return error
+        if len_pre_dedup != len_post_dedup {
+            return Err(ContractError::GenericError("Duplicates found in Ask Price".to_string()))
+        };
+
+        Ok(())
+    };
+
+    // If error, return that error
+    if let Err(e) = dup_check(normalized.clone()) {
+        return Err(e);
+    // Else return normalized after removing the 0 values
+    } else {
+        return Ok(normalized);
+    };
+}
+
 
 pub fn normalize_ask(ask: GenericBalance) -> GenericBalance {
     let mut normalized = ask;
@@ -137,12 +174,71 @@ pub fn calc_fee(balance: &GenericBalance) -> StdResult<Option<(CosmosMsg, Generi
     }
 }
 
+pub fn get_whitelisted_buyers(
+    deps: &DepsMut,
+    wl_one: Option<String>,
+    wl_two: Option<String>,
+    wl_three: Option<String>
+) -> Result<(Option<Addr>, Option<Addr>, Option<Addr>), ContractError> {
+
+    // let wl_one = createlistingmsg
+    //     .whitelist_buyer_one
+    //     .and_then(|addr| Some(deps.api.addr_validate(&addr)))
+    //     .transpose()
+    //     .map_err(|_| ContractError::GenericError("Invalid whitelisted purchaser one".to_string()))?;
+
+    let buyer_one = wl_one
+        .and_then(|addr| Some(deps.api.addr_validate(&addr)))
+        .transpose()
+        .map_err(|_| ContractError::GenericError("Invalid whitelisted purchaser one".to_string()))?;
+
+    let buyer_two = wl_two
+        .and_then(|addr| Some(deps.api.addr_validate(&addr)))
+        .transpose()
+        .map_err(|_| ContractError::GenericError("Invalid whitelisted purchaser two".to_string()))?;
+
+    let buyer_three = wl_three
+        .and_then(|addr| Some(deps.api.addr_validate(&addr)))
+        .transpose()
+        .map_err(|_| ContractError::GenericError("Invalid whitelisted purchaser three".to_string()))?;
+
+    Ok((buyer_one, buyer_two, buyer_three))
+
+}
+
+
+pub fn check_buyer_whitelisted(
+    the_buyer: &Addr,
+    the_listing: &Listing
+) -> Result<(), ContractError> {
+
+    // Is a vector containing whitelisted buyers, empty vector if no whitelisted buyers
+    let whitelisters: Vec<Addr> = vec![
+        the_listing.whitelisted_buyer_one.clone(),
+        the_listing.whitelisted_buyer_two.clone(),
+        the_listing.whitelisted_buyer_three.clone()
+    ].into_iter().flatten().collect();
+
+    // If theres > 0 whitelisted buyers & the_buyer is not one of them
+    if whitelisters.len() > 0 && !whitelisters.contains(the_buyer) {
+        return Err(ContractError::NotWhitelisted{});
+    };
+
+
+    Ok(())
+
+}
+
+
+
+
 /// Get allowed purchasers for a given listing.
 /// If any address string is not valid, returns an error
 pub fn get_whitelisted_addresses(
     deps: &DepsMut,
     whitelisted_addrs: Option<Vec<String>>,
 ) -> Result<Option<Vec<Addr>>, ContractError> {
+
     let Some(addrs) = whitelisted_addrs else {
         return Ok(None);
     };

@@ -1,6 +1,7 @@
 /target
 /artifacts
 /ts_codegen
+/juno_vaults_contract
 
 .editorconfig
 WORKSPACE.md
