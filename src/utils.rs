@@ -12,21 +12,19 @@ const COMMUNITY_POOL: &str = "juno1jv65s3grqf6v6jl3dp4t6c9t9rk99cd83d88wr";
 //const COMMUNITY_POOL: &str = ""
 
 pub fn send_tokens_cosmos(to: &Addr, balance: &GenericBalance) -> StdResult<Vec<CosmosMsg>> {
-    let native_balance = &balance.native;
-    let mut msgs: Vec<CosmosMsg> = if native_balance.is_empty() {
-        vec![]
-    } else {
-        vec![CosmosMsg::from(BankMsg::Send {
-            to_address: to.into(),
-            amount: native_balance.clone(),
-        })]
-    };
+    let mut msgs = Vec::new();
 
-    let cw20_balance = &balance.cw20;
-    let cw20_msgs: StdResult<Vec<_>> = cw20_balance
+    if !balance.native.is_empty() {
+        msgs.push(CosmosMsg::from(BankMsg::Send {
+            to_address: to.into(),
+            amount: balance.native.clone(),
+        }));
+    }
+
+    let cw20_msgs: StdResult<Vec<_>> = balance
+        .cw20
         .iter()
         .map(|c| {
-            // Only works if recipient is User Address, doesn't work for DAO / Contracts
             let msg = Cw20ExecuteMsg::Transfer {
                 recipient: to.into(),
                 amount: c.amount,
@@ -39,11 +37,10 @@ pub fn send_tokens_cosmos(to: &Addr, balance: &GenericBalance) -> StdResult<Vec<
             Ok(exec)
         })
         .collect();
-
     msgs.extend(cw20_msgs?);
 
-    let nft_balance = &balance.nfts;
-    let nft_msgs: StdResult<Vec<CosmosMsg<Empty>>> = nft_balance
+    let nft_msgs: StdResult<Vec<CosmosMsg<Empty>>> = balance
+        .nfts
         .iter()
         .map(|n| {
             let msg = Cw721ExecuteMsg::TransferNft {
@@ -58,7 +55,6 @@ pub fn send_tokens_cosmos(to: &Addr, balance: &GenericBalance) -> StdResult<Vec<
             Ok(exec)
         })
         .collect();
-
     msgs.extend(nft_msgs?);
 
     Ok(msgs)
@@ -135,20 +131,20 @@ pub fn get_whitelisted_addresses(
     deps: &DepsMut,
     whitelisted_addrs: Option<Vec<String>>,
 ) -> Result<Option<Vec<Addr>>, ContractError> {
-    let Some(addrs) = whitelisted_addrs else {
-        return Ok(None);
-    };
+    if let Some(addrs) = whitelisted_addrs {
+        if addrs.is_empty() {
+            return Ok(None);
+        }
 
-    if addrs.is_empty() {
-        return Ok(None);
-    };
+        let valid: Vec<Addr> = addrs
+            .iter()
+            .map(|address| {
+                deps.api.addr_validate(address).map_err(|_err| ContractError::InvalidAddressFormat)
+            })
+            .collect::<Result<Vec<Addr>, ContractError>>()?;
 
-    let valid: Vec<Addr> = addrs
-        .iter()
-        .map(|address| {
-            deps.api.addr_validate(address).map_err(|_foo| ContractError::InvalidAddressFormat)
-        })
-        .collect::<Result<Vec<Addr>, ContractError>>()?;
-
-    Ok(Some(valid))
+        Ok(Some(valid))
+    } else {
+        Ok(None)
+    }
 }
