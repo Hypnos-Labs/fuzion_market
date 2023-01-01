@@ -308,10 +308,17 @@ pub fn execute_create_listing_cw721(
         .add_attribute("creator", user_wallet.to_string()))
 }
 
+/// Validate basic listing info
+/// - Ensure listing exists, sender is owner, & get listing
+/// - Ensure sender is owner
+/// - Ensure no finalized time
+/// - Ensure being prepared
+/// If all of these checks pass, return the listing.
 fn validate_basic_listings(
     deps: &DepsMut,
     user_sender: &Addr,
     listing_id: &str,
+    is_refund: bool, // only for execute_refund
 ) -> Result<Listing, ContractError> {
     // Ensure listing exists, sender is owner, & get listing
     let Some(listing) = listingz().may_load(deps.storage, (user_sender, listing_id.to_string()))? else {
@@ -326,13 +333,13 @@ fn validate_basic_listings(
         return Err(ContractError::Unauthorized {});
     }
 
-    // Ensure no finalized time
-    if listing.finalized_time.is_some() {
+    // Ensure no finalized time (unless we want to refund, in which case ignore)
+    if !is_refund && listing.finalized_time.is_some() {
         return Err(ContractError::AlreadyFinalized {});
     }
 
-    // Ensure being prepared
-    if listing.status != Status::BeingPrepared {
+    // Ensure being prepared (unless it is a refund)
+    if !is_refund && listing.status != Status::BeingPrepared {
         return Err(ContractError::AlreadyFinalized {});
     }
 
@@ -350,7 +357,7 @@ pub fn execute_change_ask(
     listing_id: String,
     new_ask: GenericBalance,
 ) -> Result<Response, ContractError> {
-    let listing = validate_basic_listings(&deps, user_sender, &listing_id)?;
+    let listing = validate_basic_listings(&deps, user_sender, &listing_id, false)?;
 
     let new_ask_tokens = normalize_ask_error_on_dup(new_ask)?;
 
@@ -380,7 +387,7 @@ pub fn execute_add_funds_to_sale(
         return Err(ContractError::NoTokens {});
     }
 
-    let listing = validate_basic_listings(&deps, user_sender, &listing_id)?;
+    let listing = validate_basic_listings(&deps, user_sender, &listing_id, false)?;
 
     // Update old listing by adding tokens
     let new_listing = {
@@ -412,7 +419,7 @@ pub fn execute_add_to_sale_cw721(
     nft: Nft,
     listing_id: String,
 ) -> Result<Response, ContractError> {
-    let old_listing = validate_basic_listings(&deps, user_wallet, &listing_id)?;
+    let old_listing = validate_basic_listings(&deps, user_wallet, &listing_id, false)?;
 
     // Create updated listing
     let new_listing = {
@@ -442,7 +449,7 @@ pub fn execute_remove_listing(
     user_sender: &Addr,
     listing_id: String,
 ) -> Result<Response, ContractError> {
-    let listing = validate_basic_listings(&deps, user_sender, &listing_id)?;
+    let listing = validate_basic_listings(&deps, user_sender, &listing_id, false)?;
 
     // Delete listing & send funds back to user
     let msgs = send_tokens_cosmos(&listing.creator, &listing.for_sale)?;
@@ -459,7 +466,7 @@ pub fn execute_finalize(
     listing_id: String,
     seconds: u64,
 ) -> Result<Response, ContractError> {
-    let listing = validate_basic_listings(&deps, user_sender, &listing_id)?;
+    let listing = validate_basic_listings(&deps, user_sender, &listing_id, false)?;
 
     // max expiration is 1209600 seconds <14 days>
     // min expiration is 600 seconds <10 minutes>
@@ -494,28 +501,7 @@ pub fn execute_refund(
     user_sender: &Addr,
     listing_id: String,
 ) -> Result<Response, ContractError> {
-    // Check listing exists & get listing
-    let Some(listing) = listingz().may_load(deps.storage, (user_sender, listing_id.clone()))? else {
-        return Err(ContractError::NotFound {
-            typ: "Listing".to_string(),
-            id: listing_id,
-        });
-    };
-
-    // Check sender is creator
-    if user_sender.clone() != listing.creator {
-        return Err(ContractError::Unauthorized {});
-    }
-
-    // If listing.claimant.is_some() then listing already purchased
-    if listing.claimant.is_some() {
-        return Err(ContractError::Unauthorized {});
-    }
-
-    // Is listing.status == BeingPrepared
-    if listing.status == Status::BeingPrepared {
-        return Err(ContractError::Unauthorized {});
-    }
+    let listing = validate_basic_listings(&deps, user_sender, &listing_id, true)?;
 
     // Check if listing is expired
     match listing.expiration_time {
