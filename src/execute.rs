@@ -179,7 +179,8 @@ fn validate_basic_new_listing(
     deps: &DepsMut,
     listing_id: &str,
     bal: GenericBalance,
-) -> Result<GenericBalance, ContractError> {
+    whitelist: Option<Vec<String>>,
+) -> Result<(GenericBalance, Option<Vec<Addr>>), ContractError> {
     // Check ID isn't taken
     if (listingz().idx.id.item(deps.storage, listing_id.to_string())?).is_some() {
         return Err(ContractError::IdAlreadyExists {});
@@ -187,9 +188,8 @@ fn validate_basic_new_listing(
 
     let ask_tokens = normalize_ask_error_on_dup(bal)?;
 
-    // todo: add get_whitelisted_addresses here too
-
-    Ok(ask_tokens)
+    let addresses = get_whitelisted_addresses(deps, whitelist)?;
+    Ok((ask_tokens, addresses))
 }
 
 pub fn execute_create_listing(
@@ -203,10 +203,12 @@ pub fn execute_create_listing(
         return Err(ContractError::NoTokens {});
     }
 
-    let ask_tokens = validate_basic_new_listing(&deps, &createlistingmsg.id, createlistingmsg.ask)?;
-
-    let whitelisted_addrs =
-        get_whitelisted_addresses(&deps, createlistingmsg.whitelisted_purchasers)?;
+    let (ask_tokens, whitelisted_addrs) = validate_basic_new_listing(
+        &deps,
+        &createlistingmsg.id,
+        createlistingmsg.ask,
+        createlistingmsg.whitelisted_purchasers,
+    )?;
 
     // Save listing
     listingz().save(
@@ -242,10 +244,12 @@ pub fn execute_create_listing_cw20(
         return Err(ContractError::NoTokens {});
     }
 
-    let ask_tokens = validate_basic_new_listing(&deps, &createlistingmsg.id, createlistingmsg.ask)?;
-
-    let whitelisted_addrs =
-        get_whitelisted_addresses(&deps, createlistingmsg.whitelisted_purchasers)?;
+    let (ask_tokens, whitelisted_addrs) = validate_basic_new_listing(
+        &deps,
+        &createlistingmsg.id,
+        createlistingmsg.ask,
+        createlistingmsg.whitelisted_purchasers,
+    )?;
 
     listingz().save(
         deps.storage,
@@ -275,10 +279,12 @@ pub fn execute_create_listing_cw721(
     nft: Nft,
     createlistingmsg: CreateListingMsg,
 ) -> Result<Response, ContractError> {
-    let ask_tokens = validate_basic_new_listing(&deps, &createlistingmsg.id, createlistingmsg.ask)?;
-
-    let whitelisted_addrs =
-        get_whitelisted_addresses(&deps, createlistingmsg.whitelisted_purchasers)?;
+    let (ask_tokens, whitelisted_addrs) = validate_basic_new_listing(
+        &deps,
+        &createlistingmsg.id,
+        createlistingmsg.ask,
+        createlistingmsg.whitelisted_purchasers,
+    )?;
 
     listingz().save(
         deps.storage,
