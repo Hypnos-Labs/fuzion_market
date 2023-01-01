@@ -137,5 +137,5 @@ pub enum QueryMsg {
 pub struct CreateListingMsg {
     pub id: String,
     pub ask: GenericBalance,
-    pub whitelisted_purchasers: Option<Vec<String>>,
+    pub whitelisted_buyer: Option<String>,
 }

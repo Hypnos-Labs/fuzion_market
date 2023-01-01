@@ -275,10 +275,10 @@ function test_all_listings {
 function test_whitelist {
     # === WHITELIST ONLY ===
     # Selling 25ucosm for 5ujunox - only other account can purchase
-    wasm_cmd $VAULT_CONTRACT '{"create_listing":{"create_msg":{"id":"vault_2","ask":{"native":[{"denom":"ujunox","amount":"5"}],"cw20":[],"nfts":[]},"whitelisted_purchasers":["juno1efd63aw40lxf3n4mhf7dzhjkr453axurv2zdzk"]}}}' "25ucosm" show_log
+    wasm_cmd $VAULT_CONTRACT '{"create_listing":{"create_msg":{"id":"vault_2","ask":{"native":[{"denom":"ujunox","amount":"5"}],"cw20":[],"nfts":[]},"whitelisted_buyer":"juno1efd63aw40lxf3n4mhf7dzhjkr453axurv2zdzk"}}}' "25ucosm" show_log
     # Ensure listing went up correctly
     listing_1=$(query_contract $VAULT_CONTRACT '{"get_listing_info":{"listing_id":"vault_2"}}')
-    ASSERT_EQUAL "$listing_1" '{"data":{"creator":"juno1hj5fveer5cjtn4wd6wstzugjfdxzl0xps73ftl","status":"Being Prepared","for_sale":[["ucosm","25"]],"ask":[["ujunox","5"]],"expiration":"None","whitelisted_purchasers":["juno1efd63aw40lxf3n4mhf7dzhjkr453axurv2zdzk"]}}'
+    ASSERT_EQUAL "$listing_1" '{"data":{"creator":"juno1hj5fveer5cjtn4wd6wstzugjfdxzl0xps73ftl","status":"Being Prepared","for_sale":[["ucosm","25"]],"ask":[["ujunox","5"]],"expiration":"None","whitelisted_buyer":"juno1efd63aw40lxf3n4mhf7dzhjkr453axurv2zdzk"}}'
     # finalize just the natives
     wasm_cmd $VAULT_CONTRACT '{"finalize":{"listing_id":"vault_2","seconds":5000}}' "" show_log
 

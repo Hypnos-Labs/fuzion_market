@@ -4,9 +4,7 @@ use crate::state::{
     genbal_from_nft, listingz, Bucket, GenericBalance, GenericBalanceUtil, Listing, Nft, Status,
     ToGenericBalance, BUCKETS,
 };
-use crate::utils::{
-    calc_fee, get_whitelisted_addresses, normalize_ask_error_on_dup, send_tokens_cosmos,
-};
+use crate::utils::{calc_fee, normalize_ask_error_on_dup, send_tokens_cosmos};
 use cosmwasm_std::{Addr, DepsMut, Env, Response};
 use cw20::Balance;
 
@@ -179,17 +177,22 @@ fn validate_basic_new_listing(
     deps: &DepsMut,
     listing_id: &str,
     bal: GenericBalance,
-    whitelist: Option<Vec<String>>,
-) -> Result<(GenericBalance, Option<Vec<Addr>>), ContractError> {
+    whitelisted_buyer: Option<String>,
+) -> Result<(GenericBalance, Option<Addr>), ContractError> {
     // Check ID isn't taken
     if (listingz().idx.id.item(deps.storage, listing_id.to_string())?).is_some() {
         return Err(ContractError::IdAlreadyExists {});
     }
 
+    // normalize the tokens sent in
     let ask_tokens = normalize_ask_error_on_dup(bal)?;
 
-    let addresses = get_whitelisted_addresses(deps, whitelist)?;
-    Ok((ask_tokens, addresses))
+    if whitelisted_buyer.is_some() {
+        let whitelist_address = deps.api.addr_validate(&whitelisted_buyer.unwrap())?;
+        Ok((ask_tokens, Some(whitelist_address)))
+    } else {
+        Ok((ask_tokens, None))
+    }
 }
 
 pub fn execute_create_listing(
@@ -203,11 +206,11 @@ pub fn execute_create_listing(
         return Err(ContractError::NoTokens {});
     }
 
-    let (ask_tokens, whitelisted_addrs) = validate_basic_new_listing(
+    let (ask_tokens, whitelisted_buyer) = validate_basic_new_listing(
         &deps,
         &createlistingmsg.id,
         createlistingmsg.ask,
-        createlistingmsg.whitelisted_purchasers,
+        createlistingmsg.whitelisted_buyer,
     )?;
 
     // Save listing
@@ -223,7 +226,7 @@ pub fn execute_create_listing(
             for_sale: funds_sent.to_generic(),
             ask: ask_tokens,
             claimant: None,
-            whitelisted_purchasers: whitelisted_addrs,
+            whitelisted_buyer,
         },
     )?;
 
@@ -244,11 +247,11 @@ pub fn execute_create_listing_cw20(
         return Err(ContractError::NoTokens {});
     }
 
-    let (ask_tokens, whitelisted_addrs) = validate_basic_new_listing(
+    let (ask_tokens, whitelisted_buyer) = validate_basic_new_listing(
         &deps,
         &createlistingmsg.id,
         createlistingmsg.ask,
-        createlistingmsg.whitelisted_purchasers,
+        createlistingmsg.whitelisted_buyer,
     )?;
 
     listingz().save(
@@ -263,7 +266,7 @@ pub fn execute_create_listing_cw20(
             for_sale: funds_sent.to_generic(),
             ask: ask_tokens,
             claimant: None,
-            whitelisted_purchasers: whitelisted_addrs,
+            whitelisted_buyer,
         },
     )?;
 
@@ -279,11 +282,11 @@ pub fn execute_create_listing_cw721(
     nft: Nft,
     createlistingmsg: CreateListingMsg,
 ) -> Result<Response, ContractError> {
-    let (ask_tokens, whitelisted_addrs) = validate_basic_new_listing(
+    let (ask_tokens, whitelisted_buyer) = validate_basic_new_listing(
         &deps,
         &createlistingmsg.id,
         createlistingmsg.ask,
-        createlistingmsg.whitelisted_purchasers,
+        createlistingmsg.whitelisted_buyer,
     )?;
 
     listingz().save(
@@ -298,7 +301,7 @@ pub fn execute_create_listing_cw721(
             for_sale: genbal_from_nft(nft),
             ask: ask_tokens,
             claimant: None,
-            whitelisted_purchasers: whitelisted_addrs,
+            whitelisted_buyer,
         },
     )?;
 
@@ -564,11 +567,12 @@ pub fn execute_buy_listing(
         return Err(ContractError::NotPurchasable {});
     }
     // Check that the user buying is whitelisted
-    if let Some(whitelist) = the_listing.whitelisted_purchasers.clone() {
-        if !whitelist.contains(buyer) {
+    if let Some(whitelist) = the_listing.whitelisted_buyer.clone() {
+        if whitelist != *buyer {
             return Err(ContractError::NotWhitelisted {});
         }
     }
+
     // Check that there's no existing claimant on listing
     if the_listing.claimant.is_some() {
         return Err(ContractError::NotPurchasable {});

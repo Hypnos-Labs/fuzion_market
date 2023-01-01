@@ -376,7 +376,7 @@ pub mod create_valid_listing {
         let cm = CreateListingMsg {
             id: "valid_ask".to_string(),
             ask: valid_ask_price,
-            whitelisted_purchasers: None,
+            whitelisted_buyer: None,
         };
 
         crate::msg::ExecuteMsg::CreateListing {
@@ -402,7 +402,7 @@ pub mod create_valid_listing {
         sk_addr: Option<Addr>,
         sk_id: Option<String>,
 
-        whitelisted_purchasers: Option<Vec<String>>,
+        whitelisted_buyer: Option<String>,
     ) -> ExecuteMsg {
         let native_ask = match juno_amt {
             None => Vec::new(),
@@ -457,7 +457,7 @@ pub mod create_valid_listing {
         let cm = CreateListingMsg {
             id: listing_id,
             ask: valid_ask_price,
-            whitelisted_purchasers: whitelisted_purchasers,
+            whitelisted_buyer,
         };
 
         crate::msg::ExecuteMsg::CreateListing {
@@ -469,7 +469,7 @@ pub mod create_valid_listing {
         listing_id: String,
         jvone_addr: Addr,
         np_addr: Addr,
-        whitelist: Option<Vec<Addr>>,
+        whitelisted_buyer_addr: Option<Addr>,
     ) -> CreateListingMsg {
         let native_ask = cosmwasm_std::coins(1, VALID_NATIVE);
 
@@ -489,13 +489,15 @@ pub mod create_valid_listing {
             nfts: nft_ask,
         };
 
-        let whitelist =
-            whitelist.map(|wl| wl.iter().map(|addr| addr.to_string()).collect::<Vec<String>>());
+        let whitelisted_buyer = match whitelisted_buyer_addr {
+            None => None,
+            Some(addr) => Some(addr.to_string()),
+        };
 
         CreateListingMsg {
             id: listing_id,
             ask: ask_price,
-            whitelisted_purchasers: whitelist,
+            whitelisted_buyer: whitelisted_buyer,
         }
     }
 }
@@ -2118,7 +2120,7 @@ fn marketplace_sale() -> Result<(), anyhow::Error> {
     let cl = CreateListingMsg {
         id: "john_listing_1".to_string(),
         ask: ask_price.clone(),
-        whitelisted_purchasers: Some(vec![sam.address.to_string(), john.address.to_string()]),
+        whitelisted_buyer: None,
     };
     let clm = crate::msg::ExecuteMsg::CreateListing {
         create_msg: cl,
@@ -2738,7 +2740,7 @@ fn cant_buy_expired() -> Result<(), anyhow::Error> {
     let cl = CreateListingMsg {
         id: "john_listing_1".to_string(),
         ask: ask_price,
-        whitelisted_purchasers: None,
+        whitelisted_buyer: None,
     };
     let clm = crate::msg::ExecuteMsg::CreateListing {
         create_msg: cl,

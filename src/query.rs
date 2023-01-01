@@ -92,9 +92,7 @@ pub fn get_listing_info(deps: Deps, listing_id: String) -> StdResult<ListingInfo
         ));
     });
 
-    // unwrap, if there are any, then map each Addr to a String
-    let whitelisted_accs =
-        listing.whitelisted_purchasers.unwrap_or_default().iter().map(|x| x.to_string()).collect();
+    let whitelist_buyer: Option<String> = listing.whitelisted_buyer.map(|x| x.to_string());
 
     let mut res: ListingInfoResponse = ListingInfoResponse {
         creator: listing.creator.to_string(),
@@ -102,7 +100,7 @@ pub fn get_listing_info(deps: Deps, listing_id: String) -> StdResult<ListingInfo
         for_sale: the_sale,
         ask: the_ask,
         expiration: "None".to_string(),
-        whitelisted_purchasers: whitelisted_accs,
+        whitelisted_buyer: whitelist_buyer,
     };
 
     if let Some(x) = listing.expiration_time {
@@ -202,5 +200,5 @@ pub struct ListingInfoResponse {
     pub for_sale: Vec<(String, u128)>,
     pub ask: Vec<(String, u128)>,
     pub expiration: String,
-    pub whitelisted_purchasers: Vec<String>,
+    pub whitelisted_buyer: Option<String>,
 }
