@@ -11,6 +11,8 @@ const COMMUNITY_POOL: &str = "juno1jv65s3grqf6v6jl3dp4t6c9t9rk99cd83d88wr";
 // use fake contract address for testnet
 //const COMMUNITY_POOL: &str = ""
 
+const NATIVE: &str = "ujunox";
+
 pub fn send_tokens_cosmos(to: &Addr, balance: &GenericBalance) -> StdResult<Vec<CosmosMsg>> {
     let mut msgs = Vec::new();
 
@@ -90,7 +92,7 @@ pub fn normalize_ask_error_on_dup(ask: GenericBalance) -> Result<GenericBalance,
 }
 
 pub fn calc_fee(balance: &GenericBalance) -> StdResult<Option<(CosmosMsg, GenericBalance)>> {
-    let juno_in_balance = balance.native.iter().find(|n| n.denom == *"ujunox");
+    let juno_in_balance = balance.native.iter().find(|n| n.denom == *NATIVE);
 
     // If balance DOES NOT contain juno, return Ok(None)
     // If balance DOES contain juno, calculate 0.1% of the JUNO in the balance,
@@ -107,15 +109,15 @@ pub fn calc_fee(balance: &GenericBalance) -> StdResult<Option<(CosmosMsg, Generi
 
         let fee_msg: CosmosMsg<Empty> = CosmosMsg::from(BankMsg::Send {
             to_address: COMMUNITY_POOL.to_string(),
-            amount: coins(ten_pips.u128(), "ujunox"),
+            amount: coins(ten_pips.u128(), NATIVE),
         });
 
         let juno_amount_after_fee_removed = juno.amount.checked_sub(ten_pips)?;
 
         let balance_with_fee_removed = {
             let mut x = balance.clone();
-            x.native.retain(|n| n.denom != *"ujunox");
-            x.native.append(&mut coins(juno_amount_after_fee_removed.u128(), "ujunox"));
+            x.native.retain(|n| n.denom != *NATIVE);
+            x.native.append(&mut coins(juno_amount_after_fee_removed.u128(), NATIVE));
             x
         };
 

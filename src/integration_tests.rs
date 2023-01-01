@@ -471,7 +471,7 @@ pub mod create_valid_listing {
         np_addr: Addr,
         whitelist: Option<Vec<Addr>>,
     ) -> CreateListingMsg {
-        let native_ask = cosmwasm_std::coins(1, "ujunox");
+        let native_ask = cosmwasm_std::coins(1, VALID_NATIVE);
 
         let cw20_ask = vec![Cw20CoinVerified {
             address: jvone_addr,
@@ -551,7 +551,7 @@ fn create_listing_should_fail() -> Result<(), anyhow::Error> {
         Some("3".to_string()),
         None,
     );
-    let one_juno = coins(1, "ujunox");
+    let one_juno = coins(1, VALID_NATIVE);
     let res: Result<AppResponse> = router.execute_contract(
         john.address.clone(),
         junovaults.clone(),
@@ -626,7 +626,7 @@ fn create_listing_should_pass() -> Result<(), anyhow::Error> {
         Some("3".to_string()),
         None,
     );
-    let one_juno = coins(1, "ujunox");
+    let one_juno = coins(1, VALID_NATIVE);
     let res: Result<AppResponse> = router.execute_contract(
         john.address.clone(),
         junovaults.clone(),
@@ -636,7 +636,7 @@ fn create_listing_should_pass() -> Result<(), anyhow::Error> {
     // passes
     ensure!(res.is_ok(), here("'Testing Ask Creation' failure", line!(), column!()));
     let john_new_balance: Coin =
-        router.wrap().query_balance(john.address.to_string(), "ujunox").unwrap();
+        router.wrap().query_balance(john.address.to_string(), VALID_NATIVE).unwrap();
     ensure!(
         (john_new_balance.amount == Uint128::from(99_999_999_u32)),
         here(format!("John balance: {}", john_new_balance.amount), line!(), column!())
@@ -746,7 +746,7 @@ fn add_to_listing() -> Result<(), anyhow::Error> {
         None,
         None,
     );
-    let one_juno = coins(1, "ujunox");
+    let one_juno = coins(1, VALID_NATIVE);
     let res: Result<AppResponse> = router.execute_contract(
         john.address.clone(),
         junovaults.clone(),
@@ -757,7 +757,7 @@ fn add_to_listing() -> Result<(), anyhow::Error> {
     ensure!(res.is_ok(), here("'Testing Ask Creation' failure", line!(), column!()));
     //let john_new_balance = router.wrap().query_all_balances(addr).unwrap();
     let john_new_balance: Coin =
-        router.wrap().query_balance(john.address.to_string(), "ujunox").unwrap();
+        router.wrap().query_balance(john.address.to_string(), VALID_NATIVE).unwrap();
     ensure!(
         (john_new_balance.amount == Uint128::from(99_999_999_u32)),
         here(format!("John balance: {}", john_new_balance.amount), line!(), column!())
@@ -784,7 +784,8 @@ fn add_to_listing() -> Result<(), anyhow::Error> {
         here("Sam shouldn't be able to add to John's listing", line!(), column!())
     );
     // ensure Sam's balance has not changed
-    let sam_balance: Coin = router.wrap().query_balance(sam.address.to_string(), "ujunox").unwrap();
+    let sam_balance: Coin =
+        router.wrap().query_balance(sam.address.to_string(), VALID_NATIVE).unwrap();
     ensure!(
         (sam_balance.amount == Uint128::from(100_000_000_u32)),
         here(format!("Sam balance: {}", sam_balance.amount), line!(), column!())
@@ -800,7 +801,7 @@ fn add_to_listing() -> Result<(), anyhow::Error> {
     ensure!(res.is_ok(), here("John couldn't add", line!(), column!()));
     // ensure John's balance updated
     let john_newer_balance: Coin =
-        router.wrap().query_balance(john.address.to_string(), "ujunox").unwrap();
+        router.wrap().query_balance(john.address.to_string(), VALID_NATIVE).unwrap();
     ensure!(
         (john_newer_balance.amount == Uint128::from(99_999_998_u32)),
         here(format!("John balance: {}", john_newer_balance.amount), line!(), column!())
@@ -808,7 +809,7 @@ fn add_to_listing() -> Result<(), anyhow::Error> {
 
     // ensure contract balance updated
     let contract_balance: Coin =
-        router.wrap().query_balance(junovaults.to_string(), "ujunox").unwrap();
+        router.wrap().query_balance(junovaults.to_string(), VALID_NATIVE).unwrap();
     ensure!(
         (contract_balance.amount == Uint128::from(2u32)),
         here(format!("Contract balance: {}", contract_balance.amount), line!(), column!())
@@ -986,7 +987,7 @@ fn remove_a_listing() -> Result<(), anyhow::Error> {
         None,
     );
     // For sale 1 ujunox
-    let one_juno = coins(1, "ujunox");
+    let one_juno = coins(1, VALID_NATIVE);
 
     let res: Result<AppResponse> = router.execute_contract(
         john.address.clone(),
@@ -997,7 +998,7 @@ fn remove_a_listing() -> Result<(), anyhow::Error> {
     // passes
     ensure!(res.is_ok(), here("'Testing Ask Creation' failure", line!(), column!()));
     let john_new_balance: Coin =
-        router.wrap().query_balance(john.address.to_string(), "ujunox").unwrap();
+        router.wrap().query_balance(john.address.to_string(), VALID_NATIVE).unwrap();
     ensure!(
         (john_new_balance.amount == Uint128::from(99_999_999_u32)),
         here(format!("John balance: {}", john_new_balance.amount), line!(), column!())
@@ -1030,7 +1031,7 @@ fn remove_a_listing() -> Result<(), anyhow::Error> {
         None,
     );
     // Listing for sale, 1 ujunox
-    let one_juno = coins(1, "ujunox");
+    let one_juno = coins(1, VALID_NATIVE);
     let res: Result<AppResponse> = router.execute_contract(
         sam.address.clone(),
         junovaults.clone(),
@@ -1041,7 +1042,7 @@ fn remove_a_listing() -> Result<(), anyhow::Error> {
     ensure!(res.is_ok(), here("'Testing Ask Creation' failure", line!(), column!()));
     //let john_new_balance = router.wrap().query_all_balances(addr).unwrap();
     let sam_new_balance: Coin =
-        router.wrap().query_balance(sam.address.to_string(), "ujunox").unwrap();
+        router.wrap().query_balance(sam.address.to_string(), VALID_NATIVE).unwrap();
     ensure!(
         (sam_new_balance.amount == Uint128::from(99_999_999_u32)),
         here(format!("Sam balance: {}", sam_new_balance.amount), line!(), column!())
@@ -1178,7 +1179,7 @@ fn remove_a_listing() -> Result<(), anyhow::Error> {
     // John's balance is updated
     // juno
     let john_new_balance: Coin =
-        router.wrap().query_balance(john.address.to_string(), "ujunox").unwrap();
+        router.wrap().query_balance(john.address.to_string(), VALID_NATIVE).unwrap();
     ensure!(
         (john_new_balance.amount == Uint128::from(100_000_000_u32)),
         here(format!("John balance: {}", john_new_balance.amount), line!(), column!())
@@ -1196,7 +1197,7 @@ fn remove_a_listing() -> Result<(), anyhow::Error> {
     // Contract balance is updated
     // juno
     let contract_new_balance: Coin =
-        router.wrap().query_balance(junovaults.to_string(), "ujunox").unwrap();
+        router.wrap().query_balance(junovaults.to_string(), VALID_NATIVE).unwrap();
     ensure!(
         (contract_new_balance.amount == Uint128::from(1u32)),
         here(format!("Contract balance: {}", contract_new_balance.amount), line!(), column!())
@@ -1289,7 +1290,7 @@ fn finalize_a_listing() -> Result<(), anyhow::Error> {
         None,
     );
     // For sale 1 ujunox
-    let one_juno = coins(1, "ujunox");
+    let one_juno = coins(1, VALID_NATIVE);
 
     let res: Result<AppResponse> = router.execute_contract(
         john.address.clone(),
@@ -1300,7 +1301,7 @@ fn finalize_a_listing() -> Result<(), anyhow::Error> {
     // passes
     ensure!(res.is_ok(), here("'Testing Ask Creation' failure", line!(), column!()));
     let john_new_balance: Coin =
-        router.wrap().query_balance(john.address.to_string(), "ujunox").unwrap();
+        router.wrap().query_balance(john.address.to_string(), VALID_NATIVE).unwrap();
     ensure!(
         (john_new_balance.amount == Uint128::from(99_999_999_u32)),
         here(format!("John balance: {}", john_new_balance.amount), line!(), column!())
@@ -1333,7 +1334,7 @@ fn finalize_a_listing() -> Result<(), anyhow::Error> {
         None,
     );
     // Listing for sale, 1 ujunox
-    let one_juno = coins(1, "ujunox");
+    let one_juno = coins(1, VALID_NATIVE);
     let res: Result<AppResponse> = router.execute_contract(
         sam.address.clone(),
         junovaults.clone(),
@@ -1344,7 +1345,7 @@ fn finalize_a_listing() -> Result<(), anyhow::Error> {
     ensure!(res.is_ok(), here("'Testing Ask Creation' failure", line!(), column!()));
     //let john_new_balance = router.wrap().query_all_balances(addr).unwrap();
     let sam_new_balance: Coin =
-        router.wrap().query_balance(sam.address.to_string(), "ujunox").unwrap();
+        router.wrap().query_balance(sam.address.to_string(), VALID_NATIVE).unwrap();
     ensure!(
         (sam_new_balance.amount == Uint128::from(99_999_999_u32)),
         here(format!("Sam balance: {}", sam_new_balance.amount), line!(), column!())
@@ -1550,7 +1551,7 @@ fn finalize_a_listing() -> Result<(), anyhow::Error> {
         john.address.clone(),
         junovaults.clone(),
         &cant_add,
-        &coins(1, "ujunox"),
+        &coins(1, VALID_NATIVE),
     );
     ensure!(res.is_err(), here("add native after finalize", line!(), column!()));
 
@@ -1649,7 +1650,7 @@ fn expiration_checks() -> Result<(), anyhow::Error> {
         None,
     );
     // For sale 1 ujunox
-    let one_juno = coins(1, "ujunox");
+    let one_juno = coins(1, VALID_NATIVE);
 
     let res: Result<AppResponse> = router.execute_contract(
         john.address.clone(),
@@ -1660,7 +1661,7 @@ fn expiration_checks() -> Result<(), anyhow::Error> {
     // passes
     ensure!(res.is_ok(), here("'Testing Ask Creation' failure", line!(), column!()));
     let john_new_balance: Coin =
-        router.wrap().query_balance(john.address.to_string(), "ujunox").unwrap();
+        router.wrap().query_balance(john.address.to_string(), VALID_NATIVE).unwrap();
     ensure!(
         (john_new_balance.amount == Uint128::from(99_999_999_u32)),
         here(format!("John balance: {}", john_new_balance.amount), line!(), column!())
@@ -1869,11 +1870,11 @@ fn create_bucket() -> Result<(), anyhow::Error> {
         john.address.clone(),
         junovaults.clone(),
         &create_native,
-        &coins(1, "ujunox"),
+        &coins(1, VALID_NATIVE),
     );
     ensure!(res.is_ok(), here("Create Bucket native", line!(), column!()));
     let john_new_balance: Coin =
-        router.wrap().query_balance(john.address.to_string(), "ujunox").unwrap();
+        router.wrap().query_balance(john.address.to_string(), VALID_NATIVE).unwrap();
     ensure!(
         (john_new_balance.amount == Uint128::from(99_999_999_u32)),
         here(format!("John balance: {}", john_new_balance.amount), line!(), column!())
@@ -1935,11 +1936,11 @@ fn create_bucket() -> Result<(), anyhow::Error> {
         john.address.clone(),
         junovaults.clone(),
         &john_add_msg,
-        &coins(1, "ujunox"),
+        &coins(1, VALID_NATIVE),
     );
     ensure!(res.is_ok(), here("bucket add native", line!(), column!()));
     let john_new_balance: Coin =
-        router.wrap().query_balance(john.address.to_string(), "ujunox").unwrap();
+        router.wrap().query_balance(john.address.to_string(), VALID_NATIVE).unwrap();
     ensure!(
         (john_new_balance.amount == Uint128::from(99_999_998_u32)),
         here(format!("John balance: {}", john_new_balance.amount), line!(), column!())
@@ -2026,7 +2027,7 @@ fn create_bucket() -> Result<(), anyhow::Error> {
 
     // balance checks
     let john_new_balance: Coin =
-        router.wrap().query_balance(john.address.to_string(), "ujunox").unwrap();
+        router.wrap().query_balance(john.address.to_string(), VALID_NATIVE).unwrap();
     ensure!(
         (john_new_balance.amount == Uint128::from(99_999_999_u32)),
         here(format!("John balance: {}", john_new_balance.amount), line!(), column!())
@@ -2131,7 +2132,7 @@ fn marketplace_sale() -> Result<(), anyhow::Error> {
         john.address.clone(),
         junovaults.clone(),
         &clm,
-        &coins(5_000_000, "ujunox"),
+        &coins(5_000_000, VALID_NATIVE),
     );
     ensure!(res.is_ok(), here("'Testing Ask Creation' failure", line!(), column!()));
 
@@ -2523,7 +2524,7 @@ fn marketplace_sale() -> Result<(), anyhow::Error> {
         john.address.clone(),
         junovaults.clone(),
         &clm,
-        &coins(5_000_000, "ujunox"),
+        &coins(5_000_000, VALID_NATIVE),
     );
     ensure!(res.is_err(), here("duplicate name should fail", line!(), column!()));
 
@@ -2636,7 +2637,7 @@ fn marketplace_sale() -> Result<(), anyhow::Error> {
     // NeonPeepz #1, #3, #4
     // ShittyKittyz #4
     let sam_juno_bal: Coin =
-        router.wrap().query_balance(sam.address.to_string(), "ujunox").unwrap();
+        router.wrap().query_balance(sam.address.to_string(), VALID_NATIVE).unwrap();
     ensure!(
         (sam_juno_bal.amount == Uint128::from(104_995_000_u32)),
         here("Sam juno balance wrong", line!(), column!())
@@ -2665,7 +2666,7 @@ fn marketplace_sale() -> Result<(), anyhow::Error> {
     // NeonPeepz #2
     // ShittyKittyz #1, #2, #3
     let john_juno_bal: Coin =
-        router.wrap().query_balance(john.address.to_string(), "ujunox").unwrap();
+        router.wrap().query_balance(john.address.to_string(), VALID_NATIVE).unwrap();
     ensure!(
         (john_juno_bal.amount == Uint128::from(95_000_000_u32)),
         here("John juno balance wrong", line!(), column!())
@@ -2751,7 +2752,7 @@ fn cant_buy_expired() -> Result<(), anyhow::Error> {
         john.address.clone(),
         junovaults.clone(),
         &clm,
-        &coins(5, "ujunox"),
+        &coins(5, VALID_NATIVE),
     );
     ensure!(res.is_ok(), here("'Testing Ask Creation' failure", line!(), column!()));
 
