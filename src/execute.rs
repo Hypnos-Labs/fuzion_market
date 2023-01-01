@@ -622,10 +622,10 @@ pub fn execute_withdraw_purchased(
     };
 
     // Check and pull out claimant
-    let listing_claimr = the_listing.claimant.ok_or(ContractError::Unauthorized {})?;
+    let listing_claimer = the_listing.claimant.ok_or(ContractError::Unauthorized {})?;
 
     // Check that withdrawer is the claimant
-    if withdrawer != &listing_claimr {
+    if withdrawer != &listing_claimer {
         return Err(ContractError::Unauthorized {});
     };
 
@@ -635,7 +635,7 @@ pub fn execute_withdraw_purchased(
     };
 
     // Delete Listing
-    listingz().remove(deps.storage, (&listing_claimr, listing_id.clone()))?;
+    listingz().remove(deps.storage, (&listing_claimer, listing_id.clone()))?;
 
     // default listing response
     let res: Response = Response::new()
@@ -645,10 +645,10 @@ pub fn execute_withdraw_purchased(
     if let Some((fee_msg, gbal)) =
         calc_fee(&the_listing.for_sale).map_err(|_foo| ContractError::FeeCalc)?
     {
-        let user_msgs = send_tokens_cosmos(&listing_claimr, &gbal)?;
+        let user_msgs = send_tokens_cosmos(&listing_claimer, &gbal)?;
         Ok(res.add_message(fee_msg).add_messages(user_msgs))
     } else {
-        let user_msgs = send_tokens_cosmos(&listing_claimr, &the_listing.for_sale)?;
+        let user_msgs = send_tokens_cosmos(&listing_claimer, &the_listing.for_sale)?;
         Ok(res.add_messages(user_msgs))
     }
 }
