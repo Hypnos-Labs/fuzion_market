@@ -23,7 +23,7 @@ use crate::query::{
 use crate::state::{Config, Nft, CONFIG};
 use std::str;
 
-const CONTRACT_NAME: &str = "crates.io:cyberswap_nft";
+const CONTRACT_NAME: &str = "crates.io:juno_vaults";
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
