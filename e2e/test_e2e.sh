@@ -296,8 +296,8 @@ function test_whitelist {
     listings=$(query_contract $VAULT_CONTRACT '{"get_whitelisted_listings":{"address":"juno1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq93ryqp"}}' | jq -rc '.data.listings')
     ASSERT_EQUAL $listings '[]'
     # and that it is in the market listings query now
-    listing_no_whitelist=$(query_contract $VAULT_CONTRACT '{"get_listing_info":{"listing_id":"vault_2"}}')
-    ASSERT_EQUAL "$listing_no_whitelist" '{"data":{"creator":"juno1hj5fveer5cjtn4wd6wstzugjfdxzl0xps73ftl","status":"Being Prepared","for_sale":[["ucosm","25"]],"ask":[["ujunox","5"]],"expiration":"None","whitelisted_buyer":"None"}}'
+    listing_no_whitelist=$(query_contract $VAULT_CONTRACT '{"get_all_listings":{}}')
+    ASSERT_EQUAL "$listing_no_whitelist" '{"data":{"listings":[{"creator":"juno1hj5fveer5cjtn4wd6wstzugjfdxzl0xps73ftl","id":"vault_2","finalized_time":null,"expiration_time":null,"status":"being_prepared","claimant":null,"whitelisted_buyer":null,"for_sale":{"native":[{"denom":"ucosm","amount":"25"}],"cw20":[],"nfts":[]},"ask":{"native":[{"denom":"ujunox","amount":"5"}],"cw20":[],"nfts":[]}}]}}'
 
     # change whitelisted buyer to correct address
     wasm_cmd $VAULT_CONTRACT '{"change_whitelisted_buyer":{"listing_id":"vault_2","new_address":"juno1efd63aw40lxf3n4mhf7dzhjkr453axurv2zdzk"}}' "" show_log
