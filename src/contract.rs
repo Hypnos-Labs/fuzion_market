@@ -12,13 +12,13 @@ use crate::execute::{
     execute_add_funds_to_sale, execute_add_to_bucket, execute_add_to_bucket_cw721,
     execute_add_to_sale_cw721, execute_buy_listing, execute_change_ask, execute_create_bucket,
     execute_create_bucket_cw721, execute_create_listing, execute_create_listing_cw20,
-    execute_create_listing_cw721, execute_finalize, execute_refund, execute_remove_listing,
-    execute_withdraw_bucket, execute_withdraw_purchased,
+    execute_create_listing_cw721, execute_finalize, execute_modify_whitelisted_buyer,
+    execute_refund, execute_remove_listing, execute_withdraw_bucket, execute_withdraw_purchased,
 };
 use crate::msg::{ExecuteMsg, InstantiateMsg, QueryMsg, ReceiveMsg, ReceiveNftMsg};
 use crate::query::{
     get_admin, get_all_listings, get_buckets, get_config, get_listing_info, get_listings_by_owner,
-    get_listings_for_market,
+    get_listings_for_market, get_whitelisted_listings,
 };
 use crate::state::{Config, Nft, CONFIG};
 use std::str;
@@ -84,6 +84,13 @@ pub fn execute(
             listing_id,
             new_ask,
         } => execute_change_ask(deps, &info.sender, listing_id, new_ask),
+        ExecuteMsg::ChangeWhitelistedBuyer {
+            listing_id,
+            new_address,
+        } => execute_modify_whitelisted_buyer(deps, &info.sender, listing_id, Some(new_address)),
+        ExecuteMsg::RemoveWhitelistedBuyer {
+            listing_id,
+        } => execute_modify_whitelisted_buyer(deps, &info.sender, listing_id, None),
         ExecuteMsg::RemoveListing {
             listing_id,
         } => execute_remove_listing(deps, &info.sender, listing_id),
@@ -200,5 +207,8 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
         QueryMsg::GetListingsForMarket {
             page_num,
         } => to_binary(&get_listings_for_market(deps, &env, page_num)?),
+        QueryMsg::GetWhitelistedListings {
+            address,
+        } => to_binary(&get_whitelisted_listings(deps, &address)?),
     }
 }

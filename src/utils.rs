@@ -2,7 +2,7 @@ use crate::error::ContractError;
 use crate::state::GenericBalance;
 
 use cosmwasm_std::coins;
-use cosmwasm_std::{to_binary, Addr, BankMsg, CosmosMsg, DepsMut, Empty, StdResult, WasmMsg};
+use cosmwasm_std::{to_binary, Addr, BankMsg, CosmosMsg, Empty, StdResult, WasmMsg};
 use cw20::Cw20ExecuteMsg;
 use cw721::Cw721ExecuteMsg;
 
@@ -122,30 +122,6 @@ pub fn calc_fee(balance: &GenericBalance) -> StdResult<Option<(CosmosMsg, Generi
         };
 
         Ok(Some((fee_msg, balance_with_fee_removed)))
-    } else {
-        Ok(None)
-    }
-}
-
-/// Get allowed purchasers for a given listing.
-/// If any address string is not valid, returns an error
-pub fn get_whitelisted_addresses(
-    deps: &DepsMut,
-    whitelisted_addrs: Option<Vec<String>>,
-) -> Result<Option<Vec<Addr>>, ContractError> {
-    if let Some(addrs) = whitelisted_addrs {
-        if addrs.is_empty() {
-            return Ok(None);
-        }
-
-        let valid: Vec<Addr> = addrs
-            .iter()
-            .map(|address| {
-                deps.api.addr_validate(address).map_err(|_err| ContractError::InvalidAddressFormat)
-            })
-            .collect::<Result<Vec<Addr>, ContractError>>()?;
-
-        Ok(Some(valid))
     } else {
         Ok(None)
     }

@@ -35,6 +35,13 @@ pub enum ExecuteMsg {
         listing_id: String,
         new_ask: GenericBalance,
     },
+    ChangeWhitelistedBuyer {
+        listing_id: String,
+        new_address: String,
+    },
+    RemoveWhitelistedBuyer {
+        listing_id: String,
+    },
     RemoveListing {
         listing_id: String,
     },
@@ -131,11 +138,15 @@ pub enum QueryMsg {
     GetListingsForMarket {
         page_num: u8,
     },
+    #[returns(MultiListingResponse)]
+    GetWhitelistedListings {
+        address: String,
+    },
 }
 
 #[cw_serde]
 pub struct CreateListingMsg {
     pub id: String,
     pub ask: GenericBalance,
-    pub whitelisted_purchasers: Option<Vec<String>>,
+    pub whitelisted_buyer: Option<String>,
 }

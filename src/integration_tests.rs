@@ -6,10 +6,13 @@ use cosmwasm_std::{coins, to_binary, Addr, Coin, Empty, Uint128}; //BlockInfo};
 use cw20::{Cw20Coin, Cw20CoinVerified, Cw20Contract};
 use cw_multi_test::{App, Contract, ContractWrapper, Executor};
 
-use self::create_contract::*;
-use self::create_users::*;
+use self::create_contract::{cw20_contract, cw721_contract, junovaults_contract};
+use self::create_users::{give_natives, User};
 use self::init_contracts::init_all_contracts;
-use crate::{msg::*, state::*};
+use crate::{
+    msg::{CreateListingMsg, InstantiateMsg},
+    state::{GenericBalance, Nft},
+};
 
 const VALID_NATIVE: &str = "ujunox";
 
@@ -63,6 +66,7 @@ pub mod create_users {
         pub address: Addr,
     }
 
+    #[must_use]
     pub fn fake_user(name: String) -> User {
         User {
             name: name.clone(),
@@ -122,7 +126,7 @@ pub mod init_contracts {
             .instantiate_contract(cw20_id, admin.clone(), &msg, &[], "Token Contract", None)
             .unwrap();
 
-        println!("CW20 | Name: {:?} | Symbol: {:?} | Addr: {:?}", token_name, token_symbol, addr);
+        println!("CW20 | Name: {token_name:?} | Symbol: {token_symbol:?} | Addr: {addr:?}");
         Cw20Contract(addr)
     }
 
@@ -144,7 +148,7 @@ pub mod init_contracts {
             .instantiate_contract(cw721_id, admin_minter.clone(), &msg, &[], "NFT Contract", None)
             .unwrap();
 
-        println!("CW721 | Name: {:?} | Symbol: {:?} | Addr: {:?}", nft_name, nft_symbol, addr);
+        println!("CW721 | Name: {nft_name:?} | Symbol: {nft_symbol:?} | Addr: {addr:?}");
         Cw721Contract(addr, PhantomData, PhantomData)
     }
 
@@ -157,7 +161,7 @@ pub mod init_contracts {
         let addr =
             router.instantiate_contract(jv_id, admin.clone(), &msg, &[], "jv", None).unwrap();
 
-        println!("JunoVaults | Addr: {:?}", addr);
+        println!("JunoVaults | Addr: {addr:?}");
 
         addr
     }
@@ -348,6 +352,7 @@ pub mod create_valid_listing {
 
     use super::VALID_NATIVE; // REAL_JVONE, REAL_NEONPEEPZ};
 
+    #[must_use]
     pub fn valid_ask_all(
         jvone_addr: Addr,
         _jvtwo_addr: Addr,
@@ -376,7 +381,7 @@ pub mod create_valid_listing {
         let cm = CreateListingMsg {
             id: "valid_ask".to_string(),
             ask: valid_ask_price,
-            whitelisted_purchasers: None,
+            whitelisted_buyer: None,
         };
 
         crate::msg::ExecuteMsg::CreateListing {
@@ -384,6 +389,7 @@ pub mod create_valid_listing {
         }
     }
 
+    #[must_use]
     pub fn create_valid_ask(
         listing_id: String,
 
@@ -402,12 +408,9 @@ pub mod create_valid_listing {
         sk_addr: Option<Addr>,
         sk_id: Option<String>,
 
-        whitelisted_purchasers: Option<Vec<String>>,
+        whitelisted_buyer: Option<String>,
     ) -> ExecuteMsg {
-        let native_ask = match juno_amt {
-            None => Vec::new(),
-            Some(a) => vec![coin(a, VALID_NATIVE)],
-        };
+        let native_ask = juno_amt.map_or_else(|| Vec::new(), |a| vec![coin(a, VALID_NATIVE)]);
 
         let mut cw20_ask: Vec<Cw20CoinVerified> = Vec::new();
 
@@ -457,7 +460,7 @@ pub mod create_valid_listing {
         let cm = CreateListingMsg {
             id: listing_id,
             ask: valid_ask_price,
-            whitelisted_purchasers: whitelisted_purchasers,
+            whitelisted_buyer,
         };
 
         crate::msg::ExecuteMsg::CreateListing {
@@ -465,11 +468,12 @@ pub mod create_valid_listing {
         }
     }
 
+    #[must_use]
     pub fn create_listing_msg(
         listing_id: String,
         jvone_addr: Addr,
         np_addr: Addr,
-        whitelist: Option<Vec<Addr>>,
+        whitelisted_buyer_addr: Option<Addr>,
     ) -> CreateListingMsg {
         let native_ask = cosmwasm_std::coins(1, VALID_NATIVE);
 
@@ -489,13 +493,12 @@ pub mod create_valid_listing {
             nfts: nft_ask,
         };
 
-        let whitelist =
-            whitelist.map(|wl| wl.iter().map(|addr| addr.to_string()).collect::<Vec<String>>());
+        let whitelisted_buyer = whitelisted_buyer_addr.map(|addr| addr.to_string());
 
         CreateListingMsg {
             id: listing_id,
             ask: ask_price,
-            whitelisted_purchasers: whitelist,
+            whitelisted_buyer,
         }
     }
 }
@@ -1462,7 +1465,7 @@ fn finalize_a_listing() -> Result<(), anyhow::Error> {
 
     let finalize_john_1 = crate::msg::ExecuteMsg::Finalize {
         listing_id: "john_1".to_string(),
-        seconds: 259200,
+        seconds: 259_200,
     };
 
     let res: Result<AppResponse> =
@@ -1486,7 +1489,7 @@ fn finalize_a_listing() -> Result<(), anyhow::Error> {
 
     let too_late = crate::msg::ExecuteMsg::Finalize {
         listing_id: "john_1".to_string(),
-        seconds: 1209601,
+        seconds: 1_209_601,
     };
     let res: Result<AppResponse> =
         router.execute_contract(john.address.clone(), junovaults.clone(), &too_late, &[]);
@@ -2117,8 +2120,8 @@ fn marketplace_sale() -> Result<(), anyhow::Error> {
     };
     let cl = CreateListingMsg {
         id: "john_listing_1".to_string(),
-        ask: ask_price.clone(),
-        whitelisted_purchasers: Some(vec![sam.address.to_string(), john.address.to_string()]),
+        ask: ask_price,
+        whitelisted_buyer: None,
     };
     let clm = crate::msg::ExecuteMsg::CreateListing {
         create_msg: cl,
@@ -2421,7 +2424,7 @@ fn marketplace_sale() -> Result<(), anyhow::Error> {
     })
     .unwrap();
     let sam_c_msg = cw20_base::msg::ExecuteMsg::Send {
-        contract: junovaults.clone().to_string(),
+        contract: junovaults.to_string(),
         amount: Uint128::from(20u32),
         msg: sam_msg,
     };
@@ -2616,7 +2619,7 @@ fn marketplace_sale() -> Result<(), anyhow::Error> {
     //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     let res: Result<AppResponse> =
         router.execute_contract(sam.address.clone(), junovaults.clone(), &remove_edge, &[]);
-    ensure!(res.is_ok(), here(format!("{:#?}", res), line!(), column!()));
+    ensure!(res.is_ok(), here(format!("{res:#?}"), line!(), column!()));
 
     // but can't remove twice
     let res: Result<AppResponse> =
@@ -2738,7 +2741,7 @@ fn cant_buy_expired() -> Result<(), anyhow::Error> {
     let cl = CreateListingMsg {
         id: "john_listing_1".to_string(),
         ask: ask_price,
-        whitelisted_purchasers: None,
+        whitelisted_buyer: None,
     };
     let clm = crate::msg::ExecuteMsg::CreateListing {
         create_msg: cl,

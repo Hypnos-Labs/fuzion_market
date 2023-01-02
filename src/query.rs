@@ -92,9 +92,8 @@ pub fn get_listing_info(deps: Deps, listing_id: String) -> StdResult<ListingInfo
         ));
     });
 
-    // unwrap, if there are any, then map each Addr to a String
-    let whitelisted_accs =
-        listing.whitelisted_purchasers.unwrap_or_default().iter().map(|x| x.to_string()).collect();
+    let whitelist_buyer: String =
+        listing.whitelisted_buyer.map_or_else(|| "None".to_string(), |x| x.to_string());
 
     let mut res: ListingInfoResponse = ListingInfoResponse {
         creator: listing.creator.to_string(),
@@ -102,7 +101,7 @@ pub fn get_listing_info(deps: Deps, listing_id: String) -> StdResult<ListingInfo
         for_sale: the_sale,
         ask: the_ask,
         expiration: "None".to_string(),
-        whitelisted_purchasers: whitelisted_accs,
+        whitelisted_buyer: whitelist_buyer,
     };
 
     if let Some(x) = listing.expiration_time {
@@ -138,7 +137,24 @@ pub fn get_all_listings(deps: Deps) -> StdResult<MultiListingResponse> {
     })
 }
 
-// Query w filter & pagination
+pub fn get_whitelisted_listings(deps: Deps, address: &str) -> StdResult<MultiListingResponse> {
+    let all_listings: Vec<Listing> = listingz()
+        .idx
+        .whitelisted_buyer
+        .prefix(address.to_string())
+        .range(deps.storage, None, None, Order::Ascending)
+        .collect::<StdResult<Vec<_>>>() // StdResult<Vec<(PK, Listing)>>
+        .unwrap_or_default()
+        .iter()
+        .map(|entry| entry.1.clone())
+        .collect();
+
+    Ok(MultiListingResponse {
+        listings: all_listings,
+    })
+}
+
+// Query w filter & pagination, ignore whitelist'ed assets
 pub fn get_listings_for_market(
     deps: Deps,
     env: &Env,
@@ -164,6 +180,7 @@ pub fn get_listings_for_market(
         .skip(to_skip_usize)
         .take(20)
         .map(|entry| entry.1.clone())
+        // .filter(|entry| entry.whitelisted_buyer.is_some())
         .collect();
 
     Ok(MultiListingResponse {
@@ -202,5 +219,5 @@ pub struct ListingInfoResponse {
     pub for_sale: Vec<(String, u128)>,
     pub ask: Vec<(String, u128)>,
     pub expiration: String,
-    pub whitelisted_purchasers: Vec<String>,
+    pub whitelisted_buyer: String,
 }

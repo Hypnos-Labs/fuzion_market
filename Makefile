@@ -17,3 +17,9 @@ all:
 	cargo fmt
 	cargo test
 	cargo clippy -- -D warnings	
+
+test:
+	cargo test -- --nocapture
+
+test-e2e:
+	sh ./e2e/test_e2e.sh
