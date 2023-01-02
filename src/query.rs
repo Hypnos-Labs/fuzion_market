@@ -137,6 +137,23 @@ pub fn get_all_listings(deps: Deps) -> StdResult<MultiListingResponse> {
     })
 }
 
+pub fn get_whitelisted_listings(deps: Deps, address: &str) -> StdResult<MultiListingResponse> {
+    let all_listings: Vec<Listing> = listingz()
+        .idx
+        .whitelisted_buyer
+        .prefix(address.to_string())
+        .range(deps.storage, None, None, Order::Ascending)
+        .collect::<StdResult<Vec<_>>>() // StdResult<Vec<(PK, Listing)>>
+        .unwrap_or_default()
+        .iter()
+        .map(|entry| entry.1.clone())
+        .collect();
+
+    Ok(MultiListingResponse {
+        listings: all_listings,
+    })
+}
+
 // Query w filter & pagination, ignore whitelist'ed assets
 pub fn get_listings_for_market(
     deps: Deps,
@@ -163,7 +180,7 @@ pub fn get_listings_for_market(
         .skip(to_skip_usize)
         .take(20)
         .map(|entry| entry.1.clone())
-        .filter(|entry| entry.whitelisted_buyer.is_some())
+        // .filter(|entry| entry.whitelisted_buyer.is_some())
         .collect();
 
     Ok(MultiListingResponse {

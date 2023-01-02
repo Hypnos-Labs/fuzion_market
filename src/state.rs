@@ -23,11 +23,14 @@ pub struct Config {
 pub struct ListingIndexes<'a> {
     pub id: UniqueIndex<'a, String, Listing, (&'a Addr, String)>,
     pub finalized_date: MultiIndex<'a, u64, Listing, (&'a Addr, String)>,
+    // Key = (whitelisted buyer, listing_id)
+    pub whitelisted_buyer: UniqueIndex<'a, (String, String), Listing, (&'a Addr, String)>,
 }
 
 impl IndexList<Listing> for ListingIndexes<'_> {
     fn get_indexes(&'_ self) -> Box<dyn Iterator<Item = &'_ dyn Index<Listing>> + '_> {
-        let v: Vec<&dyn Index<Listing>> = vec![&self.id, &self.finalized_date];
+        let v: Vec<&dyn Index<Listing>> =
+            vec![&self.id, &self.finalized_date, &self.whitelisted_buyer];
         Box::new(v.into_iter())
     }
 }
@@ -40,6 +43,18 @@ pub fn listingz<'a>() -> IndexedMap<'a, (&'a Addr, String), Listing, ListingInde
             |_pk, a_listing| a_listing.finalized_time.map_or(0_u64, |x| x.seconds()),
             "listings_im",
             "listing__finalized__date",
+        ),
+        whitelisted_buyer: UniqueIndex::new(
+            |listing| {
+                (
+                    listing
+                        .whitelisted_buyer
+                        .clone()
+                        .map_or_else(|| "1".to_string(), |addr| addr.to_string()),
+                    listing.id.clone(),
+                )
+            },
+            "listing__whitelisted__one",
         ),
     };
 

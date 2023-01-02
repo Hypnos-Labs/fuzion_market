@@ -138,6 +138,10 @@ pub enum QueryMsg {
     GetListingsForMarket {
         page_num: u8,
     },
+    #[returns(MultiListingResponse)]
+    GetWhitelistedListings {
+        address: String,
+    },
 }
 
 #[cw_serde]

@@ -283,14 +283,23 @@ function test_whitelist {
     listings=$(query_contract $VAULT_CONTRACT '{"get_listings_for_market":{"page_num":1}}' | jq -r '.data.listings')
     ASSERT_EQUAL "$listings" '[]'
 
-    # TODO: get all listings that whitelisted buyer `juno1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq93ryqp` has
+    # Ensure the listing is in the whitelist only query
+    listings=$(query_contract $VAULT_CONTRACT '{"get_whitelisted_listings":{"address":"juno1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq93ryqp"}}' | jq -rc '.data.listings')
+    ASSERT_EQUAL $listings '[{"creator":"juno1hj5fveer5cjtn4wd6wstzugjfdxzl0xps73ftl","id":"vault_2","finalized_time":null,"expiration_time":null,"status":"being_prepared","claimant":null,"whitelisted_buyer":"juno1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq93ryqp","for_sale":{"native":[{"denom":"ucosm","amount":"25"}],"cw20":[],"nfts":[]},"ask":{"native":[{"denom":"ujunox","amount":"5"}],"cw20":[],"nfts":[]}}]'
 
     # remove whitelisted buyer test
     wasm_cmd $VAULT_CONTRACT '{"remove_whitelisted_buyer":{"listing_id":"vault_2"}}' "" show_log
     listing_1_change=$(query_contract $VAULT_CONTRACT '{"get_listing_info":{"listing_id":"vault_2"}}')
     ASSERT_EQUAL "$listing_1_change" '{"data":{"creator":"juno1hj5fveer5cjtn4wd6wstzugjfdxzl0xps73ftl","status":"Being Prepared","for_sale":[["ucosm","25"]],"ask":[["ujunox","5"]],"expiration":"None","whitelisted_buyer":"None"}}'
 
-    # change whitelisted buyer to correct address - ChangeWhitelistedBuyer
+    # ensure the address no longer is in the whitelist query
+    listings=$(query_contract $VAULT_CONTRACT '{"get_whitelisted_listings":{"address":"juno1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq93ryqp"}}' | jq -rc '.data.listings')
+    ASSERT_EQUAL $listings '[]'
+    # and that it is in the market listings query now
+    listing_no_whitelist=$(query_contract $VAULT_CONTRACT '{"get_listing_info":{"listing_id":"vault_2"}}')
+    ASSERT_EQUAL "$listing_no_whitelist" '{"data":{"creator":"juno1hj5fveer5cjtn4wd6wstzugjfdxzl0xps73ftl","status":"Being Prepared","for_sale":[["ucosm","25"]],"ask":[["ujunox","5"]],"expiration":"None","whitelisted_buyer":"None"}}'
+
+    # change whitelisted buyer to correct address
     wasm_cmd $VAULT_CONTRACT '{"change_whitelisted_buyer":{"listing_id":"vault_2","new_address":"juno1efd63aw40lxf3n4mhf7dzhjkr453axurv2zdzk"}}' "" show_log
     listing_1_change=$(query_contract $VAULT_CONTRACT '{"get_listing_info":{"listing_id":"vault_2"}}')
     ASSERT_EQUAL "$listing_1_change" '{"data":{"creator":"juno1hj5fveer5cjtn4wd6wstzugjfdxzl0xps73ftl","status":"Being Prepared","for_sale":[["ucosm","25"]],"ask":[["ujunox","5"]],"expiration":"None","whitelisted_buyer":"juno1efd63aw40lxf3n4mhf7dzhjkr453axurv2zdzk"}}'
@@ -302,7 +311,7 @@ function test_whitelist {
     wasm_cmd $VAULT_CONTRACT '{"create_bucket":{"bucket_id":"buyer_2"}}' "5ujunox" show_log
     wasm_cmd $VAULT_CONTRACT '{"buy_listing":{"listing_id":"vault_2","bucket_id":"buyer_2"}}' "" dont_show_log
     ASSERT_CONTAINS "$CMD_LOG" 'Not whitelisted'
-    # try to buy as the whitelisted person
+    # Buy as the whitelisted person
     wasm_cmd $VAULT_CONTRACT '{"create_bucket":{"bucket_id":"buyer_3"}}' "5ujunox" show_log "$TX_FLAGS --keyring-backend test --from other-user"
     wasm_cmd $VAULT_CONTRACT '{"buy_listing":{"listing_id":"vault_2","bucket_id":"buyer_3"}}' "" show_log "$TX_FLAGS --keyring-backend test --from other-user"
     wasm_cmd $VAULT_CONTRACT '{"withdraw_purchased":{"listing_id":"vault_2"}}' "" show_log "$TX_FLAGS --keyring-backend test --from other-user"

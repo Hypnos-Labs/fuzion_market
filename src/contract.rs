@@ -18,7 +18,7 @@ use crate::execute::{
 use crate::msg::{ExecuteMsg, InstantiateMsg, QueryMsg, ReceiveMsg, ReceiveNftMsg};
 use crate::query::{
     get_admin, get_all_listings, get_buckets, get_config, get_listing_info, get_listings_by_owner,
-    get_listings_for_market,
+    get_listings_for_market, get_whitelisted_listings,
 };
 use crate::state::{Config, Nft, CONFIG};
 use std::str;
@@ -207,5 +207,8 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
         QueryMsg::GetListingsForMarket {
             page_num,
         } => to_binary(&get_listings_for_market(deps, &env, page_num)?),
+        QueryMsg::GetWhitelistedListings {
+            address,
+        } => to_binary(&get_whitelisted_listings(deps, &address)?),
     }
 }
