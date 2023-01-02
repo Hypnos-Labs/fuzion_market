@@ -164,12 +164,12 @@ pub trait ToGenericBalance {
 impl ToGenericBalance for Balance {
     fn to_generic(&self) -> GenericBalance {
         match self {
-            Balance::Native(balance) => GenericBalance {
+            Self::Native(balance) => GenericBalance {
                 native: balance.clone().into_vec(),
                 cw20: Vec::new(),
                 nfts: Vec::new(),
             },
-            Balance::Cw20(token) => GenericBalance {
+            Self::Cw20(token) => GenericBalance {
                 native: Vec::new(),
                 cw20: vec![token.clone()],
                 nfts: Vec::new(),

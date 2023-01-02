@@ -187,12 +187,8 @@ fn validate_basic_new_listing(
     // normalize the tokens sent in
     let ask_tokens = normalize_ask_error_on_dup(bal)?;
 
-    if whitelisted_buyer.is_some() {
-        let whitelist_address = deps.api.addr_validate(&whitelisted_buyer.unwrap())?;
-        Ok((ask_tokens, Some(whitelist_address)))
-    } else {
-        Ok((ask_tokens, None))
-    }
+    let whitelist: Option<Addr> = whitelisted_buyer.map(|w| deps.api.addr_validate(&w)).transpose()?;
+    Ok((ask_tokens, whitelist))
 }
 
 pub fn execute_create_listing(

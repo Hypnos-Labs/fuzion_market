@@ -93,7 +93,7 @@ pub fn get_listing_info(deps: Deps, listing_id: String) -> StdResult<ListingInfo
     });
 
     let whitelist_buyer: String =
-        listing.whitelisted_buyer.map(|x| x.to_string()).unwrap_or_else(|| "None".to_string());
+        listing.whitelisted_buyer.map_or_else(|| "None".to_string(), |x| x.to_string());
 
     let mut res: ListingInfoResponse = ListingInfoResponse {
         creator: listing.creator.to_string(),
