@@ -1,13 +1,18 @@
 use crate::error::ContractError;
 use crate::state::GenericBalance;
 
-use cosmwasm_std::coins;
+use cosmwasm_std::{coins, Binary};
 use cosmwasm_std::{to_binary, Addr, BankMsg, CosmosMsg, Empty, StdResult, WasmMsg};
 use cw20::Cw20ExecuteMsg;
 use cw721::Cw721ExecuteMsg;
 
+include!("protos/mod.rs");
+use coin::Coin as SDKCoin;
+use protobuf::Message;
+use CosmosDistrubtionV1beta1MsgFundCommunityPool::MsgFundCommunityPool;
+
 // Actual community pool on mainnet
-const COMMUNITY_POOL: &str = "juno1jv65s3grqf6v6jl3dp4t6c9t9rk99cd83d88wr";
+// const COMMUNITY_POOL: &str = "juno1jv65s3grqf6v6jl3dp4t6c9t9rk99cd83d88wr";
 // use fake contract address for testnet
 //const COMMUNITY_POOL: &str = ""
 
@@ -91,7 +96,10 @@ pub fn normalize_ask_error_on_dup(ask: GenericBalance) -> Result<GenericBalance,
     Ok(normalized)
 }
 
-pub fn calc_fee(balance: &GenericBalance) -> StdResult<Option<(CosmosMsg, GenericBalance)>> {
+pub fn calc_fee(
+    this_contract_addr: &Addr,
+    balance: &GenericBalance,
+) -> StdResult<Option<(CosmosMsg, GenericBalance)>> {
     let juno_in_balance = balance.native.iter().find(|n| n.denom == *NATIVE);
 
     // If balance DOES NOT contain juno, return Ok(None)
@@ -107,10 +115,21 @@ pub fn calc_fee(balance: &GenericBalance) -> StdResult<Option<(CosmosMsg, Generi
             return Ok(None);
         }
 
-        let fee_msg: CosmosMsg<Empty> = CosmosMsg::from(BankMsg::Send {
-            to_address: COMMUNITY_POOL.to_string(),
-            amount: coins(ten_pips.u128(), NATIVE),
-        });
+        let fee_msg = MsgFundCommunityPool {
+            amount: vec![SDKCoin {
+                amount: ten_pips.u128().to_string(),
+                denom: NATIVE.to_string(),
+                special_fields: Default::default(),
+            }],
+            depositor: this_contract_addr.to_string(), // TODO: change to this contracts addr
+            special_fields: Default::default(),
+        };
+        let pool_msg_bytes: Vec<u8> = fee_msg.write_to_bytes().unwrap_or_default();
+
+        let final_msg: CosmosMsg = CosmosMsg::Stargate {
+            type_url: "/cosmos.distribution.v1beta1.MsgFundCommunityPool".to_string(),
+            value: Binary::from(pool_msg_bytes),
+        };
 
         let juno_amount_after_fee_removed = juno.amount.checked_sub(ten_pips)?;
 
@@ -121,7 +140,7 @@ pub fn calc_fee(balance: &GenericBalance) -> StdResult<Option<(CosmosMsg, Generi
             x
         };
 
-        Ok(Some((fee_msg, balance_with_fee_removed)))
+        Ok(Some((final_msg, balance_with_fee_removed)))
     } else {
         Ok(None)
     }

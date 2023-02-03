@@ -1,0 +1,10 @@
+syntax = "proto3";
+
+// https://github.com/cosmos/cosmos-sdk/blob/main/proto/cosmos/distribution/v1beta1/tx.proto
+
+import "cosmos/base/v1beta1/coin.proto";
+
+message MsgFundCommunityPool {
+    repeated cosmos.base.v1beta1.Coin amount = 1;
+    string depositor = 2;
+}

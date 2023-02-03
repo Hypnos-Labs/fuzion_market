@@ -645,6 +645,7 @@ pub fn execute_buy_listing(
 // TODO: merge this in with buy_listing function above
 pub fn execute_withdraw_purchased(
     deps: DepsMut,
+    env: &Env,
     withdrawer: &Addr,
     listing_id: String,
 ) -> Result<Response, ContractError> {
@@ -674,8 +675,8 @@ pub fn execute_withdraw_purchased(
         .add_attribute("action", "withdraw_purchased")
         .add_attribute("listing_id", listing_id);
 
-    if let Some((fee_msg, gbal)) =
-        calc_fee(&the_listing.for_sale).map_err(|_foo| ContractError::FeeCalc)?
+    if let Some((fee_msg, gbal)) = calc_fee(&env.contract.address, &the_listing.for_sale)
+        .map_err(|_foo| ContractError::FeeCalc)?
     {
         let user_msgs = send_tokens_cosmos(&listing_claimer, &gbal)?;
         Ok(res.add_message(fee_msg).add_messages(user_msgs))

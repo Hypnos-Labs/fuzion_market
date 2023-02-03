@@ -35,6 +35,7 @@ backtraces = ["cosmwasm-std/backtraces"]
 library = []
 
 [dependencies]
+protobuf = "3"
 anyhow = "1.0.66"
 chrono = { version = "0.4.23", default-features = false }
 cosmwasm-schema = "1.1.8"
