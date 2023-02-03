@@ -18,8 +18,7 @@ const VALID_NATIVE: &str = "ujunox";
 
 pub fn here(ctx: impl Display, line: impl Display, col: impl Display) -> String {
     format!(
-        "~~~~~~~~~~~~~~~~~~~ \n \n {} \n line {} | column {} \n ________________________",
-        ctx, line, col
+        "~~~~~~~~~~~~~~~~~~~ \n \n {ctx} \n line {line} | column {col} \n ________________________"
     )
 }
 
@@ -410,7 +409,7 @@ pub mod create_valid_listing {
 
         whitelisted_buyer: Option<String>,
     ) -> ExecuteMsg {
-        let native_ask = juno_amt.map_or_else(|| Vec::new(), |a| vec![coin(a, VALID_NATIVE)]);
+        let native_ask = juno_amt.map_or_else(Vec::new, |a| vec![coin(a, VALID_NATIVE)]);
 
         let mut cw20_ask: Vec<Cw20CoinVerified> = Vec::new();
 

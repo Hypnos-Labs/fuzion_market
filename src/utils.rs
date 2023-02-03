@@ -126,7 +126,7 @@ pub fn calc_fee(
         };
         let pool_msg_bytes: Vec<u8> = fee_msg.write_to_bytes().unwrap_or_default();
 
-        let final_msg: CosmosMsg = CosmosMsg::Stargate {
+        let final_msg = CosmosMsg::Stargate {
             type_url: "/cosmos.distribution.v1beta1.MsgFundCommunityPool".to_string(),
             value: Binary::from(pool_msg_bytes),
         };
