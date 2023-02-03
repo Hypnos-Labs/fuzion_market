@@ -1,10 +1,13 @@
 use crate::error::ContractError;
 use crate::state::GenericBalance;
 
-use cosmwasm_std::coins;
+use cosmwasm_std::{coins, StdError};
 use cosmwasm_std::{to_binary, Addr, BankMsg, CosmosMsg, Empty, StdResult, WasmMsg};
 use cw20::Cw20ExecuteMsg;
 use cw721::Cw721ExecuteMsg;
+use cosmos_sdk_proto::cosmos::base::v1beta1::Coin as SdkCoin;
+use cosmos_sdk_proto::cosmos::distribution::v1beta1::MsgFundCommunityPool;
+
 
 // Actual community pool on mainnet
 const COMMUNITY_POOL: &str = "juno1jv65s3grqf6v6jl3dp4t6c9t9rk99cd83d88wr";
@@ -91,7 +94,20 @@ pub fn normalize_ask_error_on_dup(ask: GenericBalance) -> Result<GenericBalance,
     Ok(normalized)
 }
 
-pub fn calc_fee(balance: &GenericBalance) -> StdResult<Option<(CosmosMsg, GenericBalance)>> {
+
+// encode a protobuf into a cosmos message
+// Inspired by https://github.com/alice-ltd/smart-contracts/blob/master/contracts/alice_terra_token/src/execute.rs#L73-L76
+pub(crate) fn proto_encode<M: prost::Message>(msg: M, type_url: String) -> StdResult<CosmosMsg> {
+    let mut bytes = Vec::new();
+    prost::Message::encode(&msg, &mut bytes)
+        .map_err(|_e| StdError::generic_err("Message encoding must be infallible"))?;
+    Ok(cosmwasm_std::CosmosMsg::<cosmwasm_std::Empty>::Stargate {
+        type_url,
+        value: cosmwasm_std::Binary(bytes),
+    })
+}
+
+pub fn calc_fee(balance: &GenericBalance, depositor: &Addr) -> StdResult<Option<(CosmosMsg, GenericBalance)>> {
     let juno_in_balance = balance.native.iter().find(|n| n.denom == *NATIVE);
 
     // If balance DOES NOT contain juno, return Ok(None)
@@ -107,10 +123,16 @@ pub fn calc_fee(balance: &GenericBalance) -> StdResult<Option<(CosmosMsg, Generi
             return Ok(None);
         }
 
-        let fee_msg: CosmosMsg<Empty> = CosmosMsg::from(BankMsg::Send {
-            to_address: COMMUNITY_POOL.to_string(),
-            amount: coins(ten_pips.u128(), NATIVE),
-        });
+        let fee_msg: CosmosMsg = proto_encode(
+            MsgFundCommunityPool {
+                amount: vec![SdkCoin {
+                    denom: NATIVE.to_string(),
+                    amount: ten_pips.to_string(),
+                }],
+                depositor: depositor.to_string(),
+            },
+            "/cosmos.distribution.v1beta1.MsgFundCommunityPool".to_string(),
+        )?;
 
         let juno_amount_after_fee_removed = juno.amount.checked_sub(ten_pips)?;
 
