@@ -1,19 +1,10 @@
-#[allow(unused_imports)]
-use crate::query::{
-    AdminResponse, ConfigResponse, GetBucketsResponse, ListingInfoResponse, MultiListingResponse,
-};
-use crate::state::GenericBalance;
-use cosmwasm_schema::{cw_serde, QueryResponses};
-use cw20::Cw20ReceiveMsg;
-use cw721::Cw721ReceiveMsg;
+use crate::msg_imports::*;
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // Instantiate
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 #[cw_serde]
-pub struct InstantiateMsg {
-    pub admin: Option<String>,
-}
+pub struct InstantiateMsg {}
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // Execute
@@ -28,85 +19,78 @@ pub enum ExecuteMsg {
         create_msg: CreateListingMsg,
     },
     // Edit Listing
-    AddFundsToSaleNative {
-        listing_id: String,
+    AddToListing {
+        listing_id: u64,
     },
     ChangeAsk {
-        listing_id: String,
+        listing_id: u64,
         new_ask: GenericBalance,
-    },
-    ChangeWhitelistedBuyer {
-        listing_id: String,
-        new_address: String,
-    },
-    RemoveWhitelistedBuyer {
-        listing_id: String,
-    },
-    RemoveListing {
-        listing_id: String,
     },
     // Makes Listing available for purchase & sets expiration time
     Finalize {
-        listing_id: String,
+        listing_id: u64,
         seconds: u64,
     },
-    // Only callable when Listing is expired
-    RefundExpired {
-        listing_id: String,
+    DeleteListing {
+        listing_id: u64,
     },
     CreateBucket {
-        bucket_id: String,
+        //bucket_id: String,
     },
     AddToBucket {
-        bucket_id: String,
+        bucket_id: u64,
     },
     RemoveBucket {
-        bucket_id: String,
+        bucket_id: u64,
     },
     BuyListing {
-        listing_id: String,
-        bucket_id: String,
+        listing_id: u64,
+        bucket_id: u64,
     },
     WithdrawPurchased {
-        listing_id: String,
+        listing_id: u64,
     },
+    // RemoveListing {
+    //     listing_id: u64,
+    // },
+    // // Only callable when Listing is expired
+    // RefundExpired {
+    //     listing_id: u64,
+    // },
 }
 
-//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // cw20 entry point
-//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 #[cw_serde]
 pub enum ReceiveMsg {
     CreateListingCw20 {
         create_msg: CreateListingMsg,
     },
-    AddFundsToSaleCw20 {
-        listing_id: String,
+    // AddFundsToSaleCw20 {
+    //     listing_id: u64,
+    // },
+    AddToListingCw20 {
+        listing_id: u64,
     },
     CreateBucketCw20 {
-        bucket_id: String,
+        //bucket_id: String,
     },
     AddToBucketCw20 {
-        bucket_id: String,
+        bucket_id: u64,
     },
 }
 
-//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // cw721 entry point
-//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 #[cw_serde]
 pub enum ReceiveNftMsg {
     CreateListingCw721 {
         create_msg: CreateListingMsg,
     },
     AddToListingCw721 {
-        listing_id: String,
+        listing_id: u64,
     },
-    CreateBucketCw721 {
-        bucket_id: String,
-    },
+    CreateBucketCw721 {},
     AddToBucketCw721 {
-        bucket_id: String,
+        bucket_id: u64,
     },
 }
 
@@ -116,16 +100,16 @@ pub enum ReceiveNftMsg {
 #[cw_serde]
 #[derive(QueryResponses)]
 pub enum QueryMsg {
-    #[returns(AdminResponse)]
-    GetAdmin {},
-    #[returns(ConfigResponse)]
-    GetConfig {},
+    #[returns(CountResponse)]
+    GetCounts {},
+    #[returns(FeeDenomResponse)]
+    GetFeeDenom {},
     #[returns(MultiListingResponse)]
     GetAllListings {},
-    #[returns(ListingInfoResponse)]
-    GetListingInfo {
-        listing_id: String,
-    },
+    // #[returns(ListingInfoResponse)]
+    // GetListingInfo {
+    //     listing_id: u64,
+    // },
     #[returns(MultiListingResponse)]
     GetListingsByOwner {
         owner: String,
@@ -138,15 +122,15 @@ pub enum QueryMsg {
     GetListingsForMarket {
         page_num: u8,
     },
-    #[returns(MultiListingResponse)]
-    GetWhitelistedListings {
-        address: String,
-    },
 }
+
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// Query Helpers
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 #[cw_serde]
 pub struct CreateListingMsg {
-    pub id: String,
+    //pub id: u64,
     pub ask: GenericBalance,
     pub whitelisted_buyer: Option<String>,
 }

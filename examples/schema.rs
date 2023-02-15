@@ -1,5 +1,5 @@
 use cosmwasm_schema::write_api;
-use juno_vaults::msg::{ExecuteMsg, InstantiateMsg, QueryMsg};
+use fuzion_market::msg::{ExecuteMsg, InstantiateMsg, QueryMsg};
 
 fn main() {
     write_api! {

@@ -30,7 +30,13 @@ function wasm_cmd {
     fi    
 }
 
-# CW721
+# --------------------
+# CW721 Tokens
+# --------------------
+
+#
+# Mint NFT
+#
 function mint_cw721 {
     CONTRACT_ADDR=$1
     TOKEN_ID=$2
@@ -40,27 +46,147 @@ function mint_cw721 {
     TXMINT=$($BINARY tx wasm execute "$CONTRACT_ADDR" "$EXECUTED_MINT_JSON" $JUNOD_COMMAND_ARGS | jq -r '.txhash') && echo $TXMINT
 }
 
-function send_nft_to_listing {
-    INTERATING_CONTRACT=$1
+#
+# Create Listing with NFT
+#
+function create_listing_cw721 {
+    MARKET_CONTRACT=$1
+    CW721_CONTRACT_ADDR=$2
+    TOKEN_ID=$3
+    LISTING_BASE64=`printf '{"create_listing_cw721":{"create_msg":{"ask":{"native":[{"denom":"ujunox","amount":"1"}],"cw20":[],"nfts":[]}}}}' | base64 -w 0`
+    SEND_TOKEN_JSON=`printf '{"send_nft":{"contract":"%s","token_id":"%s","msg":"%s"}}' $MARKET_CONTRACT $TOKEN_ID $LISTING_BASE64`        
+
+    wasm_cmd $CW20_CONTRACT_ADDR "$SEND_TOKEN_JSON" "" show_log
+}
+
+#
+# Create Bucket with NFT
+#
+function create_bucket_cw721 {
+    MARKET_CONTRACT=$1
+    CW721_CONTRACT_ADDR=$2
+    TOKEN_ID=$3
+    BUCKET_BASE64=`printf '{"create_bucket_cw721":{}' | base64 -w 0` 
+    SEND_TOKEN_JSON=`printf '{"send_nft":{"contract":"%s","token_id":"%s","msg":"%s"}}' $MARKET_CONTRACT $TOKEN_ID $BUCKET_BASE64`        
+
+    wasm_cmd $CW20_CONTRACT_ADDR "$SEND_TOKEN_JSON" "" show_log
+}
+
+
+
+
+#
+# Add NFT to listing
+#
+function add_nft_to_listing {
+    MARKET_CONTRACT=$1
     CW721_CONTRACT_ADDR=$2
     TOKEN_ID=$3
     LISTING_ID=$4
     
-    NFT_LISTING_BASE64=`printf '{"add_to_listing_cw721":{"listing_id":"%s"}}' $LISTING_ID | base64 -w 0`    
-    SEND_NFT_JSON=`printf '{"send_nft":{"contract":"%s","token_id":"%s","msg":"%s"}}' $INTERATING_CONTRACT $TOKEN_ID $NFT_LISTING_BASE64`        
+    NFT_LISTING_BASE64=`printf '{"add_to_listing_cw721":{"listing_id":%d}}' $LISTING_ID | base64 -w 0`    
+    SEND_NFT_JSON=`printf '{"send_nft":{"contract":"%s","token_id":"%s","msg":"%s"}}' $MARKET_CONTRACT $TOKEN_ID $NFT_LISTING_BASE64`        
+
+    wasm_cmd $CW721_CONTRACT_ADDR "$SEND_NFT_JSON" "" show_log
+}
+
+#
+# Add NFT to Bucket
+#
+function add_nft_to_bucket {
+    MARKET_CONTRACT=$1
+    CW721_CONTRACT_ADDR=$2
+    TOKEN_ID=$3
+    BUCKET_ID=$4
+    
+    NFT_BUCKET_BASE64=`printf '{"add_to_bucket_cw721":{"bucket_id":%d}}' $BUCKET_ID | base64 -w 0`    
+    SEND_NFT_JSON=`printf '{"send_nft":{"contract":"%s","token_id":"%s","msg":"%s"}}' $MARKET_CONTRACT $TOKEN_ID $NFT_BUCKET_BASE64`        
+
+    wasm_cmd $CW721_CONTRACT_ADDR "$SEND_NFT_JSON" "" show_log
+}
+
+
+
+# -------------------- #
+# CW20 Tokens
+# -------------------- #
+
+#
+# Create Listing with CW20
+#
+function create_listing_cw20 {
+    MARKET_CONTRACT=$1
+    CW20_CONTRACT_ADDR=$2
+    AMOUNT=$3
+    LISTING_BASE64=`printf '{"create_listing_cw20":{"create_msg":{"ask":{"native":[{"denom":"ujunox","amount":"1"}],"cw20":[],"nfts":[]}}}}' | base64 -w 0`
+    SEND_TOKEN_JSON=`printf '{"send":{"contract":"%s","amount":"%s","msg":"%s"}}' $MARKET_CONTRACT $AMOUNT $LISTING_BASE64`        
+
+    wasm_cmd $CW20_CONTRACT_ADDR "$SEND_TOKEN_JSON" "" show_log
+}
+
+#
+# Create Bucket with CW20
+#
+function create_bucket_cw20 {
+    MARKET_CONTRACT=$1
+    CW20_CONTRACT_ADDR=$2
+    AMOUNT=$3
+    BUCKET_BASE64=`printf '{"create_bucket_cw20":{}' | base64 -w 0` 
+    SEND_TOKEN_JSON=`printf '{"send":{"contract":"%s","amount":"%s","msg":"%s"}}' $MARKET_CONTRACT $AMOUNT $BUCKET_BASE64`        
+
+    wasm_cmd $CW20_CONTRACT_ADDR "$SEND_TOKEN_JSON" "" show_log
+}
+
+#
+# Add CW20 to Listing
+#
+function add_cw20_to_listing {
+    MARKET_CONTRACT=$1
+    CW20_CONTRACT_ADDR=$2
+    AMOUNT=$3
+    LISTING_ID=$4
+    LISTING_BASE64=`printf '{"add_to_listing_cw20":{"listing_id":%d}}' $LISTING_ID | base64 -w 0` 
+    SEND_TOKEN_JSON=`printf '{"send":{"contract":"%s","amount":"%s","msg":"%s"}}' $MARKET_CONTRACT $AMOUNT $LISTING_BASE64`        
+
+    wasm_cmd $CW20_CONTRACT_ADDR "$SEND_TOKEN_JSON" "" show_log
+}
+
+#
+# Add CW20 to Bucket
+#
+function add_cw20_to_bucket {
+    MARKET_CONTRACT=$1
+    CW20_CONTRACT_ADDR=$2
+    AMOUNT=$3
+    BUCKET_ID=$4
+    BUCKET_BASE64=`printf '{"add_to_bucket_cw20":{"bucket_id":%d}}' $BUCKET_ID | base64 -w 0` 
+    SEND_TOKEN_JSON=`printf '{"send":{"contract":"%s","amount":"%s","msg":"%s"}}' $MARKET_CONTRACT $AMOUNT $BUCKET_BASE64`        
+
+    wasm_cmd $CW20_CONTRACT_ADDR "$SEND_TOKEN_JSON" "" show_log
+}
+
+
+
+function send_nft_to_listing {
+    MARKET_CONTRACT=$1
+    CW721_CONTRACT_ADDR=$2
+    TOKEN_ID=$3
+    LISTING_ID=$4
+    
+    NFT_LISTING_BASE64=`printf '{"add_to_listing_cw721":{"listing_id":%d}}' $LISTING_ID | base64 -w 0`    
+    SEND_NFT_JSON=`printf '{"send_nft":{"contract":"%s","token_id":"%s","msg":"%s"}}' $MARKET_CONTRACT $TOKEN_ID $NFT_LISTING_BASE64`        
 
     wasm_cmd $CW721_CONTRACT_ADDR "$SEND_NFT_JSON" "" show_log
 }
 
 # CW20 Tokens
 function send_cw20_to_listing {
-    INTERATING_CONTRACT=$1
+    MARKET_CONTRACT=$1
     CW20_CONTRACT_ADDR=$2
     AMOUNT=$3
     LISTING_ID=$4
-    
-    LISTING_BASE64=`printf '{"add_funds_to_sale_cw20":{"listing_id":"%s"}}' $LISTING_ID | base64 -w 0`               
-    SEND_TOKEN_JSON=`printf '{"send":{"contract":"%s","amount":"%s","msg":"%s"}}' $INTERATING_CONTRACT $AMOUNT $LISTING_BASE64`        
+    LISTING_BASE64=`printf '{"add_to_listing_cw20":{"listing_id":%d}}' $LISTING_ID | base64 -w 0` 
+    SEND_TOKEN_JSON=`printf '{"send":{"contract":"%s","amount":"%s","msg":"%s"}}' $MARKET_CONTRACT $AMOUNT $LISTING_BASE64`        
 
     wasm_cmd $CW20_CONTRACT_ADDR "$SEND_TOKEN_JSON" "" show_log
 }

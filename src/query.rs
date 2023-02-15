@@ -1,30 +1,35 @@
-use crate::state::{listingz, Bucket, Config, Listing, Status, BUCKETS, CONFIG};
-use cosmwasm_schema::cw_serde;
-use cosmwasm_std::StdError;
-use cosmwasm_std::{Deps, Env, Order, StdResult};
-use cw_storage_plus::PrefixBound;
+use crate::query_imports::*;
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // Queries
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-// Get contract admin
-pub fn get_admin(deps: Deps) -> StdResult<AdminResponse> {
-    let storage = CONFIG.load(deps.storage)?;
-    Ok(AdminResponse {
-        admin: storage.admin.into_string(),
+/// Current Fee Denom
+pub fn get_fee_denom(deps: Deps) -> StdResult<FeeDenomResponse> {
+    let fee_denom: FeeDenom = FEE_DENOM.load(deps.storage)?;
+
+    let symbol = match fee_denom {
+        FeeDenom::JUNO => "JUNO".to_string(),
+        FeeDenom::USDC => "USDC".to_string(),
+    };
+
+    Ok(FeeDenomResponse {
+        symbol,
+        denom: fee_denom.value(),
     })
 }
 
-// Get config
-pub fn get_config(deps: Deps) -> StdResult<ConfigResponse> {
-    let config = CONFIG.load(deps.storage)?;
-    Ok(ConfigResponse {
-        config,
+/// Get Counts
+pub fn get_counts(deps: Deps) -> StdResult<CountResponse> {
+    let listing_count = LISTING_COUNT.load(deps.storage)?;
+    let bucket_count = BUCKET_COUNT.load(deps.storage)?;
+    Ok(CountResponse {
+        listing_count,
+        bucket_count,
     })
 }
 
-// Get all buckets owned by an address
+/// Get all buckets owned by an address
 pub fn get_buckets(deps: Deps, bucket_owner: &str) -> StdResult<GetBucketsResponse> {
     let bucket_ownerx = deps.api.addr_validate(bucket_owner)?;
 
@@ -36,82 +41,7 @@ pub fn get_buckets(deps: Deps, bucket_owner: &str) -> StdResult<GetBucketsRespon
     })
 }
 
-// Get a single listing by a Listing ID
-pub fn get_listing_info(deps: Deps, listing_id: String) -> StdResult<ListingInfoResponse> {
-    let Some((_pk, listing)): Option<(_, Listing)> = listingz().idx.id.item(deps.storage, listing_id)? else {
-        return Err(StdError::GenericErr { msg: "Invalid listing ID".to_string() });
-    };
-
-    let status = match listing.status {
-        Status::BeingPrepared => "Being Prepared".to_string(),
-        Status::FinalizedReady => "Ready for purchase".to_string(),
-        Status::Closed => "Closed".to_string(),
-    };
-
-    // Getting the sale
-    let mut the_sale: Vec<(String, u128)> = Vec::new();
-
-    listing
-        .for_sale
-        .native
-        .iter()
-        .for_each(|the_coin| the_sale.push((the_coin.denom.clone(), the_coin.amount.u128())));
-
-    listing
-        .for_sale
-        .cw20
-        .iter()
-        .for_each(|the_coin| the_sale.push((the_coin.address.to_string(), the_coin.amount.u128())));
-
-    listing.for_sale.nfts.iter().for_each(|the_nft| {
-        the_sale.push((
-            the_nft.contract_address.to_string(),
-            the_nft.token_id.trim().parse::<u128>().expect("Invalid token ID"),
-        ));
-    });
-
-    // Getting the ask
-    let mut the_ask: Vec<(String, u128)> = Vec::new();
-
-    listing
-        .ask
-        .native
-        .iter()
-        .for_each(|the_coin| the_ask.push((the_coin.denom.clone(), the_coin.amount.u128())));
-
-    listing
-        .ask
-        .cw20
-        .iter()
-        .for_each(|the_coin| the_ask.push((the_coin.address.to_string(), the_coin.amount.u128())));
-
-    listing.ask.nfts.iter().for_each(|the_nft| {
-        the_ask.push((
-            the_nft.contract_address.to_string(),
-            the_nft.token_id.trim().parse::<u128>().expect("Invalid token ID"),
-        ));
-    });
-
-    let whitelist_buyer: String =
-        listing.whitelisted_buyer.map_or_else(|| "None".to_string(), |x| x.to_string());
-
-    let mut res: ListingInfoResponse = ListingInfoResponse {
-        creator: listing.creator.to_string(),
-        status,
-        for_sale: the_sale,
-        ask: the_ask,
-        expiration: "None".to_string(),
-        whitelisted_buyer: whitelist_buyer,
-    };
-
-    if let Some(x) = listing.expiration_time {
-        res.expiration = x.seconds().to_string();
-    };
-
-    Ok(res)
-}
-
-// Get all listings owned by an Address
+/// Get all listings owned by an Address
 pub fn get_listings_by_owner(deps: Deps, owner: &str) -> StdResult<MultiListingResponse> {
     let owner = deps.api.addr_validate(owner)?;
 
@@ -125,7 +55,25 @@ pub fn get_listings_by_owner(deps: Deps, owner: &str) -> StdResult<MultiListingR
     })
 }
 
-// Limited to 100
+// XXXXXXXXXXXXXXXXXXXXXXX needs check
+/// Finds all listings that `owner` is whitelisted to purchase
+pub fn get_users_whitelisted_listings(deps: Deps, owner: &str) -> StdResult<MultiListingResponse> {
+    let search_whitelists: Vec<_> = listingz()
+        .idx
+        .whitelisted_buyer
+        .prefix(owner.to_string())
+        .range(deps.storage, None, None, Order::Ascending)
+        .collect::<StdResult<Vec<_>>>() // StdResult<Vec<(PK, Listing)>>
+        .unwrap_or_default()
+        .iter()
+        .map(|entry| entry.1.clone())
+        .collect();
+
+    Ok(MultiListingResponse {
+        listings: search_whitelists,
+    })
+}
+
 pub fn get_all_listings(deps: Deps) -> StdResult<MultiListingResponse> {
     let all_listings: StdResult<Vec<_>> =
         listingz().range(deps.storage, None, None, Order::Ascending).take(100).collect();
@@ -137,24 +85,7 @@ pub fn get_all_listings(deps: Deps) -> StdResult<MultiListingResponse> {
     })
 }
 
-pub fn get_whitelisted_listings(deps: Deps, address: &str) -> StdResult<MultiListingResponse> {
-    let all_listings: Vec<Listing> = listingz()
-        .idx
-        .whitelisted_buyer
-        .prefix(address.to_string())
-        .range(deps.storage, None, None, Order::Ascending)
-        .collect::<StdResult<Vec<_>>>() // StdResult<Vec<(PK, Listing)>>
-        .unwrap_or_default()
-        .iter()
-        .map(|entry| entry.1.clone())
-        .collect();
-
-    Ok(MultiListingResponse {
-        listings: all_listings,
-    })
-}
-
-// Query w filter & pagination, ignore whitelist'ed assets
+// Query w filter & pagination
 pub fn get_listings_for_market(
     deps: Deps,
     env: &Env,
@@ -180,7 +111,6 @@ pub fn get_listings_for_market(
         .skip(to_skip_usize)
         .take(20)
         .map(|entry| entry.1.clone())
-        // .filter(|entry| entry.whitelisted_buyer.is_some())
         .collect();
 
     Ok(MultiListingResponse {
@@ -193,31 +123,23 @@ pub fn get_listings_for_market(
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 #[cw_serde]
-pub struct AdminResponse {
-    pub admin: String,
+pub struct CountResponse {
+    pub bucket_count: u64,
+    pub listing_count: u64,
 }
 
 #[cw_serde]
-pub struct ConfigResponse {
-    pub config: Config,
+pub struct FeeDenomResponse {
+    pub symbol: String,
+    pub denom: String,
 }
 
 #[cw_serde]
 pub struct GetBucketsResponse {
-    pub buckets: Vec<(String, Bucket)>,
+    pub buckets: Vec<(u64, Bucket)>,
 }
 
 #[cw_serde]
 pub struct MultiListingResponse {
     pub listings: Vec<Listing>,
-}
-
-#[cw_serde]
-pub struct ListingInfoResponse {
-    pub creator: String,
-    pub status: String,
-    pub for_sale: Vec<(String, u128)>,
-    pub ask: Vec<(String, u128)>,
-    pub expiration: String,
-    pub whitelisted_buyer: String,
 }
