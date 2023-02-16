@@ -518,6 +518,30 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c8cbd1169bd7b4a0a20d92b9af7a7e0422888bd38a6f5ec29c1fd8c1558a272e"
 
 [[package]]
+name = "fuzion_market"
+version = "0.2.0"
+dependencies = [
+ "anyhow",
+ "chrono",
+ "cosmos-sdk-proto",
+ "cosmwasm-schema",
+ "cosmwasm-std",
+ "cosmwasm-storage",
+ "cw-multi-test",
+ "cw-storage-plus 1.0.1",
+ "cw2 1.0.1",
+ "cw20",
+ "cw20-base",
+ "cw721",
+ "cw721-base",
+ "prost 0.11.6",
+ "prost-types",
+ "schemars",
+ "serde",
+ "thiserror",
+]
+
+[[package]]
 name = "generic-array"
 version = "0.14.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -587,30 +611,6 @@ name = "itoa"
 version = "1.0.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fad582f4b9e86b6caa621cabeb0963332d92eea04729ab12892c2533951e6440"
-
-[[package]]
-name = "juno_vaults"
-version = "0.1.1"
-dependencies = [
- "anyhow",
- "chrono",
- "cosmos-sdk-proto",
- "cosmwasm-schema",
- "cosmwasm-std",
- "cosmwasm-storage",
- "cw-multi-test",
- "cw-storage-plus 1.0.1",
- "cw2 1.0.1",
- "cw20",
- "cw20-base",
- "cw721",
- "cw721-base",
- "prost 0.11.6",
- "prost-types",
- "schemars",
- "serde",
- "thiserror",
-]
 
 [[package]]
 name = "k256"

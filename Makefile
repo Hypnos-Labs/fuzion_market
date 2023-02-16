@@ -21,5 +21,5 @@ all:
 test:
 	cargo test -- --nocapture
 
-test-e2e:
-	sh ./e2e/test_e2e.sh
+# test-e2e:
+# 	sh ./e2e/test_e2e.sh

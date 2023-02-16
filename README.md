@@ -1,12 +1,21 @@
 # Juno Vaults
 
+### [Architecture Overview](#-architecture-overview)
+### [Changelog](CHANGELOG.md)
+
+**Contributors**
+- [LeTurt](https://twitter.com/leturt_)
+- [Reecebcups](https://twitter.com/Reecepbcups_)
+
+# Architecture Overview
+
 The Juno Vaults contract allows 2 wallets to trade escrows of tokens between eachother in a trustless manner
 
 The escrows can contain any number of native, cw20, or cw721 tokens
 
 </br>
 
-# High Level Overview
+# High Level
 
 Say we have 2 users:
 > `Sam` - the seller</br>

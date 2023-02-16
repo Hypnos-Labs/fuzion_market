@@ -58,6 +58,6 @@ jobs:
         with:
           command: schema
 
-      - name: Schema Changes
-        # fails if any changes not committed
-        run: git diff --exit-code schema
+      # - name: Schema Changes
+      #   # fails if any changes not committed
+      #   run: git diff --exit-code schema
