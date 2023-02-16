@@ -40,11 +40,14 @@ mod execute_imports {
     };
     pub use crate::utils::{
         calc_fee_coin,
-        send_tokens_cosmos, //calc_fee, check_whitelist, check_valid_genbal
-                            //check_buyer_whitelisted, get_whitelisted_addresses, get_whitelisted_buyers, normalize_ask,
+        send_tokens_cosmos, 
+        proto_encode
+            //calc_fee, check_whitelist, check_valid_genbal
+         //check_buyer_whitelisted, get_whitelisted_addresses, get_whitelisted_buyers, normalize_ask,
     };
     pub use cosmwasm_std::{Addr, DepsMut, Env, Response, StdError};
     pub use cw20::Balance;
+
 }
 
 mod integration_tests_imports {
@@ -83,6 +86,8 @@ mod state_imports {
     pub use cw20::{Balance, Cw20CoinVerified};
     pub use cw_storage_plus::{Index, IndexList, IndexedMap, Item, Map, MultiIndex, UniqueIndex};
     pub use std::collections::BTreeMap;
+    pub use cosmos_sdk_proto::cosmos::base::v1beta1::Coin as SdkCoin;
+    pub use cosmos_sdk_proto::cosmos::distribution::v1beta1::MsgFundCommunityPool;
 }
 
 mod utils_imports {

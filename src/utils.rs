@@ -126,6 +126,19 @@ pub fn calc_fee_coin(
     }
 }
 
+
+// encode a protobuf into a cosmos message
+// Inspired by https://github.com/alice-ltd/smart-contracts/blob/master/contracts/alice_terra_token/src/execute.rs#L73-L76
+pub fn proto_encode<M: prost::Message>(msg: M, type_url: String) -> StdResult<CosmosMsg> {
+    let mut bytes = Vec::new();
+    prost::Message::encode(&msg, &mut bytes)
+        .map_err(|_e| StdError::generic_err("Message encoding must be infallible"))?;
+    Ok(cosmwasm_std::CosmosMsg::<cosmwasm_std::Empty>::Stargate {
+        type_url,
+        value: cosmwasm_std::Binary(bytes),
+    })
+}
+
 // Accepts a `GenericBalance` and calculates the fee to be paid, based on the current fee denom
 // pub fn calc_fee(current_fee: FeeDenom, balance: &GenericBalance) -> StdResult<Option<(CosmosMsg, GenericBalance)>> {
 //     // Get the current fee denom to check for

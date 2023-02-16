@@ -166,6 +166,7 @@ pub fn execute_add_to_bucket_cw721(
 
 pub fn execute_withdraw_bucket(
     deps: DepsMut,
+    env: &Env,
     user: &Addr,
     bucket_id: u64,
 ) -> Result<Response, ContractError> {
@@ -179,7 +180,7 @@ pub fn execute_withdraw_bucket(
 
     // Create Send Msgs
     // (fee_amount is added when Bucket is used to buy a Listing)
-    let msgs = the_bucket.withdraw_msgs()?;
+    let msgs = the_bucket.withdraw_msgs(&env.contract.address)?;
 
     // Remove Bucket
     BUCKETS.remove(deps.storage, (user.clone(), bucket_id));
@@ -680,7 +681,9 @@ pub fn execute_buy_listing(
         },
     )?;
 
-    Ok(Response::new()
+    let res = Response::new();
+
+    Ok(res
         .add_attribute("action", "buy_listing")
         .add_attribute("bucket_used", bucket_id.to_string())
         .add_attribute("listing_purchased:", listing_id.to_string()))
@@ -688,6 +691,7 @@ pub fn execute_buy_listing(
 
 pub fn execute_withdraw_purchased(
     deps: DepsMut,
+    env: &Env,
     withdrawer: &Addr,
     listing_id: u64,
 ) -> Result<Response, ContractError> {
@@ -712,7 +716,7 @@ pub fn execute_withdraw_purchased(
     // Delete Listing
     listingz().remove(deps.storage, (&listing_claimant, listing_id))?;
 
-    let withdraw_msgs = the_listing.withdraw_msgs()?;
+    let withdraw_msgs = the_listing.withdraw_msgs(&env.contract.address)?;
 
     Ok(Response::new()
         .add_attribute("Action", "withdraw_purchased")
