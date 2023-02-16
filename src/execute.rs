@@ -677,7 +677,7 @@ pub fn execute_buy_listing(
         &Bucket {
             owner: the_listing.creator,
             funds: b_balance,
-            fee_amount: b_fee_coin.clone(),
+            fee_amount: b_fee_coin,
         },
     )?;
 

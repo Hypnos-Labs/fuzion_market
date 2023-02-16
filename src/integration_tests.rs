@@ -575,7 +575,7 @@ fn create_listing_should_fail() -> Result<(), anyhow::Error> {
     let one_juno = coins(1, "ujunox");
     let res: Result<AppResponse> = router.execute_contract(
         john.address.clone(),
-        fuzionmarket.clone(),
+        fuzionmarket,
         &ask_price_valid,
         &one_juno,
     );
@@ -2134,7 +2134,7 @@ fn marketplace_sale() -> Result<(), anyhow::Error> {
     };
     let cl = CreateListingMsg {
         //id: 1,
-        ask: ask_price.clone(),
+        ask: ask_price,
         //whitelisted_purchasers: Some(vec![sam.address.to_string(), john.address.to_string()]),
         whitelisted_buyer: Some(sam.address.to_string()),
     };
@@ -2424,7 +2424,7 @@ fn marketplace_sale() -> Result<(), anyhow::Error> {
     // Create with 20 JVTWO <Listing price is 20 JVTWO>
     let max_msg = to_binary(&crate::msg::ReceiveMsg::CreateBucketCw20 {}).unwrap();
     let max_c_msg = cw20_base::msg::ExecuteMsg::Send {
-        contract: fuzionmarket.clone().to_string(),
+        contract: fuzionmarket.to_string(),
         amount: Uint128::from(20u32),
         msg: max_msg,
     };

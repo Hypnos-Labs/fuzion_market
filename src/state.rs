@@ -116,7 +116,7 @@ impl Listing {
                 let mut user_msgs = send_tokens_cosmos(user, &self.for_sale).map_err(|_e| {
                     ContractError::GenericError("Error creating withdraw messages".to_string())
                 })?;
-                let fee_msg = fee.get_cp_msg(&contract_address)?;
+                let fee_msg = fee.get_cp_msg(contract_address)?;
                 user_msgs.push(fee_msg);
                 Ok(user_msgs)
             }
@@ -461,9 +461,9 @@ mod state_tests {
         let cw20s = vec![cw20("foo", 1), cw20("bar", 2), cw20("baz", 3)];
         let nfts = vec![nft("boredcats", "30"), nft("dogs", "31"), nft("sharks", "32")];
         let gen_bal_main = GenericBalance {
-            native: natives.clone(),
-            cw20: cw20s.clone(),
-            nfts: nfts.clone(),
+            native: natives,
+            cw20: cw20s,
+            nfts,
         };
 
         //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -478,11 +478,11 @@ mod state_tests {
             nfts: nfts_x.clone(),
         };
 
-        let _res = genbal_cmp(&gen_bal_main, &gen_bal_x).expect(&here(
+        genbal_cmp(&gen_bal_main, &gen_bal_x).unwrap_or_else(|_| { panic!("{}", here(
             "Reordered should be equal",
             line!(),
             column!(),
-        ));
+        )) });
 
         //let _resx = fake(&gen_bal_main, &gen_bal_x).expect(&here("Reordered should be equal", line!(), column!()));
 
@@ -570,7 +570,7 @@ mod state_tests {
         let cw20s_xx = vec![cw20("bad", 2), cw20("foo", 1), cw20("baz", 3)];
         let gen_bal_xx = GenericBalance {
             native: natives_x.clone(),
-            cw20: cw20s_xx.clone(),
+            cw20: cw20s_xx,
             nfts: nfts_x.clone(),
         };
         let _res =
@@ -581,7 +581,7 @@ mod state_tests {
         let cw20s_xxx = vec![cw20("bar", 3), cw20("foo", 1), cw20("baz", 3)];
         let gen_bal_xxx = GenericBalance {
             native: natives_x.clone(),
-            cw20: cw20s_xxx.clone(),
+            cw20: cw20s_xxx,
             nfts: nfts_x.clone(),
         };
         let _res =
@@ -592,7 +592,7 @@ mod state_tests {
         let cw20s_a = vec![cw20("bar", 1), cw20("foo", 1), cw20("baz", 3)];
         let gen_bal_a = GenericBalance {
             native: natives_x.clone(),
-            cw20: cw20s_a.clone(),
+            cw20: cw20s_a,
             nfts: nfts_x.clone(),
         };
         let _res =
@@ -603,7 +603,7 @@ mod state_tests {
         let cw20s_o = vec![cw20("bar", 2), cw20("foo", 1), cw20("bar", 2), cw20("baz", 3)];
         let gen_bal_o = GenericBalance {
             native: natives_x.clone(),
-            cw20: cw20s_o.clone(),
+            cw20: cw20s_o,
             nfts: nfts_x.clone(),
         };
         let _res =
@@ -614,7 +614,7 @@ mod state_tests {
         let cw20s_oo = vec![cw20("bar", 2), cw20("foo", 1), cw20("pip", 2), cw20("baz", 3)];
         let gen_bal_oo = GenericBalance {
             native: natives_x.clone(),
-            cw20: cw20s_oo.clone(),
+            cw20: cw20s_oo,
             nfts: nfts_x.clone(),
         };
         let _res =
@@ -625,7 +625,7 @@ mod state_tests {
         let cw20s_ooo = vec![cw20("bar", 2), cw20("foo", 1)];
         let gen_bal_ooo = GenericBalance {
             native: natives_x.clone(),
-            cw20: cw20s_ooo.clone(),
+            cw20: cw20s_ooo,
             nfts: nfts_x.clone(),
         };
         let _res =
@@ -636,7 +636,7 @@ mod state_tests {
         let gen_bal_et = GenericBalance {
             native: natives_x.clone(),
             cw20: Vec::with_capacity(3),
-            nfts: nfts_x.clone(),
+            nfts: nfts_x,
         };
         let _res =
             genbal_cmp(&gen_bal_main, &gen_bal_et).expect_err(&here("cw", line!(), column!()));
@@ -703,8 +703,8 @@ mod state_tests {
         // Empty
         //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         let gen_bal_mph = GenericBalance {
-            native: natives_x.clone(),
-            cw20: cw20s_x.clone(),
+            native: natives_x,
+            cw20: cw20s_x,
             nfts: Vec::with_capacity(3),
         };
         let _res =
