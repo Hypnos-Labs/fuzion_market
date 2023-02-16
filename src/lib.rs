@@ -47,8 +47,7 @@ mod execute_imports {
     };
     pub use cosmwasm_std::{Addr, DepsMut, Env, Response, StdError};
     pub use cw20::Balance;
-    pub use cosmos_sdk_proto::cosmos::base::v1beta1::Coin as SdkCoin;
-    pub use cosmos_sdk_proto::cosmos::distribution::v1beta1::MsgFundCommunityPool;
+
 }
 
 mod integration_tests_imports {
@@ -87,6 +86,8 @@ mod state_imports {
     pub use cw20::{Balance, Cw20CoinVerified};
     pub use cw_storage_plus::{Index, IndexList, IndexedMap, Item, Map, MultiIndex, UniqueIndex};
     pub use std::collections::BTreeMap;
+    pub use cosmos_sdk_proto::cosmos::base::v1beta1::Coin as SdkCoin;
+    pub use cosmos_sdk_proto::cosmos::distribution::v1beta1::MsgFundCommunityPool;
 }
 
 mod utils_imports {
@@ -99,5 +100,4 @@ mod utils_imports {
     pub use cw20::Cw20ExecuteMsg;
     pub use cw721::Cw721ExecuteMsg;
     pub use std::collections::BTreeMap;
-    pub use cosmos_sdk_proto::cosmos::distribution::v1beta1::MsgFundCommunityPool;
 }

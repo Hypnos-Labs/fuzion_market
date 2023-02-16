@@ -1,4 +1,4 @@
-use crate::state_imports::*;
+use crate::{state_imports::*, execute_imports::proto_encode};
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -100,7 +100,7 @@ impl Listing {
     ///
     /// **If `Listing.fee_amount.is_none()`**
     /// - Returns `Vec<CosmosMsg>` sending `Listing.for_sale` to `Listing.claimant`
-    pub fn withdraw_msgs(&self) -> Result<Vec<CosmosMsg>, ContractError> {
+    pub fn withdraw_msgs(&self, contract_address: &Addr) -> Result<Vec<CosmosMsg>, ContractError> {
         // Get claimant (This will not called when Listing does not have claimant)
         let user = self.claimant.as_ref().ok_or_else(|| {
             ContractError::GenericError("Listing has not been purchased".to_string())
@@ -116,7 +116,7 @@ impl Listing {
                 let mut user_msgs = send_tokens_cosmos(user, &self.for_sale).map_err(|_e| {
                     ContractError::GenericError("Error creating withdraw messages".to_string())
                 })?;
-                let fee_msg = fee.get_cp_msg()?;
+                let fee_msg = fee.get_cp_msg(&contract_address)?;
                 user_msgs.push(fee_msg);
                 Ok(user_msgs)
             }
@@ -151,7 +151,7 @@ impl Bucket {
     ///
     /// **If `Bucket.fee_amount.is_none()`**
     /// - Returns `Vec<CosmosMsg>` sending `Bucket.funds` to `Bucket.owner`
-    pub fn withdraw_msgs(&self) -> Result<Vec<CosmosMsg>, ContractError> {
+    pub fn withdraw_msgs(&self, contract_address: &Addr) -> Result<Vec<CosmosMsg>, ContractError> {
         match &self.fee_amount {
             None => send_tokens_cosmos(&self.owner, &self.funds).map_err(|_e| {
                 ContractError::GenericError("Error creating withdraw messages".to_string())
@@ -160,7 +160,7 @@ impl Bucket {
                 let mut user_msgs = send_tokens_cosmos(&self.owner, &self.funds).map_err(|_e| {
                     ContractError::GenericError("Error creating withdraw messages".to_string())
                 })?;
-                let fee_msg = fee.get_cp_msg()?;
+                let fee_msg = fee.get_cp_msg(contract_address)?;
                 user_msgs.push(fee_msg);
                 Ok(user_msgs)
             }
@@ -404,18 +404,21 @@ impl BalanceUtil for Balance {
 }
 
 pub trait GetComPoolMsg {
-    fn get_cp_msg(&self) -> Result<CosmosMsg, ContractError>;
+    fn get_cp_msg(&self, depositor: &Addr) -> Result<CosmosMsg, ContractError>;
 }
 
 impl GetComPoolMsg for Coin {
-    fn get_cp_msg(&self) -> Result<CosmosMsg, ContractError> {
-        // PUPMOS - Insert solution for creating MsgFundCommunityPool msg
-        //
-        //
-        //
-        //
-
-        Err(ContractError::GenericError("Placeholder".to_string()))
+    fn get_cp_msg(&self, depositor: &Addr) -> Result<CosmosMsg, ContractError> {
+        Ok(proto_encode(
+            MsgFundCommunityPool {
+                amount: vec![SdkCoin {
+                    denom: self.denom.to_string(),
+                    amount: self.amount.to_string(),
+                }],
+                depositor: depositor.to_string(),
+            },
+            "/cosmos.distribution.v1beta1.MsgFundCommunityPool".to_string(),
+        )?)
     }
 }
 

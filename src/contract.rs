@@ -70,7 +70,7 @@ pub fn execute(
         } => execute_add_to_bucket(deps, Balance::from(info.funds), &info.sender, bucket_id),
         ExecuteMsg::RemoveBucket {
             bucket_id,
-        } => execute_withdraw_bucket(deps, &info.sender, bucket_id),
+        } => execute_withdraw_bucket(deps, &env, &info.sender, bucket_id),
 
         // ~~~~ Marketplace Executions ~~~~ //
         ExecuteMsg::BuyListing {
@@ -79,7 +79,7 @@ pub fn execute(
         } => execute_buy_listing(deps, &env, &info.sender, listing_id, bucket_id),
         ExecuteMsg::WithdrawPurchased {
             listing_id,
-        } => execute_withdraw_purchased(deps, &info.sender, listing_id),
+        } => execute_withdraw_purchased(deps,  &env, &info.sender, listing_id),
     }
 }
 
