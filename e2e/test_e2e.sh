@@ -62,8 +62,8 @@ function compile_and_copy {
     docker cp ./artifacts/fuzion_market.wasm $CONTAINER_NAME:/fuzion_market.wasm
 
     # copy helper contracts to container
-    #docker cp e2e/cw20_base.wasm $CONTAINER_NAME:/cw20_base.wasm
-    #docker cp e2e/cw721_base.wasm $CONTAINER_NAME:/cw721_base.wasm
+    docker cp e2e/cw20_base.wasm $CONTAINER_NAME:/cw20_base.wasm
+    docker cp e2e/cw721_base.wasm $CONTAINER_NAME:/cw721_base.wasm
 }
 
 function health_status {
@@ -71,6 +71,7 @@ function health_status {
     VALIDATOR_ADDR=$($BINARY keys show validator --address) && echo "Validator address: $VALIDATOR_ADDR"
 
     BALANCE_1=$($BINARY q bank balances $VALIDATOR_ADDR) && echo "Pre-store balance: $BALANCE_1"
+    # export KEY_ADDR_JUNO_INITIAL=$($BINARY q bank balances $VALIDATOR_ADDR | jq -r '.[] | select(.denom == "ujunox") | .amount')
 
     echo "Address to deploy contracts: $KEY_ADDR"
     echo "JUNOD_COMMAND_ARGS: $JUNOD_COMMAND_ARGS"
@@ -108,12 +109,12 @@ function upload_cw20 {
     # export CW20_CONTRACT=$($BINARY query tx $TX_UPLOAD --output json | jq -r '.logs[0].events[0].attributes[0].value') && echo "CW20_CONTRACT: $CW20_CONTRACT"  
 
     echo "Instantiating CWONE contract..."
-    INIT_JSONONE=`printf '{"name":"cw-one","symbol":"cwone","decimals":6,"initial_balances":[{"address":"%s","amount":"10000"}]}' $KEY_ADDR`
+    INIT_JSONONE=`printf '{"name":"cw-one","symbol":"cwone","decimals":6,"initial_balances":[{"address":"%s","amount":"10000"}, {"address":"%s","amount":"10000"}]}' $KEY_ADDR $KEY_ADDR_TWO`
     TX_UPLOADONE=$($BINARY tx wasm instantiate "$CW_CODE_ID" $INIT_JSONONE --label "e2e-cwone" $JUNOD_COMMAND_ARGS --admin $KEY_ADDR | jq -r '.txhash') && echo $TX_UPLOADONE
     export CWONE_CONTRACT=$($BINARY query tx $TX_UPLOADONE --output json | jq -r '.logs[0].events[0].attributes[0].value') && echo "CWONE_CONTRACT: $CWONE_CONTRACT"
 
     echo "Instantiating CWTWO contract..."
-    INIT_JSONTWO=`printf '{"name":"cw-two","symbol":"cwtwo","decimals":6,"initial_balances":[{"address":"%s","amount":"10000"}]}' $KEY_ADDR`
+    INIT_JSONTWO=`printf '{"name":"cw-two","symbol":"cwtwo","decimals":6,"initial_balances":[{"address":"%s","amount":"10000"}, {"address":"%s","amount":"10000"}]}' $KEY_ADDR $KEY_ADDR_TWO`
     TX_UPLOADTWO=$($BINARY tx wasm instantiate "$CW_CODE_ID" $INIT_JSONTWO --label "e2e-cwtwo" $JUNOD_COMMAND_ARGS --admin $KEY_ADDR | jq -r '.txhash') && echo $TX_UPLOADTWO
     export CWTWO_CONTRACT=$($BINARY query tx $TX_UPLOADTWO --output json | jq -r '.logs[0].events[0].attributes[0].value') && echo "CWTWO_CONTRACT: $CWTWO_CONTRACT"      
 }
@@ -201,11 +202,11 @@ upload_cw721
 
 
 echo "Minting NFTs..."
-# mint_cw721 $CW721_CONTRACT 1 "$KEY_ADDR" "https://user-images.githubusercontent.com/89463679/218784962-a9a74100-8ea2-4973-91bf-623c458be9fd.png" && echo "Minted NFT 1"
-# mint_cw721 $CW721_CONTRACT 2 $KEY_ADDR "https://user-images.githubusercontent.com/89463679/218785489-7c026eb3-34b7-47f8-8e98-851462e591bc.png" && echo "Minted NFT 2"
 mint_cw721 $CW721_CONTRACTCAT 1 "$KEY_ADDR" "https://user-images.githubusercontent.com/89463679/218784962-a9a74100-8ea2-4973-91bf-623c458be9fd.png" && echo "Minted NFT CAT 1"
-mint_cw721 $CW721_CONTRACTDOG 2 $KEY_ADDR "https://user-images.githubusercontent.com/89463679/218785489-7c026eb3-34b7-47f8-8e98-851462e591bc.png" && echo "Minted NFT DOG 2"
+mint_cw721 $CW721_CONTRACTDOG 1 $KEY_ADDR "https://user-images.githubusercontent.com/89463679/218785489-7c026eb3-34b7-47f8-8e98-851462e591bc.png" && echo "Minted NFT DOG 1"
 
+mint_cw721 $CW721_CONTRACTCAT 2 "$KEY_ADDR_TWO" "https://user-images.githubusercontent.com/89463679/218784962-a9a74100-8ea2-4973-91bf-623c458be9fd.png" && echo "Minted NFT CAT 2"
+mint_cw721 $CW721_CONTRACTDOG 2 $KEY_ADDR_TWO "https://user-images.githubusercontent.com/89463679/218785489-7c026eb3-34b7-47f8-8e98-851462e591bc.png" && echo "Minted NFT DOG 2"
 
 # == INITIAL TEST ==
 # Ensure admin is correct from instantiation
@@ -217,6 +218,12 @@ balance=$(query_contract $CWONE_CONTRACT `printf '{"balance":{"address":"%s"}}' 
 ASSERT_EQUAL "$balance" '{"data":{"balance":"10000"}}'
 
 balance=$(query_contract $CWTWO_CONTRACT `printf '{"balance":{"address":"%s"}}' $KEY_ADDR`)
+ASSERT_EQUAL "$balance" '{"data":{"balance":"10000"}}'
+
+balance=$(query_contract $CWONE_CONTRACT `printf '{"balance":{"address":"%s"}}' $KEY_ADDR_TWO`)
+ASSERT_EQUAL "$balance" '{"data":{"balance":"10000"}}'
+
+balance=$(query_contract $CWTWO_CONTRACT `printf '{"balance":{"address":"%s"}}' $KEY_ADDR_TWO`)
 ASSERT_EQUAL "$balance" '{"data":{"balance":"10000"}}'
 
 # Ensures CW721 was properly minted - not needed
@@ -320,9 +327,154 @@ function test_dupes_zeros_funds_sent {
 
 }
 
-# ---- Commented out as all will fail before adding Pupmos MsgSendCommunityPool
-# test_ask_failure
-# test_dupes_zeros_funds_sent
+
+# ------ Marketplace Buy / Sell ------- #
+
+# -X- Both Listing and Bucket have FeeDenom
+# (FeeDenom is Juno by default)
+
+function both_have_fee_denom {
+
+    # State incrementor is 2 now, so ID's will be 2
+
+
+    # export KEY_ADDR_JUNO_INITIAL=$($BINARY q bank balances $VALIDATOR_ADDR | jq -r '.[] | select(.denom == "ujunox") | .amount')
+
+    # ================================================ #
+    # KEY_ADDR creating a listing
+    #   Selling: 200 JUNO, 10 CWONE, dog NFT 1
+    #   Price: 200 JUNO, 20 CWTWO, cat NFT 2
+    # ================================================ #
+    echo "test-user creating a Listing"
+    wasm_cmd $MARKET_CONTRACT "$(printf '{"create_listing":{"create_msg":{"ask":{"native":[{"denom":"ujunox","amount":"200"}],"cw20":[{"address":"%s", "amount":"20"}],"nfts":[{"contract_address":"%s", "token_id":"2"}]}}}}' "$CWTWO_CONTRACT" "$CW721_CONTRACTCAT")" "200ujunox"
+
+
+    # Add 10 CWONE
+    echo "test-user adding 10 cwone to listing 2"
+    add_cw20_to_listing $MARKET_CONTRACT $CWONE_CONTRACT "10" 2
+
+    # Add dog NFT 1
+    echo "test-user adding dog NFT 1 to listing 2"
+    add_nft_to_listing $MARKET_CONTRACT $CW721_CONTRACTDOG "1" 2
+    
+    # KEY_ADDR finalizes listing
+    echo "test-user finalizing listing"
+    wasm_cmd $MARKET_CONTRACT '{"finalize":{"listing_id":2,"seconds":5000}}' "" show_log "$TX_FLAGS --keyring-backend test --from test-user"
+    # try to finalize again, will fail
+    wasm_cmd $MARKET_CONTRACT '{"finalize":{"listing_id":2,"seconds":5003}}' "" show_log "$TX_FLAGS --keyring-backend test --from test-user"
+    ASSERT_CONTAINS "$CMD_LOG" 'Error Message:'
+
+    # ================================================ #
+    # KEY_ADDR_TWO creating a bucket with correct assets
+    #   Correct: 200 JUNO, 20 CWTWO, cat NFT 2
+    # ================================================ #
+
+    echo "other-user creating a bucket with correct assets"
+    wasm_cmd $MARKET_CONTRACT '{"create_bucket":{}}' "200ujunox" "" show_log "$TX_FLAGS --keyring-backend test --from other-user"
+
+    # Add 20 CWTWO
+    echo "other-user adding 20 cwtwo to bucket 2"
+    add_cw20_to_bucket $MARKET_CONTRACT $CWTWO_CONTRACT "20" 2 
+
+    # Add cat NFT 2
+    echo "other-user adding cat nft 2 to bucket 2"
+    add_nft_to_bucket $MARKET_CONTRACT $CW721_CONTRACTCAT "2" 2
+
+    # ================================================ #
+    # KEY_ADDR_TWO / other-user buying the Listing
+    # ================================================ #
+
+    echo "other-user buying the listing created by test-user"
+    wasm_cmd $MARKET_CONTRACT '{"buy_listing":{"listing_id":2, "bucket_id":2}}' "" show_log "$TX_FLAGS --keyring-backend test --from other-user"
+
+
+
+    # ================================================ #
+    # ================================================ #
+    # Both Withdrawing
+    # ================================================ #
+    # ================================================ #
+
+    # ============ 
+    # test-user aka listing seller
+    # ============
+
+    # first, check balance before withdrawing
+    # ujunox balance
+    echo "grabbing test-user ujunox balance"
+    TEST_USER_BAL=$($BINARY q bank balances $KEY_ADDR --output json | jq -r '.balances | map(select(.denom == "ujunox")) | .[0].amount')
+    # how to check this without manually calculating gas?
+    # even if did, what about after global fee?
+
+    # cwtwo balance
+    echo "grabbing test-user cwtwo balance before withdrawing proceeds"
+    TEST_USER_CWTWO_BAL=$(query_contract $CWTWO_CONTRACT `printf '{"balance":{"address":"%s"}}' $KEY_ADDR`)
+    ASSERT_EQUAL "$TEST_USER_CWTWO_BAL" '{"data":{"balance":"10000"}}'
+
+    ### junod q bank balances juno12vhgx023nrv64efr3kumc9f4c90raf5v638cvp --output json | jq -r '.balances | map(select(.denom == "ujunox")) | .[0].amount'
+    # junod q bank balances juno12vhgx023nrv64efr3kumc9f4c90raf5v638cvp --output json | jq -r '.[] | select(.denom == "ujunox") | .amount'
+    # KEY_ADDR_JUNO=$($BINARY q bank balances $VALIDATOR_ADDR | jq -r '.[] | select(.denom == "ujunox") | .amount')
+    # other_balance=$($BINARY q bank balances juno1efd63aw40lxf3n4mhf7dzhjkr453axurv2zdzk --output json)
+    # ASSERT_EQUAL "$other_balance" '{"balances":[{"denom":"ujunox","amount":"10000000"}],"pagination":{"next_key":null,"total":"0"}}'
+
+    # withdraw bucket sale proceeds
+    echo "test-user withdrawing proceeds"
+    wasm_cmd $MARKET_CONTRACT '{"remove_bucket":{"bucket_id":2}}' "" show_log "" show_log "$TX_FLAGS --keyring-backend test --from test-user"
+
+    # assert test-user now has +200 JUNO?gas?, +20 CWTWO, +cat NFT 2
+    echo "asserting test-user now has sale proceeds"
+
+    # printing ujunox balances cause ? gas calcs
+    TEST_USER_BAL_POST=$($BINARY q bank balances $KEY_ADDR --output json | jq -r '.balances | map(select(.denom == "ujunox")) | .[0].amount')
+    echo "test-user ujunox balance before withdraw: $TEST_USER_BAL ||| and after: $TEST_USER_BAL_POST"
+
+    # cwtwo balance
+    echo "test-user cwtwo balance compare check"
+    TEST_USER_CWTWO_POST=$(query_contract $CWTWO_CONTRACT `printf '{"balance":{"address":"%s"}}' $KEY_ADDR`)
+    ASSERT_EQUAL "$TEST_USER_CWTWO_POST" '{"data":{"balance":"10020"}}'
+
+    # nft ownership (cat nft 2)
+    echo "test-user should own cat nft 2"
+    CAT_TWO_OWNER=$(query_contract $CW721_CONTRACTCAT '{"owner_of":{"token_id":"2"}}' | jq -r '.data.owner')
+    ASSERT_EQUAL "$CAT_TWO_OWNER" "$KEY_ADDR"
+
+
+    # ============ 
+    # other-user aka listing buyer
+    # ============
+    echo "now testing other-user balances"
+
+    # get other-user ujunox balance before withdraw
+    echo "grabbing other-user ujunox balance before removing purchase"
+    OTHER_USER_BAL=$($BINARY q bank balances $KEY_ADDR_TWO --output json | jq -r '.balances | map(select(.denom == "ujunox")) | .[0].amount')
+
+    # withdraw purchased listing
+    echo "other-user withdrawing purchased listing"
+    wasm_cmd $MARKET_CONTRACT '{"withdraw_purchased":{"listing_id":2}}' "" show_log "$TX_FLAGS --keyring-backend test --from other-user"
+
+    # query ujunox balance after withdraw
+    OTHER_USER_BAL_POST=$($BINARY q bank balances $KEY_ADDR_TWO --output json | jq -r '.balances | map(select(.denom == "ujunox")) | .[0].amount')
+
+    # print ujunox balances
+    echo "other-user ujunox balance before withdraw: $OTHER_USER_BAL ||| and after: $OTHER_USER_BAL_POST"
+
+    # cwone balance
+    echo "checking cwone balance"
+    OTHER_USER_CWONE_BAL=$(query_contract $CWONE_CONTRACT `printf '{"balance":{"address":"%s"}}' $KEY_ADDR_TWO`)
+    ASSERT_EQUAL "$OTHER_USER_CWONE_BAL" '{"data":{"balance":"10010"}}'
+
+    # owns dog nft 1 now
+    echo "other-user should own dog nft 1"
+    DOG_ONE_OWNER=$(query_contract $CW721_CONTRACTDOG '{"owner_of":{"token_id":"1"}}' | jq -r '.data.owner')
+    ASSERT_EQUAL "$DOG_ONE_OWNER" "$KEY_ADDR_TWO"
+
+}
+
+
+# running tests
+test_ask_failure
+test_dupes_zeros_funds_sent
+both_have_fee_denom
 
 # 1 if any of the above test failed, this way it will ensure to X the github
 exit $FINAL_STATUS_CODE
