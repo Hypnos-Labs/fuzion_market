@@ -110,12 +110,12 @@ function upload_cw20 {
     # export CW20_CONTRACT=$($BINARY query tx $TX_UPLOAD --output json | jq -r '.logs[0].events[0].attributes[0].value') && echo "CW20_CONTRACT: $CW20_CONTRACT"  
 
     echo "Instantiating CWONE contract..."
-    INIT_JSONONE=`printf '{"name":"cw-one","symbol":"cwone","decimals":6,"initial_balances":[{"address":"%s","amount":"10000"}, {"address":"%s","amount":"10000"}]}' $KEY_ADDR $KEY_ADDR_TWO`
+    INIT_JSONONE=`printf '{"name":"cw-one","symbol":"cwone","decimals":6,"initial_balances":[{"address":"%s","amount":"10000"},{"address":"%s","amount":"10000"}]}' $KEY_ADDR $KEY_ADDR_TWO`
     TX_UPLOADONE=$($BINARY tx wasm instantiate "$CW_CODE_ID" $INIT_JSONONE --label "e2e-cwone" $JUNOD_COMMAND_ARGS --admin $KEY_ADDR | jq -r '.txhash') && echo $TX_UPLOADONE
     export CWONE_CONTRACT=$($BINARY query tx $TX_UPLOADONE --output json | jq -r '.logs[0].events[0].attributes[0].value') && echo "CWONE_CONTRACT: $CWONE_CONTRACT"
 
     echo "Instantiating CWTWO contract..."
-    INIT_JSONTWO=`printf '{"name":"cw-two","symbol":"cwtwo","decimals":6,"initial_balances":[{"address":"%s","amount":"10000"}, {"address":"%s","amount":"10000"}]}' $KEY_ADDR $KEY_ADDR_TWO`
+    INIT_JSONTWO=`printf '{"name":"cw-two","symbol":"cwtwo","decimals":6,"initial_balances":[{"address":"%s","amount":"10000"},{"address":"%s","amount":"10000"}]}' $KEY_ADDR $KEY_ADDR_TWO`
     TX_UPLOADTWO=$($BINARY tx wasm instantiate "$CW_CODE_ID" $INIT_JSONTWO --label "e2e-cwtwo" $JUNOD_COMMAND_ARGS --admin $KEY_ADDR | jq -r '.txhash') && echo $TX_UPLOADTWO
     export CWTWO_CONTRACT=$($BINARY query tx $TX_UPLOADTWO --output json | jq -r '.logs[0].events[0].attributes[0].value') && echo "CWTWO_CONTRACT: $CWTWO_CONTRACT"      
 }
