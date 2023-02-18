@@ -126,7 +126,6 @@ pub fn calc_fee_coin(
     }
 }
 
-
 // encode a protobuf into a cosmos message
 // Inspired by https://github.com/alice-ltd/smart-contracts/blob/master/contracts/alice_terra_token/src/execute.rs#L73-L76
 pub fn proto_encode<M: prost::Message>(msg: M, type_url: String) -> StdResult<CosmosMsg> {
@@ -141,7 +140,6 @@ pub fn proto_encode<M: prost::Message>(msg: M, type_url: String) -> StdResult<Co
 
 #[cfg(test)]
 mod utils_tests {
-
 
     use crate::state::*;
     use crate::utils::*;
@@ -178,14 +176,12 @@ mod utils_tests {
         vec![nft("boredcats", "30"), nft("dogs", "31"), nft("sharks", "32")]
     }
 
-
     //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     // Testing calc_fee_coin math
     //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    
+
     #[test]
     fn fee_denom_not_in_gbal() {
-
         // FeeDenom is Juno, GenericBalance doesn't contain JUNO
         // Output of calc_fee_coin should be Ok((None, Initial GenericBalance Unchanged))
 
@@ -193,14 +189,14 @@ mod utils_tests {
         // ujunox
         let juno_fee_denom = FeeDenom::JUNO;
 
-        let gbal: GenericBalance = GenericBalance { 
+        let gbal: GenericBalance = GenericBalance {
             native,
             cw20: cw20s(),
-            nfts: nftgen()
+            nfts: nftgen(),
         };
 
-
-        let (fee_coin, new_gbal) = calc_fee_coin(&juno_fee_denom, &gbal).expect(&here("y", line!(), column!()));
+        let (fee_coin, new_gbal) =
+            calc_fee_coin(&juno_fee_denom, &gbal).expect(&here("y", line!(), column!()));
 
         //fee_coin should be none
         if fee_coin.is_some() {
@@ -208,16 +204,14 @@ mod utils_tests {
         }
 
         // new_gbal should be == old gbal
-        genbal_cmp(&new_gbal, &gbal).unwrap_or_else(|_| { panic!("{}", here(
-            "Should be equal",
-            line!(),
-            column!(),
-        )) });
+        genbal_cmp(&new_gbal, &gbal)
+            .unwrap_or_else(|_| panic!("{}", here("Should be equal", line!(), column!(),)));
 
         // uusdcx
         let usdc_fee_denom = FeeDenom::USDC;
 
-        let (fee_coinx, new_gbalx) = calc_fee_coin(&usdc_fee_denom, &gbal).expect(&here("y", line!(), column!()));
+        let (fee_coinx, new_gbalx) =
+            calc_fee_coin(&usdc_fee_denom, &gbal).expect(&here("y", line!(), column!()));
 
         //fee_coin should be none
         if fee_coinx.is_some() {
@@ -225,16 +219,12 @@ mod utils_tests {
         }
 
         // new_gbalx should be == old gbal
-        genbal_cmp(&new_gbalx, &gbal).unwrap_or_else(|_| { panic!("{}", here(
-            "Should be equal",
-            line!(),
-            column!(),
-        )) });
+        genbal_cmp(&new_gbalx, &gbal)
+            .unwrap_or_else(|_| panic!("{}", here("Should be equal", line!(), column!(),)));
     }
 
     #[test]
     fn fee_denom_juno_basic() {
-
         // FeeDenom is Juno, GenericBalance contains JUNO
         // Output of calc_fee_coin should be (0.5% of JUNO, Initial GenericBalance - 0.5% of JUNO)
 
@@ -243,40 +233,31 @@ mod utils_tests {
         // ujunox
         let juno_fee_denom = FeeDenom::JUNO;
 
-        let gbal: GenericBalance = GenericBalance { 
+        let gbal: GenericBalance = GenericBalance {
             native,
             cw20: cw20s(),
-            nfts: nftgen()
+            nfts: nftgen(),
         };
 
-
-        let (fee_coin, new_gbal) = calc_fee_coin(&juno_fee_denom, &gbal).expect(&here("y", line!(), column!()));
+        let (fee_coin, new_gbal) =
+            calc_fee_coin(&juno_fee_denom, &gbal).expect(&here("y", line!(), column!()));
 
         //fee_coin should be Some(5 ujunox)
-        assert_eq!(
-            Some(coin(5, "ujunox")),
-            fee_coin,
-            "Juno fee incorrect: {}", line!()
-        );
+        assert_eq!(Some(coin(5, "ujunox")), fee_coin, "Juno fee incorrect: {}", line!());
 
         // new_gbal should have everything the same, except 995 ujunox
         let nativex = vec![coin(200, "uatom"), coin(300, "uosmo"), coin(995, "ujunox")];
         let test = GenericBalance {
             native: nativex,
             cw20: cw20s(),
-            nfts: nftgen()
+            nfts: nftgen(),
         };
-        genbal_cmp(&new_gbal, &test).unwrap_or_else(|_| { panic!("{}", here(
-            "Should be equal",
-            line!(),
-            column!(),
-        )) });
-
+        genbal_cmp(&new_gbal, &test)
+            .unwrap_or_else(|_| panic!("{}", here("Should be equal", line!(), column!(),)));
     }
 
     #[test]
     fn fee_denom_usdc_basic() {
-
         // FeeDenom is Usdc, GenericBalance contains Usdc
         // Output of calc_fee_coin should be (0.5% of Usdc, Initial GenericBalance - 0.5% of Usdc)
 
@@ -284,40 +265,31 @@ mod utils_tests {
 
         let usdc_fee_denom = FeeDenom::USDC;
 
-        let gbal: GenericBalance = GenericBalance { 
+        let gbal: GenericBalance = GenericBalance {
             native,
             cw20: cw20s(),
-            nfts: nftgen()
+            nfts: nftgen(),
         };
 
-
-        let (fee_coin, new_gbal) = calc_fee_coin(&usdc_fee_denom, &gbal).expect(&here("y", line!(), column!()));
+        let (fee_coin, new_gbal) =
+            calc_fee_coin(&usdc_fee_denom, &gbal).expect(&here("y", line!(), column!()));
 
         //fee_coin should be Some(5 ujunox)
-        assert_eq!(
-            Some(coin(5, "uusdcx")),
-            fee_coin,
-            "USDC fee incorrect: {}", line!()
-        );
+        assert_eq!(Some(coin(5, "uusdcx")), fee_coin, "USDC fee incorrect: {}", line!());
 
         // new_gbal should have everything the same, except 995 ujunox
         let nativex = vec![coin(200, "uatom"), coin(300, "uosmo"), coin(995, "uusdcx")];
         let test = GenericBalance {
             native: nativex,
             cw20: cw20s(),
-            nfts: nftgen()
+            nfts: nftgen(),
         };
-        genbal_cmp(&new_gbal, &test).unwrap_or_else(|_| { panic!("{}", here(
-            "Should be equal",
-            line!(),
-            column!(),
-        )) });
-
+        genbal_cmp(&new_gbal, &test)
+            .unwrap_or_else(|_| panic!("{}", here("Should be equal", line!(), column!(),)));
     }
 
     #[test]
     fn fee_denom_juno_div() {
-
         // 999 * 5 / 1000 = 4.995
         // fee coin should be 4
         // gbal should have 999 - 4 = 995
@@ -327,39 +299,31 @@ mod utils_tests {
         // ujunox
         let juno_fee_denom = FeeDenom::JUNO;
 
-        let gbal: GenericBalance = GenericBalance { 
+        let gbal: GenericBalance = GenericBalance {
             native,
             cw20: cw20s(),
-            nfts: nftgen()
+            nfts: nftgen(),
         };
 
-
-        let (fee_coin, new_gbal) = calc_fee_coin(&juno_fee_denom, &gbal).expect(&here("y", line!(), column!()));
+        let (fee_coin, new_gbal) =
+            calc_fee_coin(&juno_fee_denom, &gbal).expect(&here("y", line!(), column!()));
 
         //fee_coin should be Some(4 ujunox)
-        assert_eq!(
-            Some(coin(4, "ujunox")),
-            fee_coin,
-            "Juno fee incorrect: {}", line!()
-        );
+        assert_eq!(Some(coin(4, "ujunox")), fee_coin, "Juno fee incorrect: {}", line!());
 
         // new_gbal should have everything the same, except 995 ujunox
         let nativex = vec![coin(200, "uatom"), coin(300, "uosmo"), coin(995, "ujunox")];
         let test = GenericBalance {
             native: nativex,
             cw20: cw20s(),
-            nfts: nftgen()
+            nfts: nftgen(),
         };
-        genbal_cmp(&new_gbal, &test).unwrap_or_else(|_| { panic!("{}", here(
-            "Should be equal",
-            line!(),
-            column!(),
-        )) });
+        genbal_cmp(&new_gbal, &test)
+            .unwrap_or_else(|_| panic!("{}", here("Should be equal", line!(), column!(),)));
     }
 
     #[test]
     fn fee_denom_usdc_div() {
-
         // 999 * 5 / 1000 = 4.995
         // fee coin should be 4
         // gbal should have 999 - 4 = 995
@@ -369,39 +333,31 @@ mod utils_tests {
         // ujunox
         let usdc_fee_denom = FeeDenom::USDC;
 
-        let gbal: GenericBalance = GenericBalance { 
+        let gbal: GenericBalance = GenericBalance {
             native,
             cw20: cw20s(),
-            nfts: nftgen()
+            nfts: nftgen(),
         };
 
-
-        let (fee_coin, new_gbal) = calc_fee_coin(&usdc_fee_denom, &gbal).expect(&here("y", line!(), column!()));
+        let (fee_coin, new_gbal) =
+            calc_fee_coin(&usdc_fee_denom, &gbal).expect(&here("y", line!(), column!()));
 
         //fee_coin should be Some(4 uusdcx)
-        assert_eq!(
-            Some(coin(4, "uusdcx")),
-            fee_coin,
-            "USDC fee incorrect: {}", line!()
-        );
+        assert_eq!(Some(coin(4, "uusdcx")), fee_coin, "USDC fee incorrect: {}", line!());
 
         // new_gbal should have everything the same, except 995 uusdcx
         let nativex = vec![coin(200, "uatom"), coin(300, "uosmo"), coin(995, "uusdcx")];
         let test = GenericBalance {
             native: nativex,
             cw20: cw20s(),
-            nfts: nftgen()
+            nfts: nftgen(),
         };
-        genbal_cmp(&new_gbal, &test).unwrap_or_else(|_| { panic!("{}", here(
-            "Should be equal",
-            line!(),
-            column!(),
-        )) });
+        genbal_cmp(&new_gbal, &test)
+            .unwrap_or_else(|_| panic!("{}", here("Should be equal", line!(), column!(),)));
     }
 
     #[test]
     fn smallest_possible_juno() {
-
         // 200 * 5 / 1000 = 1
         // Smallest possible amount that includes a fee should be 200
         // anything under this should have no fee
@@ -410,40 +366,31 @@ mod utils_tests {
         // ujunox
         let juno_fee_denom = FeeDenom::JUNO;
 
-        let gbal: GenericBalance = GenericBalance { 
+        let gbal: GenericBalance = GenericBalance {
             native,
             cw20: cw20s(),
-            nfts: nftgen()
+            nfts: nftgen(),
         };
 
-
-        let (fee_coin, new_gbal) = calc_fee_coin(&juno_fee_denom, &gbal).expect(&here("y", line!(), column!()));
+        let (fee_coin, new_gbal) =
+            calc_fee_coin(&juno_fee_denom, &gbal).expect(&here("y", line!(), column!()));
 
         //fee_coin should be Some(1 ujunox)
-        assert_eq!(
-            Some(coin(1, "ujunox")),
-            fee_coin,
-            "Juno fee incorrect: {}", line!()
-        );
+        assert_eq!(Some(coin(1, "ujunox")), fee_coin, "Juno fee incorrect: {}", line!());
 
         // new_gbal should have everything the same, except 199 ujunox
         let nativex = vec![coin(200, "uatom"), coin(300, "uosmo"), coin(199, "ujunox")];
         let test = GenericBalance {
             native: nativex,
             cw20: cw20s(),
-            nfts: nftgen()
+            nfts: nftgen(),
         };
-        genbal_cmp(&new_gbal, &test).unwrap_or_else(|_| { panic!("{}", here(
-            "Should be equal",
-            line!(),
-            column!(),
-        )) });
-
+        genbal_cmp(&new_gbal, &test)
+            .unwrap_or_else(|_| panic!("{}", here("Should be equal", line!(), column!(),)));
     }
 
     #[test]
     fn smallest_possible_usdc() {
-
         // 200 * 5 / 1000 = 1
         // Smallest possible amount that includes a fee should be 200
         // anything under this should have no fee
@@ -452,58 +399,48 @@ mod utils_tests {
         // ujunox
         let usdc_fee_denom = FeeDenom::USDC;
 
-        let gbal: GenericBalance = GenericBalance { 
+        let gbal: GenericBalance = GenericBalance {
             native,
             cw20: cw20s(),
-            nfts: nftgen()
+            nfts: nftgen(),
         };
 
-
-        let (fee_coin, new_gbal) = calc_fee_coin(&usdc_fee_denom, &gbal).expect(&here("y", line!(), column!()));
+        let (fee_coin, new_gbal) =
+            calc_fee_coin(&usdc_fee_denom, &gbal).expect(&here("y", line!(), column!()));
 
         //fee_coin should be Some(1 ujunox)
-        assert_eq!(
-            Some(coin(1, "uusdcx")),
-            fee_coin,
-            "USDC fee incorrect: {}", line!()
-        );
+        assert_eq!(Some(coin(1, "uusdcx")), fee_coin, "USDC fee incorrect: {}", line!());
 
         // new_gbal should have everything the same, except 199 ujunox
         let nativex = vec![coin(200, "uatom"), coin(300, "uosmo"), coin(199, "uusdcx")];
         let test = GenericBalance {
             native: nativex,
             cw20: cw20s(),
-            nfts: nftgen()
+            nfts: nftgen(),
         };
-        genbal_cmp(&new_gbal, &test).unwrap_or_else(|_| { panic!("{}", here(
-            "Should be equal",
-            line!(),
-            column!(),
-        )) });
-
+        genbal_cmp(&new_gbal, &test)
+            .unwrap_or_else(|_| panic!("{}", here("Should be equal", line!(), column!(),)));
     }
 
     #[test]
     fn too_small_juno() {
-
         // 199 * 5 / 1000 = 0.995
         // 0.995 should get rounded down to 0,
         // return should be Ok((None, Old gbal))
-        
+
         let native = vec![coin(200, "uatom"), coin(300, "uosmo"), coin(199, "ujunox")];
 
         // ujunox
         let juno_fee_denom = FeeDenom::JUNO;
 
-        let gbal: GenericBalance = GenericBalance { 
+        let gbal: GenericBalance = GenericBalance {
             native,
             cw20: cw20s(),
-            nfts: nftgen()
+            nfts: nftgen(),
         };
 
-
-        let (fee_coin, new_gbal) = calc_fee_coin(&juno_fee_denom, &gbal).expect(&here("y", line!(), column!()));
-
+        let (fee_coin, new_gbal) =
+            calc_fee_coin(&juno_fee_denom, &gbal).expect(&here("y", line!(), column!()));
 
         //fee_coin should be none
         if fee_coin.is_some() {
@@ -511,34 +448,29 @@ mod utils_tests {
         }
 
         // new_gbal should be == old gbal
-        genbal_cmp(&new_gbal, &gbal).unwrap_or_else(|_| { panic!("{}", here(
-            "Should be equal",
-            line!(),
-            column!(),
-        )) });
+        genbal_cmp(&new_gbal, &gbal)
+            .unwrap_or_else(|_| panic!("{}", here("Should be equal", line!(), column!(),)));
     }
 
     #[test]
     fn too_small_usdc() {
-
         // 199 * 5 / 1000 = 0.995
         // 0.995 should get rounded down to 0,
         // return should be Ok((None, Old gbal))
-        
+
         let native = vec![coin(200, "uatom"), coin(300, "uosmo"), coin(199, "uusdcx")];
 
         // uusdcx
         let usdc_fee_denom = FeeDenom::USDC;
 
-        let gbal: GenericBalance = GenericBalance { 
+        let gbal: GenericBalance = GenericBalance {
             native,
             cw20: cw20s(),
-            nfts: nftgen()
+            nfts: nftgen(),
         };
 
-
-        let (fee_coin, new_gbal) = calc_fee_coin(&usdc_fee_denom, &gbal).expect(&here("y", line!(), column!()));
-
+        let (fee_coin, new_gbal) =
+            calc_fee_coin(&usdc_fee_denom, &gbal).expect(&here("y", line!(), column!()));
 
         //fee_coin should be none
         if fee_coin.is_some() {
@@ -546,18 +478,10 @@ mod utils_tests {
         }
 
         // new_gbal should be == old gbal
-        genbal_cmp(&new_gbal, &gbal).unwrap_or_else(|_| { panic!("{}", here(
-            "Should be equal",
-            line!(),
-            column!(),
-        )) });
+        genbal_cmp(&new_gbal, &gbal)
+            .unwrap_or_else(|_| panic!("{}", here("Should be equal", line!(), column!(),)));
     }
-
-
 }
-
-
-
 
 // Accepts a `GenericBalance` and calculates the fee to be paid, based on the current fee denom
 // pub fn calc_fee(current_fee: FeeDenom, balance: &GenericBalance) -> StdResult<Option<(CosmosMsg, GenericBalance)>> {
@@ -596,4 +520,3 @@ mod utils_tests {
 //         Ok(None)
 //     }
 // }
-

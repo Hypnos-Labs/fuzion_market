@@ -573,12 +573,8 @@ fn create_listing_should_fail() -> Result<(), anyhow::Error> {
         None,
     );
     let one_juno = coins(1, "ujunox");
-    let res: Result<AppResponse> = router.execute_contract(
-        john.address.clone(),
-        fuzionmarket,
-        &ask_price_valid,
-        &one_juno,
-    );
+    let res: Result<AppResponse> =
+        router.execute_contract(john.address.clone(), fuzionmarket, &ask_price_valid, &one_juno);
     ensure!(res.is_ok(), here("'Testing Ask Creation' failure", line!(), column!()));
 
     // > REMOVE because Listing ID now comes from incrementor in state <
@@ -2978,5 +2974,4 @@ fn storage_capacity() -> Result<(), anyhow::Error> {
     }
 
     Ok(())
-
 }

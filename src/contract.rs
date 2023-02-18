@@ -79,7 +79,7 @@ pub fn execute(
         } => execute_buy_listing(deps, &env, &info.sender, listing_id, bucket_id),
         ExecuteMsg::WithdrawPurchased {
             listing_id,
-        } => execute_withdraw_purchased(deps,  &env, &info.sender, listing_id),
+        } => execute_withdraw_purchased(deps, &env, &info.sender, listing_id),
     }
 }
 

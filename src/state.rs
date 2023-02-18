@@ -1,4 +1,4 @@
-use crate::{state_imports::*, execute_imports::proto_encode};
+use crate::{execute_imports::proto_encode, state_imports::*};
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -478,11 +478,9 @@ mod state_tests {
             nfts: nfts_x.clone(),
         };
 
-        genbal_cmp(&gen_bal_main, &gen_bal_x).unwrap_or_else(|_| { panic!("{}", here(
-            "Reordered should be equal",
-            line!(),
-            column!(),
-        )) });
+        genbal_cmp(&gen_bal_main, &gen_bal_x).unwrap_or_else(|_| {
+            panic!("{}", here("Reordered should be equal", line!(), column!(),))
+        });
 
         //let _resx = fake(&gen_bal_main, &gen_bal_x).expect(&here("Reordered should be equal", line!(), column!()));
 
