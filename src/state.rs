@@ -264,6 +264,12 @@ impl GenericBalance {
     /// - Any duplicate Native Denom
     /// - Any duplicate Cw20 Contract addresses
     pub fn check_valid(&self) -> Result<(), ContractError> {
+        // Check that it isn't completely empty
+        let length = self.native.len() + self.cw20.len() + self.nfts.len();
+        if length == 0 {
+            return Err(ContractError::GenericError("Cannot be empty".to_string()));
+        }
+
         // Check Natives for 0's
         if self.native.iter().any(|n| n.amount.is_zero()) {
             return Err(ContractError::GenericError("Cannot contain 0 value amounts".to_string()));
@@ -368,6 +374,12 @@ impl BalanceUtil for Balance {
     fn normalized_check(&self) -> Result<(), ContractError> {
         match self {
             Self::Native(balance) => {
+                // Check for 0 length
+                if balance.0.is_empty() {
+                    return Err(ContractError::GenericError(
+                        "Cannot contain 0 value amounts".to_string(),
+                    ));
+                }
                 // Check for 0's
                 if balance.0.iter().any(|n| n.amount.is_zero()) {
                     return Err(ContractError::GenericError(
