@@ -29,6 +29,7 @@ export KEY_ADDR_TWO="juno1efd63aw40lxf3n4mhf7dzhjkr453axurv2zdzk"
 # ===================
 function stop_docker {
     docker kill $CONTAINER_NAME
+    docker rm $CONTAINER_NAME
     docker volume rm -f junod_data
 }
 
@@ -59,7 +60,8 @@ function compile_and_copy {
       cosmwasm/rust-optimizer:0.12.11
 
     # copy wasm to docker container
-    docker cp ./artifacts/fuzion_market.wasm $CONTAINER_NAME:/fuzion_market.wasm
+    # docker cp ./artifacts/fuzion_market.wasm $CONTAINER_NAME:/fuzion_market.wasm
+    docker cp e2e/fuzion_market.wasm $CONTAINER_NAME:/fuzion_market.wasm
 
     # copy helper contracts to container
     docker cp e2e/cw20_base.wasm $CONTAINER_NAME:/cw20_base.wasm
@@ -89,8 +91,7 @@ function upload_market {
     # == INSTANTIATE ==
     ADMIN="$KEY_ADDR"
     # Do this after cw721 upload for testing cw721
-    JSON_MSG=$(printf '{"admin":"%s"}' "$ADMIN")
-    MARKET_TX=$($BINARY tx wasm instantiate "$MARKET_BASE_CODE_ID" $JSON_MSG --label "fuzion_market" $JUNOD_COMMAND_ARGS --admin $KEY_ADDR | jq -r '.txhash') && echo $MARKET_TX
+    MARKET_TX=$($BINARY tx wasm instantiate "$MARKET_BASE_CODE_ID" "{}" --label "fuzion_market" $JUNOD_COMMAND_ARGS --admin $KEY_ADDR | jq -r '.txhash') && echo $MARKET_TX
 
     # == GET MARKET_CONTRACT ==
     export MARKET_CONTRACT=$($BINARY query tx $MARKET_TX --output json | jq -r '.logs[0].events[0].attributes[0].value') && echo "Market Addr: $MARKET_CONTRACT"
