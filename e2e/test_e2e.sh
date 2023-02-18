@@ -411,12 +411,6 @@ function both_have_fee_denom {
     TEST_USER_CWTWO_BAL=$(query_contract $CWTWO_CONTRACT `printf '{"balance":{"address":"%s"}}' $KEY_ADDR`)
     ASSERT_EQUAL "$TEST_USER_CWTWO_BAL" '{"data":{"balance":"10000"}}'
 
-    ### junod q bank balances juno12vhgx023nrv64efr3kumc9f4c90raf5v638cvp --output json | jq -r '.balances | map(select(.denom == "ujunox")) | .[0].amount'
-    # junod q bank balances juno12vhgx023nrv64efr3kumc9f4c90raf5v638cvp --output json | jq -r '.[] | select(.denom == "ujunox") | .amount'
-    # KEY_ADDR_JUNO=$($BINARY q bank balances $VALIDATOR_ADDR | jq -r '.[] | select(.denom == "ujunox") | .amount')
-    # other_balance=$($BINARY q bank balances juno1efd63aw40lxf3n4mhf7dzhjkr453axurv2zdzk --output json)
-    # ASSERT_EQUAL "$other_balance" '{"balances":[{"denom":"ujunox","amount":"10000000"}],"pagination":{"next_key":null,"total":"0"}}'
-
     # withdraw bucket sale proceeds
     echo "test-user withdrawing proceeds"
     wasm_cmd $MARKET_CONTRACT '{"remove_bucket":{"bucket_id":2}}' "" show_log "" show_log "$TX_FLAGS --keyring-backend test --from test-user"

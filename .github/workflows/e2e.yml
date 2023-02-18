@@ -19,6 +19,5 @@ jobs:
           target: wasm32-unknown-unknown
           override: true
 
-      # Return once CP msg added
-      #- name: Test contract
-      #  run: ./e2e/test_e2e.sh
+      - name: Test contract
+       run: ./e2e/test_e2e.sh
