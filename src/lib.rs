@@ -27,7 +27,6 @@ mod contract_imports {
     };
     pub use crate::msg::{ExecuteMsg, InstantiateMsg, QueryMsg, ReceiveMsg, ReceiveNftMsg};
     pub use crate::query::*;
-    //get_all_listings, get_buckets, get_listings_by_owner, get_listings_for_market, get_counts
     pub use crate::state::{FeeDenom, Nft, BUCKET_COUNT, FEE_DENOM, LISTING_COUNT};
 }
 
@@ -38,12 +37,7 @@ mod execute_imports {
         genbal_cmp, listingz, BalanceUtil, Bucket, FeeDenom, GenericBalance, Listing, Nft, Status,
         BUCKETS, BUCKET_COUNT, FEE_DENOM, LISTING_COUNT,
     };
-    pub use crate::utils::{
-        calc_fee_coin,
-        proto_encode, //calc_fee, check_whitelist, check_valid_genbal
-                      //check_buyer_whitelisted, get_whitelisted_addresses, get_whitelisted_buyers, normalize_ask,
-        send_tokens_cosmos,
-    };
+    pub use crate::utils::{calc_fee_coin, proto_encode, send_tokens_cosmos};
     pub use cosmwasm_std::{Addr, DepsMut, Env, Response, StdError};
     pub use cw20::Balance;
 }
@@ -53,17 +47,16 @@ mod integration_tests_imports {
     pub use core::fmt::Display;
 
     pub use crate::{msg::*, state::*};
-    pub use cosmwasm_std::{coins, to_binary, Addr, Coin, Empty, Uint128}; //BlockInfo;
+    pub use cosmwasm_std::{coins, to_binary, Addr, Coin, Empty, Uint128};
     pub use cw20::{Cw20Coin, Cw20CoinVerified, Cw20Contract};
 }
 
 mod msg_imports {
     pub use crate::query::*;
+    pub use crate::state::GenericBalance;
     pub use cosmwasm_schema::{cw_serde, QueryResponses};
     pub use cw20::Cw20ReceiveMsg;
     pub use cw721::Cw721ReceiveMsg;
-    //GetBucketsResponse, MultiListingResponse, CountResponse
-    pub use crate::state::GenericBalance;
 }
 
 mod query_imports {
