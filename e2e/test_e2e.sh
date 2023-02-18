@@ -287,11 +287,11 @@ function test_dupes_zeros_funds_sent {
     #
     # Create cw20s with 0
     echo "Creating listing with 0 amount Cw20"
-    create_listing_cw20 $MARKET_CONTRACT $CWONE_CONTRACT "0"
+    create_listing_cw20 $MARKET_CONTRACT $CWONE_CONTRACT 0
     ASSERT_CONTAINS "$CMD_LOG" 'Invalid zero amount'
 
     echo "Creating bucket with 0 amount Cw20"
-    create_bucket_cw20 $MARKET_CONTRACT $CWONE_CONTRACT "0"
+    create_bucket_cw20 $MARKET_CONTRACT $CWONE_CONTRACT 0
     ASSERT_CONTAINS "$CMD_LOG" 'Invalid zero amount'
 
 
