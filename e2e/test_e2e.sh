@@ -196,7 +196,7 @@ set -e
 health_status
 add_accounts
 
-upload_vault
+upload_market
 upload_cw20
 upload_cw721
 
