@@ -299,7 +299,7 @@ function test_dupes_zeros_funds_sent {
     # Creating a test listing
     echo "Creating a listing for testing"
     #create_listing_cw20 $MARKET_CONTRACT $CWONE_CONTRACT "10"
-    wasm_cmd $MARKET_CONTRACT '{"create_listing":{"create_msg":{"ask":{"native":[{"denom":"ujunox","amount":"1"}],"cw20":[],"nfts":[]}}}}' "1ujunox" dont_show "$JUNOD_COMMAND_ARGS"
+    wasm_cmd $MARKET_CONTRACT '{"create_listing":{"create_msg":{"ask":{"native":[{"denom":"ujunox","amount":"1"}],"cw20":[],"nfts":[]}}}}' "1ujunox"
 
     #
     # Add to Listing fail
@@ -314,12 +314,12 @@ function test_dupes_zeros_funds_sent {
     # 
     # Create test bucket
     echo "Creating a bucket for testing"
-    wasm_cmd $MARKET_CONTRACT '{"create_bucket":{}}' "1ujunox" dont_show "$JUNOD_COMMAND_ARGS"
+    wasm_cmd $MARKET_CONTRACT '{"create_bucket":{}}' "1ujunox"
 
     #
     # Add to Bucket fail
     echo "Adding 0 Native to bucket"
-    wasm_cmd $MARKET_CONTRACT '{"add_to_bucket":{}}' "0ujunox" dont_show "$JUNOD_COMMAND_ARGS"
+    wasm_cmd $MARKET_CONTRACT '{"add_to_bucket":{"bucket_id":1}}' "0ujunox"
     ASSERT_CONTAINS "$CMD_LOG" 'Error Message:'
 
     # Don't need to test cw20 again since error is at cw20 base level for any send of 0
@@ -347,7 +347,7 @@ function both_have_fee_denom {
     #   Price: 200 JUNO, 20 CWTWO, cat NFT 2
     # ================================================ #
     echo "test-user creating a Listing"
-    wasm_cmd $MARKET_CONTRACT "$(printf '{"create_listing":{"create_msg":{"ask":{"native":[{"denom":"ujunox","amount":"200"}],"cw20":[{"address":"%s", "amount":"20"}],"nfts":[{"contract_address":"%s", "token_id":"2"}]}}}}' "$CWTWO_CONTRACT" "$CW721_CONTRACTCAT")" "200ujunox"
+    wasm_cmd $MARKET_CONTRACT "$(printf '{"create_listing":{"create_msg":{"ask":{"native":[{"denom":"ujunox","amount":"200"}],"cw20":[{"address":"%s","amount":"20"}],"nfts":[{"contract_address":"%s","token_id":"2"}]}}}}' $CWTWO_CONTRACT $CW721_CONTRACTCAT)" "200ujunox"
 
 
     # Add 10 CWONE
@@ -360,9 +360,9 @@ function both_have_fee_denom {
     
     # KEY_ADDR finalizes listing
     echo "test-user finalizing listing"
-    wasm_cmd $MARKET_CONTRACT '{"finalize":{"listing_id":2,"seconds":5000}}' "" show_log "$TX_FLAGS --keyring-backend test --from test-user"
+    wasm_cmd $MARKET_CONTRACT '{"finalize":{"listing_id":2,"seconds":5000}}' ""
     # try to finalize again, will fail
-    wasm_cmd $MARKET_CONTRACT '{"finalize":{"listing_id":2,"seconds":5003}}' "" show_log "$TX_FLAGS --keyring-backend test --from test-user"
+    wasm_cmd $MARKET_CONTRACT '{"finalize":{"listing_id":2,"seconds":5003}}' ""
     ASSERT_CONTAINS "$CMD_LOG" 'Error Message:'
 
     # ================================================ #
@@ -371,22 +371,22 @@ function both_have_fee_denom {
     # ================================================ #
 
     echo "other-user creating a bucket with correct assets"
-    wasm_cmd $MARKET_CONTRACT '{"create_bucket":{}}' "200ujunox" "" show_log "$TX_FLAGS --keyring-backend test --from other-user"
+    wasm_cmd $MARKET_CONTRACT '{"create_bucket":{}}' "200ujunox" "" "$TX_FLAGS --keyring-backend test --from other-user"
 
     # Add 20 CWTWO
     echo "other-user adding 20 cwtwo to bucket 2"
-    add_cw20_to_bucket $MARKET_CONTRACT $CWTWO_CONTRACT "20" 2 
+    add_cw20_to_bucket $MARKET_CONTRACT $CWTWO_CONTRACT "20" 2 "$TX_FLAGS --keyring-backend test --from other-user"
 
     # Add cat NFT 2
     echo "other-user adding cat nft 2 to bucket 2"
-    add_nft_to_bucket $MARKET_CONTRACT $CW721_CONTRACTCAT "2" 2
+    add_nft_to_bucket $MARKET_CONTRACT $CW721_CONTRACTCAT "2" 2 "$TX_FLAGS --keyring-backend test --from other-user"
 
     # ================================================ #
     # KEY_ADDR_TWO / other-user buying the Listing
     # ================================================ #
 
     echo "other-user buying the listing created by test-user"
-    wasm_cmd $MARKET_CONTRACT '{"buy_listing":{"listing_id":2, "bucket_id":2}}' "" show_log "$TX_FLAGS --keyring-backend test --from other-user"
+    wasm_cmd $MARKET_CONTRACT '{"buy_listing":{"listing_id":2,"bucket_id":2}}' "" "$TX_FLAGS --keyring-backend test --from other-user"
 
 
 
@@ -414,7 +414,7 @@ function both_have_fee_denom {
 
     # withdraw bucket sale proceeds
     echo "test-user withdrawing proceeds"
-    wasm_cmd $MARKET_CONTRACT '{"remove_bucket":{"bucket_id":2}}' "" show_log "" show_log "$TX_FLAGS --keyring-backend test --from test-user"
+    wasm_cmd $MARKET_CONTRACT '{"remove_bucket":{"bucket_id":2}}' ""
 
     # assert test-user now has +200 JUNO?gas?, +20 CWTWO, +cat NFT 2
     echo "asserting test-user now has sale proceeds"
@@ -431,7 +431,7 @@ function both_have_fee_denom {
     # nft ownership (cat nft 2)
     echo "test-user should own cat nft 2"
     CAT_TWO_OWNER=$(query_contract $CW721_CONTRACTCAT '{"owner_of":{"token_id":"2"}}' | jq -r '.data.owner')
-    ASSERT_EQUAL "$CAT_TWO_OWNER" "$KEY_ADDR"
+    ASSERT_EQUAL "$CAT_TWO_OWNER" $KEY_ADDR
 
 
     # ============ 
@@ -445,7 +445,7 @@ function both_have_fee_denom {
 
     # withdraw purchased listing
     echo "other-user withdrawing purchased listing"
-    wasm_cmd $MARKET_CONTRACT '{"withdraw_purchased":{"listing_id":2}}' "" show_log "$TX_FLAGS --keyring-backend test --from other-user"
+    wasm_cmd $MARKET_CONTRACT '{"withdraw_purchased":{"listing_id":2}}' "" "$TX_FLAGS --keyring-backend test --from other-user"
 
     # query ujunox balance after withdraw
     OTHER_USER_BAL_POST=$($BINARY q bank balances $KEY_ADDR_TWO --output json | jq -r '.balances | map(select(.denom == "ujunox")) | .[0].amount')
@@ -456,12 +456,12 @@ function both_have_fee_denom {
     # cwone balance
     echo "checking cwone balance"
     OTHER_USER_CWONE_BAL=$(query_contract $CWONE_CONTRACT `printf '{"balance":{"address":"%s"}}' $KEY_ADDR_TWO`)
-    ASSERT_EQUAL "$OTHER_USER_CWONE_BAL" '{"data":{"balance":"10010"}}'
+    ASSERT_EQUAL $OTHER_USER_CWONE_BAL '{"data":{"balance":"10010"}}'
 
     # owns dog nft 1 now
     echo "other-user should own dog nft 1"
     DOG_ONE_OWNER=$(query_contract $CW721_CONTRACTDOG '{"owner_of":{"token_id":"1"}}' | jq -r '.data.owner')
-    ASSERT_EQUAL "$DOG_ONE_OWNER" "$KEY_ADDR_TWO"
+    ASSERT_EQUAL "$DOG_ONE_OWNER" $KEY_ADDR_TWO
 
 }
 
