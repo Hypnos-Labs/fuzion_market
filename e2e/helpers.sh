@@ -165,7 +165,7 @@ function add_nft_to_listing {
     NFT_LISTING_BASE64=`printf '{"add_to_listing_cw721":{"listing_id":%d}}' $LISTING_ID | base64 -w 0`    
     SEND_NFT_JSON=`printf '{"send_nft":{"contract":"%s","token_id":"%s","msg":"%s"}}' $MARKET_CONTRACT $TOKEN_ID $NFT_LISTING_BASE64`        
 
-    wasm_cmd $CW721_CONTRACT_ADDR "$SEND_NFT_JSON" "" dont_show
+    wasm_cmd $CW721_CONTRACT_ADDR "$SEND_NFT_JSON" "" show_log
 }
 
 function add_nft_to_listing_other {
@@ -177,7 +177,7 @@ function add_nft_to_listing_other {
     NFT_LISTING_BASE64=`printf '{"add_to_listing_cw721":{"listing_id":%d}}' $LISTING_ID | base64 -w 0`    
     SEND_NFT_JSON=`printf '{"send_nft":{"contract":"%s","token_id":"%s","msg":"%s"}}' $MARKET_CONTRACT $TOKEN_ID $NFT_LISTING_BASE64`        
 
-    wasm_cmd_other $CW721_CONTRACT_ADDR "$SEND_NFT_JSON" "" dont_show
+    wasm_cmd_other $CW721_CONTRACT_ADDR "$SEND_NFT_JSON" "" show_log
 }
 
 
@@ -238,7 +238,7 @@ function add_nft_to_bucket {
     NFT_BUCKET_BASE64=`printf '{"add_to_bucket_cw721":{"bucket_id":%d}}' $BUCKET_ID | base64 -w 0`    
     SEND_NFT_JSON=`printf '{"send_nft":{"contract":"%s","token_id":"%s","msg":"%s"}}' $MARKET_CONTRACT $TOKEN_ID $NFT_BUCKET_BASE64`        
 
-    wasm_cmd $CW721_CONTRACT_ADDR "$SEND_NFT_JSON" "" dont_show
+    wasm_cmd $CW721_CONTRACT_ADDR "$SEND_NFT_JSON" "" show_log
 }
 
 function add_nft_to_bucket_other {
@@ -250,7 +250,7 @@ function add_nft_to_bucket_other {
     NFT_BUCKET_BASE64=`printf '{"add_to_bucket_cw721":{"bucket_id":%d}}' $BUCKET_ID | base64 -w 0`    
     SEND_NFT_JSON=`printf '{"send_nft":{"contract":"%s","token_id":"%s","msg":"%s"}}' $MARKET_CONTRACT $TOKEN_ID $NFT_BUCKET_BASE64`        
 
-    wasm_cmd_other $CW721_CONTRACT_ADDR "$SEND_NFT_JSON" "" dont_show
+    wasm_cmd_other $CW721_CONTRACT_ADDR "$SEND_NFT_JSON" "" show_log
 }
 
 
