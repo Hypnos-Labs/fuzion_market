@@ -143,8 +143,8 @@ function CHECK_FEE {
     DIFF=$(echo "$AFTER-$BEFORE" | bc -l)
     EXPECTED=$(echo "0.995*$WITHDRAWN" | bc -l)
 
-    if [ "$DIFF" != "$EXPECTED" ]; then        
-        echo "ERROR: Fee amount not correct: $1 != $2" 1>&2
+    if (( $(echo "$DIFF != $EXPECTED" | bc -l) )); then        
+        echo "ERROR: Fee amount not correct: $DIFF != $EXPECTED" 1>&2
         FINAL_STATUS_CODE=1 
     else
         echo "SUCCESS: Fee amount successfully removed"
@@ -452,7 +452,7 @@ function both_have_fee_denom {
 
     # print ujunox balances
     echoe "other-user ujunox balance before withdraw: $OTHER_USER_BAL ||| and after: $OTHER_USER_BAL_POST ||| These should be the same!"
-
+    
     CHECK_FEE $OTHER_USER_BAL $OTHER_USER_BAL_POST 200
 
     # cwone balance
