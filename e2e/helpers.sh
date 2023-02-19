@@ -1,6 +1,12 @@
 # ========================
 # === Helper Functions ===
 # ========================
+
+function echoe() {
+  command echo -e "\n~~~~~~~~~~~~~~~~~~~~~~~~~\n$@\n~~~~~~~~~~~~~~~~~~~~~~~~~\n"
+}
+
+
 function query_contract {
     $BINARY query wasm contract-state smart $1 $2 --output json
 }
