@@ -119,11 +119,11 @@ function create_listing_cw20 {
     MARKET_CONTRACT=$1
     CW20_CONTRACT_ADDR=$2
     AMOUNT=$3
-    ARGS=${4:-$JUNOD_COMMAND_ARGS}
+
     LISTING_BASE64=`printf '{"create_listing_cw20":{"create_msg":{"ask":{"native":[{"denom":"ujunox","amount":"1"}],"cw20":[],"nfts":[]}}}}' | base64 -w 0`
     SEND_TOKEN_JSON=`printf '{"send":{"contract":"%s","amount":"%s","msg":"%s"}}' $MARKET_CONTRACT $AMOUNT $LISTING_BASE64`        
 
-    wasm_cmd $CW20_CONTRACT_ADDR "$SEND_TOKEN_JSON" "" $ARGS
+    wasm_cmd $CW20_CONTRACT_ADDR "$SEND_TOKEN_JSON" "" dont_show
 }
 
 #

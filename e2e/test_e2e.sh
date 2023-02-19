@@ -245,11 +245,11 @@ function test_ask_failure {
     wasm_cmd $MARKET_CONTRACT '{"create_listing":{"create_msg":{"ask":{"native":[],"cw20":[{"address":"juno1rws84uz7969aaa7pej303udhlkt3j9ca0l3egpcae98jwak9quzq8szn2l","amount":"1"},{"address":"juno1rws84uz7969aaa7pej303udhlkt3j9ca0l3egpcae98jwak9quzq8szn2l","amount":"4"}],"nfts":[]}}}}' "1ujunox"
     ASSERT_CONTAINS "$CMD_LOG" 'Error Message: Cannot contain duplicate CW20 Tokens'
 
-    echo "Trying to create a Listing with 0 amount Native"
+    echo "Trying to create a Listing with 0 amount Native in Ask"
     wasm_cmd $MARKET_CONTRACT '{"create_listing":{"create_msg":{"ask":{"native":[{"denom":"ujunox","amount":"0"},{"denom":"ucosm","amount":"1"}],"cw20":[],"nfts":[]}}}}' "1ujunox"
     ASSERT_CONTAINS "$CMD_LOG" 'Error Message: Cannot contain 0 value amounts'
 
-    echo "Trying to create a Listing with 0 amount Cw20"
+    echo "Trying to create a Listing with 0 amount Cw20 in Ask"
     wasm_cmd $MARKET_CONTRACT '{"create_listing":{"create_msg":{"ask":{"native":[],"cw20":[{"address":"juno1u45shlp0q4gcckvsj06ss4xuvsu0z24a0d0vr9ce6r24pht4e5xq7q995n","amount":"1"},{"address":"juno1rws84uz7969aaa7pej303udhlkt3j9ca0l3egpcae98jwak9quzq8szn2l","amount":"0"}],"nfts":[]}}}}' "1ujunox"
     ASSERT_CONTAINS "$CMD_LOG" 'Error Message: Cannot contain 0 value amounts'
 
@@ -274,7 +274,6 @@ function test_ask_failure {
 # -X- Add to Bucket fail
 function test_dupes_zeros_funds_sent {
 
-    # 
     # Create Natives with 0
     echo "Creating listing with 0 amount Native"
     wasm_cmd $MARKET_CONTRACT '{"create_listing":{"create_msg":{"ask":{"native":[{"denom":"uosmo","amount":"1"}],"cw20":[],"nfts":[]}}}}' "0ujunox"
@@ -284,24 +283,20 @@ function test_dupes_zeros_funds_sent {
     wasm_cmd $MARKET_CONTRACT '{"create_bucket":{}}' "0ujunox"
     ASSERT_CONTAINS "$CMD_LOG" 'Error Message:'
 
-    #
     # Create cw20s with 0
     echo "Creating listing with 0 amount Cw20"
-    create_listing_cw20 $MARKET_CONTRACT $CWONE_CONTRACT 0
+    create_listing_cw20 $MARKET_CONTRACT $CWONE_CONTRACT "0"
     ASSERT_CONTAINS "$CMD_LOG" 'Invalid zero amount'
 
     echo "Creating bucket with 0 amount Cw20"
-    create_bucket_cw20 $MARKET_CONTRACT $CWONE_CONTRACT 0
+    create_bucket_cw20 $MARKET_CONTRACT $CWONE_CONTRACT "0"
     ASSERT_CONTAINS "$CMD_LOG" 'Invalid zero amount'
 
-
-    #
     # Creating a test listing
     echo "Creating a listing for testing"
     #create_listing_cw20 $MARKET_CONTRACT $CWONE_CONTRACT "10"
     wasm_cmd $MARKET_CONTRACT '{"create_listing":{"create_msg":{"ask":{"native":[{"denom":"ujunox","amount":"1"}],"cw20":[],"nfts":[]}}}}' "1ujunox"
 
-    #
     # Add to Listing fail
     echo "Adding 0 Native to Listing"
     wasm_cmd $MARKET_CONTRACT '{"add_to_listing":{"listing_id":1}}' "0ujunox"
@@ -311,12 +306,10 @@ function test_dupes_zeros_funds_sent {
     add_cw20_to_listing $MARKET_CONTRACT $CWONE_CONTRACT "0" 1
     ASSERT_CONTAINS "$CMD_LOG" 'Invalid zero amount'
 
-    # 
     # Create test bucket
     echo "Creating a bucket for testing"
     wasm_cmd $MARKET_CONTRACT '{"create_bucket":{}}' "1ujunox"
 
-    #
     # Add to Bucket fail
     echo "Adding 0 Native to bucket"
     wasm_cmd $MARKET_CONTRACT '{"add_to_bucket":{"bucket_id":1}}' "0ujunox"
