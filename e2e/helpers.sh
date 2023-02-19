@@ -75,11 +75,11 @@ function mint_cw721 {
     OWNER=$3
     TOKEN_URI=$4
     
-    EXECUTED_MINT_JSON=`printf '{"mint":{"count":"%d","token_id":"%s","owner":"%s","token_uri":"%s"}}' $TOKEN_ID $TOKEN_ID $OWNER $TOKEN_URI`
+    EXECUTED_MINT_JSON=`printf '{"mint":{"count":%d,"token_id":"%s","owner":"%s","token_uri":"%s"}}' $TOKEN_ID $TOKEN_ID $OWNER $TOKEN_URI`
     TXMINT=$($BINARY tx wasm execute "$CONTRACT_ADDR" "$EXECUTED_MINT_JSON" $JUNOD_COMMAND_ARGS | jq -r '.txhash') && echo $TXMINT
 
     LOG=$($BINARY query tx $TXMINT --output json | jq -r '.raw_log')
-    
+
     echo -e "Raw Mint Log: $LOG\n~~~~~~~~~~~~~~~\n"
 }
 
