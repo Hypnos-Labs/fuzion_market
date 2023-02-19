@@ -375,6 +375,9 @@ function both_have_fee_denom {
     # KEY_ADDR_TWO / other-user buying the Listing
     # ================================================ #
 
+    COUNT=$(query_contract $MARKET_CONTRACT '{"get_all_listings":{}}' --output json)
+    echoe $COUNT
+
     echoe "other-user buying the listing created by test-user"
     wasm_cmd_other $MARKET_CONTRACT '{"buy_listing":{"listing_id":2,"bucket_id":2}}' "" show_log
 
