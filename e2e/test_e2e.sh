@@ -361,7 +361,7 @@ function both_have_fee_denom {
     # ================================================ #
 
     echoe "other-user creating a bucket with correct assets"
-    wasm_cmd_other $MARKET_CONTRACT '{"create_bucket":{}}' "200ujunox" "" show_log
+    wasm_cmd_other $MARKET_CONTRACT '{"create_bucket":{}}' "200ujunox" show_log
 
     # Add 20 CWTWO
     echoe "other-user adding 20 cwtwo to bucket 2"
