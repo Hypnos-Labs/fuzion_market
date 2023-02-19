@@ -1,15 +1,13 @@
-#=== E2E Tests ===#
+# ================= #
+# === E2E Tests === #
+# ================= #
+
 # - Creates local juno chain in docker container
 # - Uploads cw20, cw721, and market contracts
 # - Executes contracts following testing logic
 
 
-# Functions from /e2e/helpers.sh file 
-# query_contract | wasm_cmd
-# mint_cw721 | create_listing_cw721 | create_bucket_cw721
-# add_nft_to_listing | add_nft_to_bucket
-# create_listing_cw20 | create_bucket_cw20
-# add_cw20_to_listing | add_cw20_to_bucket
+# Import helper functions for interacting with contract
 source ./e2e/helpers.sh
 
 CONTAINER_NAME="fuzion_market"
@@ -20,6 +18,7 @@ JUNOD_NODE='http://localhost:26657/'
 # globalfee will break this in the future
 TX_FLAGS="--gas-prices 0.1$DENOM --gas-prices="0ujunox" --gas 5000000 -y -b block --chain-id $JUNOD_CHAIN_ID --node $JUNOD_NODE --output json"
 export JUNOD_COMMAND_ARGS="$TX_FLAGS --from test-user"
+export JUNOD_COMMAND_ARGS_OTHER="$TX_FLAGS --from other-user"
 export KEY_ADDR="juno1hj5fveer5cjtn4wd6wstzugjfdxzl0xps73ftl"
 export KEY_ADDR_TWO="juno1efd63aw40lxf3n4mhf7dzhjkr453axurv2zdzk"
 
@@ -294,7 +293,6 @@ function test_dupes_zeros_funds_sent {
 
     # Creating a test listing
     echo "Creating a listing for testing"
-    #create_listing_cw20 $MARKET_CONTRACT $CWONE_CONTRACT "10"
     wasm_cmd $MARKET_CONTRACT '{"create_listing":{"create_msg":{"ask":{"native":[{"denom":"ujunox","amount":"1"}],"cw20":[],"nfts":[]}}}}' "1ujunox"
 
     # Add to Listing fail
@@ -315,7 +313,7 @@ function test_dupes_zeros_funds_sent {
     wasm_cmd $MARKET_CONTRACT '{"add_to_bucket":{"bucket_id":1}}' "0ujunox"
     ASSERT_CONTAINS "$CMD_LOG" 'Error Message:'
 
-    # Don't need to test cw20 again since error is at cw20 base level for any send of 0
+    # Don't need to test cw20 again since error is at cw20_base level for any send of 0
 
     # Listing & Bucket ID from here after will be 2..., because of state incrementors
 
@@ -342,7 +340,6 @@ function both_have_fee_denom {
     echo "test-user creating a Listing"
     wasm_cmd $MARKET_CONTRACT "$(printf '{"create_listing":{"create_msg":{"ask":{"native":[{"denom":"ujunox","amount":"200"}],"cw20":[{"address":"%s","amount":"20"}],"nfts":[{"contract_address":"%s","token_id":"2"}]}}}}' $CWTWO_CONTRACT $CW721_CONTRACTCAT)" "200ujunox"
 
-
     # Add 10 CWONE
     echo "test-user adding 10 cwone to listing 2"
     add_cw20_to_listing $MARKET_CONTRACT $CWONE_CONTRACT "10" 2
@@ -364,24 +361,22 @@ function both_have_fee_denom {
     # ================================================ #
 
     echo "other-user creating a bucket with correct assets"
-    wasm_cmd $MARKET_CONTRACT '{"create_bucket":{}}' "200ujunox" "" "$TX_FLAGS --keyring-backend test --from other-user"
+    wasm_cmd_other $MARKET_CONTRACT '{"create_bucket":{}}' "200ujunox" ""
 
     # Add 20 CWTWO
     echo "other-user adding 20 cwtwo to bucket 2"
-    add_cw20_to_bucket $MARKET_CONTRACT $CWTWO_CONTRACT "20" 2 "$TX_FLAGS --keyring-backend test --from other-user"
+    add_cw20_to_bucket_other $MARKET_CONTRACT $CWTWO_CONTRACT "20" 2
 
     # Add cat NFT 2
     echo "other-user adding cat nft 2 to bucket 2"
-    add_nft_to_bucket $MARKET_CONTRACT $CW721_CONTRACTCAT "2" 2 "$TX_FLAGS --keyring-backend test --from other-user"
+    add_nft_to_bucket_other $MARKET_CONTRACT $CW721_CONTRACTCAT "2" 2
 
     # ================================================ #
     # KEY_ADDR_TWO / other-user buying the Listing
     # ================================================ #
 
     echo "other-user buying the listing created by test-user"
-    wasm_cmd $MARKET_CONTRACT '{"buy_listing":{"listing_id":2,"bucket_id":2}}' "" "$TX_FLAGS --keyring-backend test --from other-user"
-
-
+    wasm_cmd_other $MARKET_CONTRACT '{"buy_listing":{"listing_id":2,"bucket_id":2}}' ""
 
     # ================================================ #
     # ================================================ #
@@ -438,7 +433,7 @@ function both_have_fee_denom {
 
     # withdraw purchased listing
     echo "other-user withdrawing purchased listing"
-    wasm_cmd $MARKET_CONTRACT '{"withdraw_purchased":{"listing_id":2}}' "" "$TX_FLAGS --keyring-backend test --from other-user"
+    wasm_cmd_other $MARKET_CONTRACT '{"withdraw_purchased":{"listing_id":2}}' ""
 
     # query ujunox balance after withdraw
     OTHER_USER_BAL_POST=$($BINARY q bank balances $KEY_ADDR_TWO --output json | jq -r '.balances | map(select(.denom == "ujunox")) | .[0].amount')
