@@ -19,5 +19,8 @@ jobs:
           target: wasm32-unknown-unknown
           override: true
 
+      - name: Install bc
+        run: sudo apt-get install -y bc
+
       - name: Test contract
         run: ./e2e/test_e2e.sh
