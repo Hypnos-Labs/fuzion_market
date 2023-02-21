@@ -54,7 +54,6 @@ pub fn execute_create_bucket_cw721(
     }
 
     // NFT validation checks are handled in receiver wrapper
-    // Save bucket
     BUCKETS.save(
         deps.storage,
         (user_wallet.clone(), count),

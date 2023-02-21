@@ -1,14 +1,8 @@
 use crate::msg_imports::*;
 
-//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-// Instantiate
-//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 #[cw_serde]
 pub struct InstantiateMsg {}
 
-//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-// Execute
-//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 #[cw_serde]
 pub enum ExecuteMsg {
     // Receive Filters
@@ -59,7 +53,6 @@ pub enum ExecuteMsg {
     // },
 }
 
-// cw20 entry point
 #[cw_serde]
 pub enum ReceiveMsg {
     CreateListingCw20 {
@@ -79,7 +72,6 @@ pub enum ReceiveMsg {
     },
 }
 
-// cw721 entry point
 #[cw_serde]
 pub enum ReceiveNftMsg {
     CreateListingCw721 {
@@ -94,9 +86,6 @@ pub enum ReceiveNftMsg {
     },
 }
 
-//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-// Query
-//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 #[cw_serde]
 #[derive(QueryResponses)]
 pub enum QueryMsg {
@@ -123,10 +112,6 @@ pub enum QueryMsg {
         page_num: u8,
     },
 }
-
-//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-// Query Helpers
-//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 #[cw_serde]
 pub struct CreateListingMsg {

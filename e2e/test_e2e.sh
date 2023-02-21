@@ -1,5 +1,6 @@
 # ================================================== #
 # ==================== E2E Tests =================== #
+# ========= Original by @Reecepbcups =============== #
 # ================================================== #
 # - Creates local juno chain in docker container
 # - Uploads cw20, cw721, and market contracts
@@ -147,7 +148,7 @@ function CHECK_FEE {
         echo "ERROR: Fee amount not correct: $DIFF != $EXPECTED" 1>&2
         FINAL_STATUS_CODE=1 
     else
-        echo "SUCCESS: Fee amount successfully removed"
+        echo "SUCCESS: Fee amount successfully removed: $DIFF == $EXPECTED"
     fi
 }
 
@@ -230,11 +231,9 @@ ASSERT_EQUAL "$balance" '{"data":{"balance":"10000"}}'
 balance=$(query_contract $CWTWO_CONTRACT `printf '{"balance":{"address":"%s"}}' $KEY_ADDR_TWO`)
 ASSERT_EQUAL "$balance" '{"data":{"balance":"10000"}}'
 
-# ===================================================================== #
-# ===================================================================== #
-# =============================== Tests =============================== #
-# ===================================================================== #
-
+# ============================================================= #
+# ======================= Logic Tests ========================= #
+# ============================================================= #
 
 # Listings cannot have 0 amounts or duplicates in their Ask Price
 # [X] Listing with 0's in Ask should fail

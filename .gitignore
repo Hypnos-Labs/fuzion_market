@@ -3,6 +3,8 @@
 /ts_codegen
 /juno_vaults_contract
 /fuzion_market
+/coverage
+/TESTCOV.md
 
 .editorconfig
 WORKSPACE.md
