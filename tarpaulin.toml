@@ -1,0 +1,7 @@
+[all]
+exclude-files=[
+    "src/msg.rs",
+    "src/query.rs",
+    "src/lib.rs",
+    "src/error.rs"
+]

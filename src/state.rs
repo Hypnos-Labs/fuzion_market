@@ -100,6 +100,7 @@ impl Listing {
     ///
     /// **If `Listing.fee_amount.is_none()`**
     /// - Returns `Vec<CosmosMsg>` sending `Listing.for_sale` to `Listing.claimant`
+    #[cfg(not(tarpaulin_include))]
     pub fn withdraw_msgs(&self, contract_address: &Addr) -> Result<Vec<CosmosMsg>, ContractError> {
         // Get claimant (This will not called when Listing does not have claimant)
         let user = self.claimant.as_ref().ok_or_else(|| {
@@ -151,6 +152,7 @@ impl Bucket {
     ///
     /// **If `Bucket.fee_amount.is_none()`**
     /// - Returns `Vec<CosmosMsg>` sending `Bucket.funds` to `Bucket.owner`
+    #[cfg(not(tarpaulin_include))]
     pub fn withdraw_msgs(&self, contract_address: &Addr) -> Result<Vec<CosmosMsg>, ContractError> {
         match &self.fee_amount {
             None => send_tokens_cosmos(&self.owner, &self.funds).map_err(|_e| {

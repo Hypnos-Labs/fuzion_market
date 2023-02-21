@@ -1,0 +1,32 @@
+on: [push, pull_request]
+
+name: Tarpaulin
+
+jobs:
+
+  coverage:
+    name: Tarpaulin Code Coverage
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v2
+
+      - name: Install stable toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: 1.66.0
+          target: wasm32-unknown-unknown
+          override: true
+
+      - name: Install tarpaulin
+        uses: actions-rs/cargo@v1
+        with:
+          command: install
+          args: cargo-tarpaulin
+
+      - name: Code coverage checks
+        uses: actions-rs/cargo@v1
+        with:
+          command: tarpaulin
+          args: --frozen
