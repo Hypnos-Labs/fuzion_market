@@ -11,7 +11,6 @@ use crate::utils_imports::*;
 /// Otherwise returns `Ok(Vec<CosmosMsg>)`, where each `CosmosMsg` is sending the items
 /// from within the `GenericBalance` to the `to` address
 pub fn send_tokens_cosmos(to: &Addr, balance: &GenericBalance) -> StdResult<Vec<CosmosMsg>> {
-    
     let native_balance = &balance.native;
     let mut msgs: Vec<CosmosMsg> = if native_balance.is_empty() {
         vec![]
@@ -485,5 +484,3 @@ mod utils_tests {
             .unwrap_or_else(|_| panic!("{}", here("Should be equal", line!(), column!(),)));
     }
 }
-
-

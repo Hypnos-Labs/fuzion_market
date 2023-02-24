@@ -31,7 +31,7 @@ impl FeeDenom {
         match new.as_str() {
             "JUNO" => Ok(FeeDenom::JUNO(bh)),
             "USDC" => Ok(FeeDenom::USDC(bh)),
-            x @ _ => Err(ContractError::GenericError(format!("Invalid Fee Denom: {x}")))
+            x => Err(ContractError::GenericError(format!("Invalid Fee Denom: {x}"))),
         }
     }
 }
@@ -196,7 +196,6 @@ pub struct Nft {
 }
 
 impl GenericBalance {
-
     /// Generate messages for sending `Cw20Cw721ExecuteMsg::Send` variants
     /// This can be used if the withdrawing contracts wants to invoke some
     /// action on their contract when the cw20/cw721 messages are received
@@ -208,18 +207,19 @@ impl GenericBalance {
         } else {
             vec![CosmosMsg::from(BankMsg::Send {
                 to_address: to.into(),
-                amount: self.native.clone()
+                amount: self.native.clone(),
             })]
         };
 
-        let cw20_msgs: StdResult<Vec<_>> = self.cw20
+        let cw20_msgs: StdResult<Vec<_>> = self
+            .cw20
             .iter()
             .map(|c| {
                 // Contract must implement the cw20 receiver interface, replace x with contract specific message variant
-                let msg = Cw20ExecuteMsg::Send { 
-                    contract: to.into(), 
-                    amount: c.amount, 
-                    msg: to_binary("x")?
+                let msg = Cw20ExecuteMsg::Send {
+                    contract: to.into(),
+                    amount: c.amount,
+                    msg: to_binary("x")?,
                 };
                 let exec = CosmosMsg::from(WasmMsg::Execute {
                     contract_addr: c.address.to_string(),
@@ -229,17 +229,18 @@ impl GenericBalance {
                 Ok(exec)
             })
             .collect();
-    
+
         msgs.extend(cw20_msgs?);
-    
-        let nft_msgs: StdResult<Vec<CosmosMsg<cosmwasm_std::Empty>>> = self.nfts
+
+        let nft_msgs: StdResult<Vec<CosmosMsg<cosmwasm_std::Empty>>> = self
+            .nfts
             .iter()
             .map(|n| {
                 // Contract must implement the cw721 receiver interface, replace x with contract specific message variant
-                let msg = Cw721ExecuteMsg::SendNft { 
-                    contract: to.into(), 
-                    token_id: n.token_id.clone(), 
-                    msg: to_binary("x")?
+                let msg = Cw721ExecuteMsg::SendNft {
+                    contract: to.into(),
+                    token_id: n.token_id.clone(),
+                    msg: to_binary("x")?,
                 };
                 let exec = CosmosMsg::from(WasmMsg::Execute {
                     contract_addr: n.contract_address.to_string(),
@@ -249,25 +250,24 @@ impl GenericBalance {
                 Ok(exec)
             })
             .collect();
-    
-        msgs.extend(nft_msgs?);
-    
-        Ok(msgs)
 
+        msgs.extend(nft_msgs?);
+
+        Ok(msgs)
     }
 
     pub fn wallet_msgs(&self, to: &Addr) -> StdResult<Vec<CosmosMsg>> {
-
         let mut msgs: Vec<CosmosMsg> = if self.native.is_empty() {
             vec![]
         } else {
             vec![CosmosMsg::from(BankMsg::Send {
                 to_address: to.into(),
-                amount: self.native.clone()
+                amount: self.native.clone(),
             })]
         };
 
-        let cw20_msgs: StdResult<Vec<_>> = self.cw20
+        let cw20_msgs: StdResult<Vec<_>> = self
+            .cw20
             .iter()
             .map(|c| {
                 // Will send to any type of address, but will NOT
@@ -285,8 +285,9 @@ impl GenericBalance {
             })
             .collect();
         msgs.extend(cw20_msgs?);
-    
-        let nft_msgs: StdResult<Vec<CosmosMsg<cosmwasm_std::Empty>>> = self.nfts
+
+        let nft_msgs: StdResult<Vec<CosmosMsg<cosmwasm_std::Empty>>> = self
+            .nfts
             .iter()
             .map(|n| {
                 // Will send to any type of address, but will NOT
@@ -303,9 +304,9 @@ impl GenericBalance {
                 Ok(exec)
             })
             .collect();
-    
+
         msgs.extend(nft_msgs?);
-    
+
         Ok(msgs)
     }
 

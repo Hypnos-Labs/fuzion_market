@@ -223,7 +223,9 @@ pub fn execute_create_listing(
     // Is there ever a situation where someone might want to do this?
     if let Some(wlbuyer) = &wl_buyer {
         if wlbuyer.eq(user_address) {
-            return Err(ContractError::GenericError("Whitelisted buyer should not be the same as Listing Creator".to_string()));
+            return Err(ContractError::GenericError(
+                "Whitelisted buyer should not be the same as Listing Creator".to_string(),
+            ));
         }
     }
 
@@ -287,12 +289,14 @@ pub fn execute_create_listing_cw721(
         .map(|address| deps.api.addr_validate(&address))
         .transpose()
         .map_err(|_| ContractError::GenericError("Invalid whitelisted buyer".to_string()))?;
-        
+
     // Error if whitelisted buyer is listing creator
     // Is there ever a situation where someone might want to do this?
     if let Some(wlbuyer) = &wl_buyer {
         if wlbuyer.eq(user_wallet) {
-            return Err(ContractError::GenericError("Whitelisted buyer should not be the same as Listing Creator".to_string()));
+            return Err(ContractError::GenericError(
+                "Whitelisted buyer should not be the same as Listing Creator".to_string(),
+            ));
         }
     }
 
@@ -723,4 +727,3 @@ pub fn execute_withdraw_purchased(
         .add_attribute("listing_id", listing_id.to_string())
         .add_messages(withdraw_msgs))
 }
-

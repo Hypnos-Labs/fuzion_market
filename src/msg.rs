@@ -97,19 +97,19 @@ pub enum QueryMsg {
     #[returns(MultiBucketResponse)]
     GetBuckets {
         bucket_owner: String,
-        page_num: u8
+        page_num: u8,
     },
     /// Gets Listings owned by user
     /// - Requires pagination
     #[returns(MultiListingResponse)]
     GetListingsByOwner {
         owner: String,
-        page_num: u8
+        page_num: u8,
     },
     /// Gets listings user is whitelisted for
     #[returns(MultiListingResponse)]
     GetListingsByWhitelist {
-        owner: String
+        owner: String,
     },
     /// Gets listings for Marketplace
     /// - Does not return non-finalized, expired, or already sold listings
@@ -123,7 +123,6 @@ pub enum QueryMsg {
     //     listing_id: u64,
     // },
 }
-
 
 /// Must be sent along with message when creating a Listing
 #[cw_serde]

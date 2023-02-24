@@ -16,31 +16,26 @@ pub fn get_fee_denom(deps: Deps) -> StdResult<FeeDenomResponse> {
     Ok(FeeDenomResponse {
         name,
         denom: fee_denom.value(),
-        next_change
+        next_change,
     })
 }
 
 /// Get all buckets owned by an address
 /// - Requires pagination to avoid exceeding gas limits
 /// - `Page 1: first 20` `Page 2: second 20`...
-pub fn get_buckets(
-    deps: Deps, 
-    bucket_owner: &str,
-    page_num: u8,
-) -> StdResult<MultiBucketResponse> {
+pub fn get_buckets(deps: Deps, bucket_owner: &str, page_num: u8) -> StdResult<MultiBucketResponse> {
     let valid_owner = deps.api.addr_validate(bucket_owner)?;
 
     let to_skip_usize = usize::from(page_num * 20 - 20);
 
-    let user_buckets: Vec<_> =
-        BUCKETS
-            .prefix(valid_owner)
-            .range(deps.storage, None, None, Order::Ascending)
-            .collect::<StdResult<Vec<_>>>()?
-            .into_iter()
-            .skip(to_skip_usize)
-            .take(20)
-            .collect();
+    let user_buckets: Vec<_> = BUCKETS
+        .prefix(valid_owner)
+        .range(deps.storage, None, None, Order::Ascending)
+        .collect::<StdResult<Vec<_>>>()?
+        .into_iter()
+        .skip(to_skip_usize)
+        .take(20)
+        .collect();
 
     Ok(MultiBucketResponse {
         buckets: user_buckets,
@@ -51,7 +46,7 @@ pub fn get_buckets(
 /// - Requires pagination to avoid exceeding gas limits
 /// - `Page 1: first 20` `Page 2: second 20`...
 pub fn get_listings_by_owner(
-    deps: Deps, 
+    deps: Deps,
     owner: &str,
     page_num: u8,
 ) -> StdResult<MultiListingResponse> {
@@ -59,33 +54,26 @@ pub fn get_listings_by_owner(
 
     let to_skip_usize = usize::from(page_num * 20 - 20);
 
-    let listing_data: Vec<_> =
-        listingz()
-            .prefix(&valid_owner)
-            .range(deps.storage, None, None, Order::Ascending)
-            .collect::<StdResult<Vec<_>>>()?
-            .into_iter()
-            .skip(to_skip_usize)
-            .take(20)
-            .map(|entry| entry.1.clone())
-            .collect();
+    let listing_data: Vec<_> = listingz()
+        .prefix(&valid_owner)
+        .range(deps.storage, None, None, Order::Ascending)
+        .collect::<StdResult<Vec<_>>>()?
+        .into_iter()
+        .skip(to_skip_usize)
+        .take(20)
+        .map(|entry| entry.1)
+        .collect();
 
     Ok(MultiListingResponse {
         listings: listing_data,
     })
 }
 
-
 /// Get all listings that `owner` is whitelisted to purchase
 /// - Only returns listings that are finalized
 /// - Only returns listings that are not expired
 /// - Only returns listings that are not closed (sold)
-pub fn get_whitelisted(
-    deps: Deps,
-    env: Env, 
-    owner: String
-) -> StdResult<MultiListingResponse> {
-
+pub fn get_whitelisted(deps: Deps, env: Env, owner: String) -> StdResult<MultiListingResponse> {
     let valid_owner = deps.api.addr_validate(owner.as_str())?;
 
     let current_time = env.block.time.seconds();
@@ -100,7 +88,9 @@ pub fn get_whitelisted(
         .filter_map(|entry| {
             let x = entry.1.clone();
             // Disregard entries that have no expiration, are expired, or are already closed
-            if x.expiration_time.filter(|&exp| exp.seconds() >= current_time).is_none() || x.status == Status::Closed {
+            if x.expiration_time.filter(|&exp| exp.seconds() >= current_time).is_none()
+                || x.status == Status::Closed
+            {
                 None
             } else {
                 Some(x)
@@ -143,7 +133,9 @@ pub fn get_listings_for_market(
         .filter_map(|entry| {
             let x = entry.1.clone();
             // Disregard entries that have no expiration, are expired, or are already Closed
-            if x.expiration_time.filter(|&exp| exp.seconds() >= current_time).is_none() || x.status == Status::Closed {
+            if x.expiration_time.filter(|&exp| exp.seconds() >= current_time).is_none()
+                || x.status == Status::Closed
+            {
                 None
             } else {
                 Some(x)
@@ -156,19 +148,16 @@ pub fn get_listings_for_market(
     })
 }
 
-
 /// Unimplemented
 /// Gets a single listing by id
-pub fn get_single_listing(
-    deps: Deps,
-    listing_id: u64
-) -> StdResult<SingleListingResponse> {
-
+pub fn get_single_listing(deps: Deps, listing_id: u64) -> StdResult<SingleListingResponse> {
     let Some((_pk, listing)): Option<(_, Listing)> = listingz().idx.id.item(deps.storage, listing_id)? else {
         return Err(StdError::GenericErr { msg: "Invalid listing ID".to_string() });
     };
 
-    Ok(SingleListingResponse { listing })
+    Ok(SingleListingResponse {
+        listing,
+    })
 }
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // Responses
@@ -184,7 +173,7 @@ pub struct FeeDenomResponse {
 
 #[cw_serde]
 pub struct SingleListingResponse {
-    pub listing: Listing
+    pub listing: Listing,
 }
 
 #[cw_serde]
@@ -196,4 +185,3 @@ pub struct MultiListingResponse {
 pub struct MultiBucketResponse {
     pub buckets: Vec<(u64, Bucket)>,
 }
-
