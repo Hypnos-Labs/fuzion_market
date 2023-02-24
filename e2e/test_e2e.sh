@@ -59,8 +59,8 @@ function compile_and_copy {
       cosmwasm/rust-optimizer:0.12.11
 
     # copy wasm to docker container
-    # docker cp ./artifacts/fuzion_market.wasm $CONTAINER_NAME:/fuzion_market.wasm
-    docker cp e2e/fuzion_market.wasm $CONTAINER_NAME:/fuzion_market.wasm
+    docker cp ./artifacts/fuzion_market.wasm $CONTAINER_NAME:/fuzion_market.wasm
+    # docker cp e2e/fuzion_market.wasm $CONTAINER_NAME:/fuzion_market.wasm
 
     # copy helper contracts to container
     docker cp e2e/cw20_base.wasm $CONTAINER_NAME:/cw20_base.wasm

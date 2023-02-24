@@ -1,4 +1,4 @@
-use crate::{execute_imports::proto_encode, state_imports::*};
+use crate::state_imports::*;
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -9,23 +9,29 @@ pub const LISTING_COUNT: Item<u64> = Item::new("listing_count");
 
 pub const BUCKET_COUNT: Item<u64> = Item::new("bucket_count");
 
-//pub const DAO: Item<Addr> = Item::new("DAO");
-
 pub const FEE_DENOM: Item<FeeDenom> = Item::new("fee_denom");
 
 #[cw_serde]
 pub enum FeeDenom {
-    JUNO,
-    USDC,
+    JUNO(u64),
+    USDC(u64),
 }
 
 impl FeeDenom {
     pub fn value(&self) -> String {
         match *self {
-            FeeDenom::JUNO => "ujunox".to_string(),
+            FeeDenom::JUNO(_) => "ujunox".to_string(),
             //FeeDenom::JUNO => "ujuno".to_string(),
-            FeeDenom::USDC => "uusdcx".to_string(),
+            FeeDenom::USDC(_) => "uusdcx".to_string(),
             //FeeDenom::USDC => "ibc/EAC38D55372F38F1AFD68DF7FE9EF762DCF69F26520643CF3F9D292A738D8034".to_string()
+        }
+    }
+
+    pub fn create(new: String, bh: u64) -> Result<Self, ContractError> {
+        match new.as_str() {
+            "JUNO" => Ok(FeeDenom::JUNO(bh)),
+            "USDC" => Ok(FeeDenom::USDC(bh)),
+            x => Err(ContractError::GenericError(format!("Invalid Fee Denom: {x}"))),
         }
     }
 }
@@ -190,6 +196,120 @@ pub struct Nft {
 }
 
 impl GenericBalance {
+    /// Generate messages for sending `Cw20Cw721ExecuteMsg::Send` variants
+    /// This can be used if the withdrawing contracts wants to invoke some
+    /// action on their contract when the cw20/cw721 messages are received
+    /// **Currently unused, need to make a way for contracts to specify this
+    /// when withdrawing**
+    pub fn contract_msgs(&self, to: &Addr) -> StdResult<Vec<CosmosMsg>> {
+        let mut msgs: Vec<CosmosMsg> = if self.native.is_empty() {
+            vec![]
+        } else {
+            vec![CosmosMsg::from(BankMsg::Send {
+                to_address: to.into(),
+                amount: self.native.clone(),
+            })]
+        };
+
+        let cw20_msgs: StdResult<Vec<_>> = self
+            .cw20
+            .iter()
+            .map(|c| {
+                // Contract must implement the cw20 receiver interface, replace x with contract specific message variant
+                let msg = Cw20ExecuteMsg::Send {
+                    contract: to.into(),
+                    amount: c.amount,
+                    msg: to_binary("x")?,
+                };
+                let exec = CosmosMsg::from(WasmMsg::Execute {
+                    contract_addr: c.address.to_string(),
+                    msg: to_binary(&msg)?,
+                    funds: vec![],
+                });
+                Ok(exec)
+            })
+            .collect();
+
+        msgs.extend(cw20_msgs?);
+
+        let nft_msgs: StdResult<Vec<CosmosMsg<cosmwasm_std::Empty>>> = self
+            .nfts
+            .iter()
+            .map(|n| {
+                // Contract must implement the cw721 receiver interface, replace x with contract specific message variant
+                let msg = Cw721ExecuteMsg::SendNft {
+                    contract: to.into(),
+                    token_id: n.token_id.clone(),
+                    msg: to_binary("x")?,
+                };
+                let exec = CosmosMsg::from(WasmMsg::Execute {
+                    contract_addr: n.contract_address.to_string(),
+                    msg: to_binary(&msg)?,
+                    funds: vec![],
+                });
+                Ok(exec)
+            })
+            .collect();
+
+        msgs.extend(nft_msgs?);
+
+        Ok(msgs)
+    }
+
+    pub fn wallet_msgs(&self, to: &Addr) -> StdResult<Vec<CosmosMsg>> {
+        let mut msgs: Vec<CosmosMsg> = if self.native.is_empty() {
+            vec![]
+        } else {
+            vec![CosmosMsg::from(BankMsg::Send {
+                to_address: to.into(),
+                amount: self.native.clone(),
+            })]
+        };
+
+        let cw20_msgs: StdResult<Vec<_>> = self
+            .cw20
+            .iter()
+            .map(|c| {
+                // Will send to any type of address, but will NOT
+                // execute any actions on "to" if it is a contract
+                let msg = Cw20ExecuteMsg::Transfer {
+                    recipient: to.into(),
+                    amount: c.amount,
+                };
+                let exec = CosmosMsg::from(WasmMsg::Execute {
+                    contract_addr: c.address.to_string(),
+                    msg: to_binary(&msg)?,
+                    funds: vec![],
+                });
+                Ok(exec)
+            })
+            .collect();
+        msgs.extend(cw20_msgs?);
+
+        let nft_msgs: StdResult<Vec<CosmosMsg<cosmwasm_std::Empty>>> = self
+            .nfts
+            .iter()
+            .map(|n| {
+                // Will send to any type of address, but will NOT
+                // execute any actions on "to" if it is a contract
+                let msg = Cw721ExecuteMsg::TransferNft {
+                    recipient: to.into(),
+                    token_id: n.token_id.clone(),
+                };
+                let exec = CosmosMsg::from(WasmMsg::Execute {
+                    contract_addr: n.contract_address.to_string(),
+                    msg: to_binary(&msg)?,
+                    funds: vec![],
+                });
+                Ok(exec)
+            })
+            .collect();
+
+        msgs.extend(nft_msgs?);
+
+        Ok(msgs)
+    }
+
     /// Construct a GenericBalance from a `cw20::Balance`
     pub fn from_balance(bal: &Balance) -> GenericBalance {
         match bal {
@@ -284,7 +404,6 @@ impl GenericBalance {
 
         // Do not chain the following 2 checks together, as in theory a native denom could
         // be the same as a cw20 contract address while still being different tokens
-
         // Check Natives for duplicates (same denom)
         let n_bt =
             self.native.iter().map(|n| (n.denom.clone(), 1u8)).collect::<BTreeMap<String, u8>>();
@@ -306,8 +425,6 @@ impl GenericBalance {
             ));
         }
 
-        // - In theory a cw721 could have multiple NFTs with the same token ID? ("Health Potion")
-        // Nevermind that literally doesn't make any sense
         // Check NFTs for duplicates (same address + same token_id)
         let nft_bt = self
             .nfts

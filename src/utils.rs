@@ -1,16 +1,15 @@
 use crate::utils_imports::*;
 
-// Actual community pool on mainnet
 //const COMMUNITY_POOL: &str = "juno1jv65s3grqf6v6jl3dp4t6c9t9rk99cd83d88wr";
 
 /// Accepts 2 parameters:
-/// - `to`: A **user** address (cannot be a smart contract address)
+/// - `to`: Address to send tokens to
 /// - `balance`: A GenericBalance object containing any number of Native, CW20, or CW721s
 ///
 /// Returns `StdError` on Binary serialization issues
 ///
 /// Otherwise returns `Ok(Vec<CosmosMsg>)`, where each `CosmosMsg` is sending the items
-/// from within the `GenericBalance` to the `to` User Address
+/// from within the `GenericBalance` to the `to` address
 pub fn send_tokens_cosmos(to: &Addr, balance: &GenericBalance) -> StdResult<Vec<CosmosMsg>> {
     let native_balance = &balance.native;
     let mut msgs: Vec<CosmosMsg> = if native_balance.is_empty() {
@@ -26,7 +25,8 @@ pub fn send_tokens_cosmos(to: &Addr, balance: &GenericBalance) -> StdResult<Vec<
     let cw20_msgs: StdResult<Vec<_>> = cw20_balance
         .iter()
         .map(|c| {
-            // Only works if recipient is User Address, doesn't work for DAO / Contracts
+            // Will send to any type of address, but will NOT
+            // execute any actions on "to" if it is a contract
             let msg = Cw20ExecuteMsg::Transfer {
                 recipient: to.into(),
                 amount: c.amount,
@@ -46,6 +46,8 @@ pub fn send_tokens_cosmos(to: &Addr, balance: &GenericBalance) -> StdResult<Vec<
     let nft_msgs: StdResult<Vec<CosmosMsg<Empty>>> = nft_balance
         .iter()
         .map(|n| {
+            // Will send to any type of address, but will NOT
+            // execute any actions on "to" if it is a contract
             let msg = Cw721ExecuteMsg::TransferNft {
                 recipient: to.into(),
                 token_id: n.token_id.clone(),
@@ -109,7 +111,6 @@ pub fn calc_fee_coin(
             let fee_coin = coin(fifty_pips.u128(), fee_denom.clone());
 
             // Subtract fee amount from the fee coin found in balance
-            // Sub fee amount from balance_fee coin amount
             let amount_sub_fee = fee.amount.checked_sub(fifty_pips)?;
 
             // Create GenericBalance with fee amount removed
@@ -126,8 +127,9 @@ pub fn calc_fee_coin(
     }
 }
 
-// encode a protobuf into a cosmos message
+// Encode a protobuf into a cosmos message
 // Inspired by https://github.com/alice-ltd/smart-contracts/blob/master/contracts/alice_terra_token/src/execute.rs#L73-L76
+// Written by @Pupmos
 pub fn proto_encode<M: prost::Message>(msg: M, type_url: String) -> StdResult<CosmosMsg> {
     let mut bytes = Vec::new();
     prost::Message::encode(&msg, &mut bytes)
@@ -187,7 +189,7 @@ mod utils_tests {
 
         let native = vec![coin(200, "uatom"), coin(300, "uosmo")];
         // ujunox
-        let juno_fee_denom = FeeDenom::JUNO;
+        let juno_fee_denom = FeeDenom::JUNO(10);
 
         let gbal: GenericBalance = GenericBalance {
             native,
@@ -208,7 +210,7 @@ mod utils_tests {
             .unwrap_or_else(|_| panic!("{}", here("Should be equal", line!(), column!(),)));
 
         // uusdcx
-        let usdc_fee_denom = FeeDenom::USDC;
+        let usdc_fee_denom = FeeDenom::USDC(10);
 
         let (fee_coinx, new_gbalx) =
             calc_fee_coin(&usdc_fee_denom, &gbal).expect(&here("y", line!(), column!()));
@@ -220,7 +222,7 @@ mod utils_tests {
 
         // new_gbalx should be == old gbal
         genbal_cmp(&new_gbalx, &gbal)
-            .unwrap_or_else(|_| panic!("{}", here("Should be equal", line!(), column!(),)));
+            .unwrap_or_else(|_| panic!("{}", here("Should be equal", line!(), column!())));
     }
 
     #[test]
@@ -231,7 +233,7 @@ mod utils_tests {
         let native = vec![coin(200, "uatom"), coin(300, "uosmo"), coin(1000, "ujunox")];
 
         // ujunox
-        let juno_fee_denom = FeeDenom::JUNO;
+        let juno_fee_denom = FeeDenom::JUNO(10);
 
         let gbal: GenericBalance = GenericBalance {
             native,
@@ -253,7 +255,7 @@ mod utils_tests {
             nfts: nftgen(),
         };
         genbal_cmp(&new_gbal, &test)
-            .unwrap_or_else(|_| panic!("{}", here("Should be equal", line!(), column!(),)));
+            .unwrap_or_else(|_| panic!("{}", here("Should be equal", line!(), column!())));
     }
 
     #[test]
@@ -263,7 +265,7 @@ mod utils_tests {
 
         let native = vec![coin(200, "uatom"), coin(300, "uosmo"), coin(1000, "uusdcx")];
 
-        let usdc_fee_denom = FeeDenom::USDC;
+        let usdc_fee_denom = FeeDenom::USDC(10);
 
         let gbal: GenericBalance = GenericBalance {
             native,
@@ -285,7 +287,7 @@ mod utils_tests {
             nfts: nftgen(),
         };
         genbal_cmp(&new_gbal, &test)
-            .unwrap_or_else(|_| panic!("{}", here("Should be equal", line!(), column!(),)));
+            .unwrap_or_else(|_| panic!("{}", here("Should be equal", line!(), column!())));
     }
 
     #[test]
@@ -297,7 +299,7 @@ mod utils_tests {
         let native = vec![coin(200, "uatom"), coin(300, "uosmo"), coin(999, "ujunox")];
 
         // ujunox
-        let juno_fee_denom = FeeDenom::JUNO;
+        let juno_fee_denom = FeeDenom::JUNO(10);
 
         let gbal: GenericBalance = GenericBalance {
             native,
@@ -331,7 +333,7 @@ mod utils_tests {
         let native = vec![coin(200, "uatom"), coin(300, "uosmo"), coin(999, "uusdcx")];
 
         // ujunox
-        let usdc_fee_denom = FeeDenom::USDC;
+        let usdc_fee_denom = FeeDenom::USDC(10);
 
         let gbal: GenericBalance = GenericBalance {
             native,
@@ -364,7 +366,7 @@ mod utils_tests {
         let native = vec![coin(200, "uatom"), coin(300, "uosmo"), coin(200, "ujunox")];
 
         // ujunox
-        let juno_fee_denom = FeeDenom::JUNO;
+        let juno_fee_denom = FeeDenom::JUNO(10);
 
         let gbal: GenericBalance = GenericBalance {
             native,
@@ -397,7 +399,7 @@ mod utils_tests {
         let native = vec![coin(200, "uatom"), coin(300, "uosmo"), coin(200, "uusdcx")];
 
         // ujunox
-        let usdc_fee_denom = FeeDenom::USDC;
+        let usdc_fee_denom = FeeDenom::USDC(10);
 
         let gbal: GenericBalance = GenericBalance {
             native,
@@ -431,7 +433,7 @@ mod utils_tests {
         let native = vec![coin(200, "uatom"), coin(300, "uosmo"), coin(199, "ujunox")];
 
         // ujunox
-        let juno_fee_denom = FeeDenom::JUNO;
+        let juno_fee_denom = FeeDenom::JUNO(10);
 
         let gbal: GenericBalance = GenericBalance {
             native,
@@ -461,7 +463,7 @@ mod utils_tests {
         let native = vec![coin(200, "uatom"), coin(300, "uosmo"), coin(199, "uusdcx")];
 
         // uusdcx
-        let usdc_fee_denom = FeeDenom::USDC;
+        let usdc_fee_denom = FeeDenom::USDC(10);
 
         let gbal: GenericBalance = GenericBalance {
             native,
@@ -482,41 +484,3 @@ mod utils_tests {
             .unwrap_or_else(|_| panic!("{}", here("Should be equal", line!(), column!(),)));
     }
 }
-
-// Accepts a `GenericBalance` and calculates the fee to be paid, based on the current fee denom
-// pub fn calc_fee(current_fee: FeeDenom, balance: &GenericBalance) -> StdResult<Option<(CosmosMsg, GenericBalance)>> {
-//     // Get the current fee denom to check for
-//     let fee_denom = current_fee.value();
-//     // Find the fee denom in balance
-//     let fee_in_balance = balance.native.iter().find(|n| n.denom == fee_denom);
-//     // If balance DOES NOT contain fee_denom, return Ok(None)
-//     // If balance DOES contain fee_denom, calculate 0.5% of the denom in the balance,
-//     // Create CosmosMsg sending that to the Community Pool,
-//     // and return this CosmosMsg + a generic balance with the fee removed for the user
-//     if let Some(balance_fees) = fee_in_balance {
-//         // 0.5% = amount * 5 / 1000
-//         // will be floored (fee may be < 0.5%, amount to user will not be < 99.5%)
-//         let fifty_pips = balance_fees.amount.multiply_ratio(5_u128, 1000_u128);
-//         // small amounts (like 1ujuno) will be 0
-//         if fifty_pips.is_zero() {
-//             return Ok(None);
-//         }
-//         // Fee Msg sending fifty_pips to community pool
-//         let fee_msg: CosmosMsg<Empty> = CosmosMsg::from(BankMsg::Send {
-//             to_address: COMMUNITY_POOL.to_string(),
-//             amount: coins(fifty_pips.u128(), fee_denom.clone()),
-//         });
-//         // Sub fee amount from balance_fee coin amount
-//         let amount_sub_fee = balance_fees.amount.checked_sub(fifty_pips)?;
-//         // Create GenericBalance with fee amount removed from fee_denom
-//         let balance_with_fee_removed = {
-//             let mut x = balance.clone();
-//             x.native.retain(|n| n.denom != fee_denom);
-//             x.native.append(&mut coins(amount_sub_fee.u128(), fee_denom));
-//             x
-//         };
-//         Ok(Some((fee_msg, balance_with_fee_removed)))
-//     } else {
-//         Ok(None)
-//     }
-// }

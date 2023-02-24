@@ -9,7 +9,7 @@ pub fn execute_create_bucket(
     creator: &Addr,
 ) -> Result<Response, ContractError> {
     let count = BUCKET_COUNT.load(deps.storage)?;
-    // Check that bucket_id isn't used
+    // Check that bucket_id isn't used (edge case)
     if BUCKETS.has(deps.storage, (creator.clone(), count)) {
         return Err(ContractError::IdAlreadyExists {});
     }
@@ -48,7 +48,7 @@ pub fn execute_create_bucket_cw721(
 ) -> Result<Response, ContractError> {
     let count = BUCKET_COUNT.load(deps.storage)?;
 
-    // Check that bucket_id isn't used
+    // Check that bucket_id isn't used (edge case)
     if BUCKETS.has(deps.storage, (user_wallet.clone(), count)) {
         return Err(ContractError::IdAlreadyExists {});
     }
@@ -213,28 +213,23 @@ pub fn execute_create_listing(
     }
 
     // Get whitelisted buyer | Errors if invalid address
-    // let wl_buyer = createlistingmsg
-    //     .whitelisted_buyer
-    //     .and_then(|address| Some(deps.api.addr_validate(&address)))
-    //     .transpose()
-    //     .map_err(|_| ContractError::GenericError("Invalid whitelisted buyer".to_string()))?;
-
     let wl_buyer = createlistingmsg
         .whitelisted_buyer
         .map(|address| deps.api.addr_validate(&address))
         .transpose()
         .map_err(|_e| ContractError::GenericError("Invalid whitelisted buyer".to_string()))?;
 
-    // Error if whitelisted buyer is listing creator?
+    // Error if whitelisted buyer is listing creator
     // Is there ever a situation where someone might want to do this?
-    // if let Some(wlbuyer) = &wl_buyer {
-    //     if wlbuyer.eq(user_address) {
-    //         return Err(ContractError::GenericError("Whitelisted buyer should not be the same as Listing Creator".to_string()));
-    //     }
-    // }
+    if let Some(wlbuyer) = &wl_buyer {
+        if wlbuyer.eq(user_address) {
+            return Err(ContractError::GenericError(
+                "Whitelisted buyer should not be the same as Listing Creator".to_string(),
+            ));
+        }
+    }
 
     // Check the asking price, errors if invalid
-    //check_valid_genbal(&createlistingmsg.ask)?;
     createlistingmsg.ask.check_valid()?;
 
     // Save listing
@@ -294,6 +289,16 @@ pub fn execute_create_listing_cw721(
         .map(|address| deps.api.addr_validate(&address))
         .transpose()
         .map_err(|_| ContractError::GenericError("Invalid whitelisted buyer".to_string()))?;
+
+    // Error if whitelisted buyer is listing creator
+    // Is there ever a situation where someone might want to do this?
+    if let Some(wlbuyer) = &wl_buyer {
+        if wlbuyer.eq(user_wallet) {
+            return Err(ContractError::GenericError(
+                "Whitelisted buyer should not be the same as Listing Creator".to_string(),
+            ));
+        }
+    }
 
     // Check the asking price, errors if invalid
     createlistingmsg.ask.check_valid()?;
@@ -572,6 +577,8 @@ pub fn execute_delete_listing(
     }
 
     // If listing.claimant.is_some() then listing already purchased
+    // This handles check for Status::Closed, which is why we can use
+    // send_tokens_cosmos instead of withdraw_msgs (will not be a fee)
     if listing.claimant.is_some() {
         return Err(ContractError::Unauthorized {});
     }
@@ -680,9 +687,7 @@ pub fn execute_buy_listing(
         },
     )?;
 
-    let res = Response::new();
-
-    Ok(res
+    Ok(Response::new()
         .add_attribute("action", "buy_listing")
         .add_attribute("bucket_used", bucket_id.to_string())
         .add_attribute("listing_purchased:", listing_id.to_string()))
