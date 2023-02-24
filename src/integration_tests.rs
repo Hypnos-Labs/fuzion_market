@@ -1231,6 +1231,7 @@ fn remove_a_listing() -> Result<(), anyhow::Error> {
 
     let q = crate::msg::QueryMsg::GetListingsByOwner {
         owner: john.address.clone().to_string(),
+        page_num: 1
     };
 
     let res: crate::query::MultiListingResponse =
@@ -1832,6 +1833,7 @@ fn expiration_checks() -> Result<(), anyhow::Error> {
 
     let q = crate::msg::QueryMsg::GetListingsByOwner {
         owner: john.address.clone().to_string(),
+        page_num: 1
     };
     let res: crate::query::MultiListingResponse =
         router.wrap().query_wasm_smart(fuzionmarket, &q).unwrap();
@@ -2057,8 +2059,9 @@ fn create_bucket() -> Result<(), anyhow::Error> {
     //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     let q = crate::msg::QueryMsg::GetBuckets {
         bucket_owner: john.address.clone().to_string(),
+        page_num: 1
     };
-    let res: crate::query::GetBucketsResponse =
+    let res: crate::query::MultiBucketResponse =
         router.wrap().query_wasm_smart(fuzionmarket, &q).unwrap();
 
     ensure!((res.buckets.len() == 2), here("john buckets length", line!(), column!()));
