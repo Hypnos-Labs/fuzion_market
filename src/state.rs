@@ -27,13 +27,13 @@ impl FeeDenom {
         }
     }
 
-    pub fn create(new: String, bh: u64) -> Result<Self, ContractError> {
-        match new.as_str() {
-            "JUNO" => Ok(FeeDenom::JUNO(bh)),
-            "USDC" => Ok(FeeDenom::USDC(bh)),
-            x => Err(ContractError::GenericError(format!("Invalid Fee Denom: {x}"))),
-        }
-    }
+    // pub fn create(new: String, time: u64) -> Result<Self, ContractError> {
+    //     match new.as_str() {
+    //         "JUNO" => Ok(FeeDenom::JUNO(time)),
+    //         "USDC" => Ok(FeeDenom::USDC(time)),
+    //         x => Err(ContractError::GenericError(format!("Invalid Fee Denom: {x}"))),
+    //     }
+    // }
 }
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

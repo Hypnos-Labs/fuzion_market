@@ -1,14 +1,12 @@
-use cw20::{Cw20QueryMsg, TokenInfoResponse};
-use cw721::Cw721QueryMsg;
-
 #[cfg(not(feature = "library"))]
 use crate::contract_imports::*;
+use cw20::{Cw20QueryMsg, TokenInfoResponse};
+use cw721::Cw721QueryMsg;
 
 const CONTRACT_NAME: &str = "crates.io:fuzion_market";
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
-// Assuming 6 second blocks | 86400 / 6 * 7
-const WEEK_OF_BLOCKS: u64 = 100800;
+const WEEK_IN_SECS: u64 = 604800;
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // Instantiate
@@ -27,7 +25,7 @@ pub fn instantiate(
 
     BUCKET_COUNT.save(deps.storage, &1)?;
 
-    FEE_DENOM.save(deps.storage, &FeeDenom::JUNO(env.block.height))?;
+    FEE_DENOM.save(deps.storage, &FeeDenom::JUNO(env.block.time.seconds()))?;
 
     Ok(Response::new().add_attribute("action", "instantiate"))
 }
@@ -92,19 +90,23 @@ pub fn execute(
 }
 
 /// Anyone can call this, but it will only take effect
-/// if WEEK_OF_BLOCKS has passed since last cycle
+/// if WEEK_IN_SECS has passed since last cycle
 pub fn execute_cycle_fee(deps: DepsMut, env: Env) -> Result<Response, ContractError> {
+    // updatable = "last updated" + 1 week, used to check if it's been 1 week since the last time this was
+    //             called successfully 
+    // new = current time // if the check passes, this is saved as the new "last updated" to check against
+    //        the next time this is called
     let (updatable, new) = match FEE_DENOM.load(deps.storage)? {
-        FeeDenom::JUNO(amt) => {
-            (amt.saturating_add(WEEK_OF_BLOCKS), FeeDenom::USDC(env.block.height))
-        }
-        FeeDenom::USDC(amtx) => {
-            (amtx.saturating_add(WEEK_OF_BLOCKS), FeeDenom::JUNO(env.block.height))
+        FeeDenom::JUNO(last) => {
+            (last.saturating_add(WEEK_IN_SECS), FeeDenom::USDC(env.block.time.seconds()))
+        },
+        FeeDenom::USDC(lastx) => {
+            (lastx.saturating_add(WEEK_IN_SECS), FeeDenom::JUNO(env.block.time.seconds()))
         }
     };
 
     // if current block is <= updatable Error (Cycle every week)
-    if env.block.height <= updatable {
+    if env.block.time.seconds() <= updatable {
         return Err(ContractError::GenericError("FeeDenom not yet ready to cycle".to_string()));
     };
 
