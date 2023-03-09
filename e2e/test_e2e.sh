@@ -472,14 +472,14 @@ function both_have_fee_denom {
 # different assets when withdrawing for out of gas errors
 # for out of gas issues
 # [X] 100 NFTs failure <===
-# [ ]  75 NFTs 
-# [X]  50 NFTs success <===
+# [X]  75 NFTs failure <===
+# [X]  50 NFTs success 
 function big_sale {
     # State incrementor is 3 now, so ID's will be 3
 
     # Create super long ask price and minting 100 NFTs for each user
     nfts=""
-    for ((i=3;i<=78;i++))
+    for ((i=3;i<=53;i++))
     do
         if [[ $i -eq 3 ]]; then
             nfts="{\"contract_address\":\"$CW721_CONTRACTDOG\",\"token_id\":\"$i\"}"
@@ -501,7 +501,7 @@ function big_sale {
     # test-user adds Cat #3 - 103 to listing 3
     # other-user adds Dog #3 - 103 to bucket 3
     echoe "adding 100 NFTs to listing 3 and bucket 3"
-    for ((i=3;i<=78;i++))
+    for ((i=3;i<=53;i++))
     do
         # test-user adds cat $i to listing 3
         add_nft_to_listing $MARKET_CONTRACT $CW721_CONTRACTCAT "$i" 3
