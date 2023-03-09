@@ -207,10 +207,10 @@ upload_cw721
 
 
 echo "Minting NFTs..."
-mint_cw721 $CW721_CONTRACTCAT 1 "$KEY_ADDR" "https://user-images.githubusercontent.com/89463679/218784962-a9a74100-8ea2-4973-91bf-623c458be9fd.png" && echo "Minted NFT CAT 1"
+mint_cw721 $CW721_CONTRACTCAT 1 $KEY_ADDR "https://user-images.githubusercontent.com/89463679/218784962-a9a74100-8ea2-4973-91bf-623c458be9fd.png" && echo "Minted NFT CAT 1"
 mint_cw721 $CW721_CONTRACTDOG 1 $KEY_ADDR "https://user-images.githubusercontent.com/89463679/218785489-7c026eb3-34b7-47f8-8e98-851462e591bc.png" && echo "Minted NFT DOG 1"
 
-mint_cw721 $CW721_CONTRACTCAT 2 "$KEY_ADDR_TWO" "https://user-images.githubusercontent.com/89463679/218784962-a9a74100-8ea2-4973-91bf-623c458be9fd.png" && echo "Minted NFT CAT 2"
+mint_cw721 $CW721_CONTRACTCAT 2 $KEY_ADDR_TWO "https://user-images.githubusercontent.com/89463679/218784962-a9a74100-8ea2-4973-91bf-623c458be9fd.png" && echo "Minted NFT CAT 2"
 mint_cw721 $CW721_CONTRACTDOG 2 $KEY_ADDR_TWO "https://user-images.githubusercontent.com/89463679/218785489-7c026eb3-34b7-47f8-8e98-851462e591bc.png" && echo "Minted NFT DOG 2"
 
 # Ensures CW721 was properly minted - not needed
@@ -325,7 +325,7 @@ function test_dupes_zeros_funds_sent {
 }
 
 
-# Testing that a correctly structured trade executes
+# Testing that a correctly structured trade executes, and correct fee amount is removed
 # [X] Both Listing and Bucket have FeeDenom (JUNO by default)
 function both_have_fee_denom {
     # State incrementor is 2 now, so ID's will be 2
@@ -467,10 +467,127 @@ function both_have_fee_denom {
 }
 
 
+# Testing what happens if a Listing/bucket has a large amount of
+# different assets when withdrawing for out of gas errors
+# for out of gas issues
+# [X] 100 NFTs
+function big_sale {
+    # State incrementor is 3 now, so ID's will be 3
+
+    # Create super long ask price and minting 100 NFTs for each user
+    nfts=""
+    for ((i=3;i<=103;i++))
+    do
+        if [[ $i -eq 3 ]]; then
+            nfts="{\"contract_address\":\"$CW721_CONTRACTDOG\",\"token_id\":\"$i\"}"
+        else
+            nfts="$nfts,{\"contract_address\":\"$CW721_CONTRACTDOG\",\"token_id\":\"$i\"}"
+        fi
+
+        mint_cw721 $CW721_CONTRACTCAT "$i" $KEY_ADDR "https://google.com"
+        mint_cw721 $CW721_CONTRACTDOG "$i" $KEY_ADDR_TWO "https://google.com"
+    done
+
+    # test-user creates listing 3 with 200 ujunox and Dog #3 - #103 in ask
+    # will be selling 200ujunox and Cat NFT #3 - 103
+    wasm_cmd $MARKET_CONTRACT "$(printf '{"create_listing":{"create_msg":{"ask":{"native":[{"denom":"ujunox","amount":"200"}],"cw20":[],"nfts":[%s]}}}}' "$nfts")" "200ujunox" show_log
+
+    # other-user creates bucket 3 with 200 ujunox
+    wasm_cmd_other $MARKET_CONTRACT '{"create_bucket":{}}' "200ujunox"
+
+    # test-user adds Cat #3 - 103 to listing 3
+    # other-user adds Dog #3 - 103 to bucket 3
+    echoe "adding 100 NFTs to listing 3 and bucket 3"
+    for ((i=3;i<=103;i++))
+    do
+        # test-user adds cat $i to listing 3
+        add_nft_to_listing $MARKET_CONTRACT $CW721_CONTRACTCAT "$i" 3
+
+        # other-user adds dog $i to bucket 3
+        add_nft_to_bucket_other $MARKET_CONTRACT $CW721_CONTRACTDOG "$i" 3
+    done
+
+
+    # test-user finalizes Listing 3
+    echoe "test-user finalizing listing 3"
+    wasm_cmd $MARKET_CONTRACT '{"finalize":{"listing_id":3,"seconds":5000}}' ""
+
+    # other-user buying listing 3 with bucket 3
+    echoe "other-user buying the listing 3 with bucket 3"
+    wasm_cmd_other $MARKET_CONTRACT '{"buy_listing":{"listing_id":3,"bucket_id":3}}' ""
+
+
+
+    # ================================================ #
+    # ================================================ #
+    # Both users withdrawing
+    # ================================================ #
+
+    # =============================
+    # test-user (listing seller)
+    # ============================= 
+
+    # first, check balance before withdrawing
+    # ujunox balance
+    echoe "grabbing test-user ujunox balance"
+    TEST_USER_BAL=$($BINARY q bank balances $KEY_ADDR --output json | jq -r '.balances | map(select(.denom == "ujunox")) | .[0].amount')
+
+    # withdraw bucket sale proceeds
+    echoe "test-user withdrawing proceeds of bucket 3"
+    wasm_cmd $MARKET_CONTRACT '{"remove_bucket":{"bucket_id":3}}' ""
+
+    # assert test-user now has dog NFT #3 - 103
+    echoe "asserting test-user now has sale proceeds"
+
+    TEST_USER_BAL_POST=$($BINARY q bank balances $KEY_ADDR --output json | jq -r '.balances | map(select(.denom == "ujunox")) | .[0].amount')
+    echoe "test-user ujunox balance before withdraw: $TEST_USER_BAL ||| and after: $TEST_USER_BAL_POST ||| These should be the same!"
+
+    CHECK_FEE $TEST_USER_BAL $TEST_USER_BAL_POST 200
+
+    echoe "test-user should own dog NFT 3 - 103"
+    DOG_X_OWNER=$(query_contract $CW721_CONTRACTDOG '{"owner_of":{"token_id":"30"}}' | jq -r '.data.owner')
+    ASSERT_EQUAL "$DOG_X_OWNER" $KEY_ADDR
+
+    DOG_XX_OWNER=$(query_contract $CW721_CONTRACTDOG '{"owner_of":{"token_id":"100"}}' | jq -r '.data.owner')
+    ASSERT_EQUAL "$DOG_XX_OWNER" $KEY_ADDR
+
+
+    # ==================================
+    # other-user (listing buyer)
+    # ==================================
+    echoe "now testing other-user balances"
+
+    # get other-user ujunox balance before withdraw
+    echoe "grabbing other-user ujunox balance before removing purchase"
+    OTHER_USER_BAL=$($BINARY q bank balances $KEY_ADDR_TWO --output json | jq -r '.balances | map(select(.denom == "ujunox")) | .[0].amount')
+
+    # withdraw purchased listing
+    echoe "other-user withdrawing purchased listing"
+    wasm_cmd_other $MARKET_CONTRACT '{"withdraw_purchased":{"listing_id":3}}' ""
+
+    # query ujunox balance after withdraw
+    OTHER_USER_BAL_POST=$($BINARY q bank balances $KEY_ADDR_TWO --output json | jq -r '.balances | map(select(.denom == "ujunox")) | .[0].amount')
+
+    # print ujunox balances
+    echoe "other-user ujunox balance before withdraw: $OTHER_USER_BAL ||| and after: $OTHER_USER_BAL_POST ||| These should be the same!"
+    
+    CHECK_FEE $OTHER_USER_BAL $OTHER_USER_BAL_POST 200
+
+    echoe "other-user should own cat NFT 3 - 103"
+    CAT_X_OWNER=$(query_contract $CW721_CONTRACTCAT '{"owner_of":{"token_id":"30"}}' | jq -r '.data.owner')
+    ASSERT_EQUAL "$CAT_X_OWNER" $KEY_ADDR_TWO
+
+    CAT_XX_OWNER=$(query_contract $CW721_CONTRACTCAT '{"owner_of":{"token_id":"100"}}' | jq -r '.data.owner')
+    ASSERT_EQUAL "$CAT_XX_OWNER" $KEY_ADDR_TWO
+
+}
+
+
 # running tests
 test_ask_failure
 test_dupes_zeros_funds_sent
 both_have_fee_denom
+big_sale
 
 # 1 if any of the above test failed, this way it will ensure to X the github
 exit $FINAL_STATUS_CODE
