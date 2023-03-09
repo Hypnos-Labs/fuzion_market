@@ -494,7 +494,7 @@ function big_sale {
     wasm_cmd $MARKET_CONTRACT "$(printf '{"create_listing":{"create_msg":{"ask":{"native":[{"denom":"ujunox","amount":"200"}],"cw20":[],"nfts":[%s]}}}}' "$nfts")" "200ujunox" show_log
 
     # other-user creates bucket 3 with 200 ujunox
-    wasm_cmd_other $MARKET_CONTRACT '{"create_bucket":{}}' "200ujunox"
+    wasm_cmd_other $MARKET_CONTRACT '{"create_bucket":{}}' "200ujunox" show_log
 
     # test-user adds Cat #3 - 103 to listing 3
     # other-user adds Dog #3 - 103 to bucket 3
@@ -511,11 +511,11 @@ function big_sale {
 
     # test-user finalizes Listing 3
     echoe "test-user finalizing listing 3"
-    wasm_cmd $MARKET_CONTRACT '{"finalize":{"listing_id":3,"seconds":50000}}' ""
+    wasm_cmd $MARKET_CONTRACT '{"finalize":{"listing_id":3,"seconds":50000}}' "" show_log
 
     # other-user buying listing 3 with bucket 3
     echoe "other-user buying the listing 3 with bucket 3"
-    wasm_cmd_other $MARKET_CONTRACT '{"buy_listing":{"listing_id":3,"bucket_id":3}}' "show log"
+    wasm_cmd_other $MARKET_CONTRACT '{"buy_listing":{"listing_id":3,"bucket_id":3}}' "" show_log
 
 
 
@@ -535,7 +535,7 @@ function big_sale {
 
     # withdraw bucket sale proceeds
     echoe "test-user withdrawing proceeds of bucket 3"
-    wasm_cmd $MARKET_CONTRACT '{"remove_bucket":{"bucket_id":3}}' "show log"
+    wasm_cmd $MARKET_CONTRACT '{"remove_bucket":{"bucket_id":3}}' "" show_log
 
     # assert test-user now has dog NFT #3 - 103
     echoe "asserting test-user now has sale proceeds"
@@ -564,7 +564,7 @@ function big_sale {
 
     # withdraw purchased listing
     echoe "other-user withdrawing purchased listing"
-    wasm_cmd_other $MARKET_CONTRACT '{"withdraw_purchased":{"listing_id":3}}' "show log"
+    wasm_cmd_other $MARKET_CONTRACT '{"withdraw_purchased":{"listing_id":3}}' "" show_log
 
     # query ujunox balance after withdraw
     OTHER_USER_BAL_POST=$($BINARY q bank balances $KEY_ADDR_TWO --output json | jq -r '.balances | map(select(.denom == "ujunox")) | .[0].amount')
