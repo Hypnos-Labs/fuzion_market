@@ -41,8 +41,17 @@ pub fn execute(
     info: MessageInfo,
     msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
+
+    // Automatically cycle fee on any execute call if FeeCycle is ready
+    let (_res, deps) = execute_cycle_fee(deps, &env)?;
+
+    // TO-DO: 
+    // - Pass response to every execute to add attributes/messages
+    // - See if this is worth the extra read/writes
+
     match msg {
-        ExecuteMsg::FeeCycle => execute_cycle_fee(deps, env),
+        //ExecuteMsg::FeeCycle => execute_cycle_fee(deps, env),
+        ExecuteMsg::FeeCycle => Ok(Response::default()),
 
         // ~~~~ Receive Wrappers ~~~~ //
         ExecuteMsg::Receive(receive_msg) => execute_receive(deps, &env, &info, &receive_msg),
@@ -91,7 +100,7 @@ pub fn execute(
 
 /// Anyone can call this, but it will only take effect
 /// if WEEK_IN_SECS has passed since last cycle
-pub fn execute_cycle_fee(deps: DepsMut, env: Env) -> Result<Response, ContractError> {
+pub fn execute_cycle_fee<'a>(deps: DepsMut<'a>, env: &Env) -> Result<(Response, DepsMut<'a>), ContractError> {
     // updatable = "last updated" + 1 week, used to check if it's been 1 week since the last time this was
     //             called successfully
     // new = current time // if the check passes, this is saved as the new "last updated" to check against
@@ -105,15 +114,24 @@ pub fn execute_cycle_fee(deps: DepsMut, env: Env) -> Result<Response, ContractEr
         }
     };
 
-    // if current block is <= updatable Error (Cycle every week)
     if env.block.time.seconds() <= updatable {
-        return Err(ContractError::GenericError("FeeDenom not yet ready to cycle".to_string()));
-    };
+        // Not updatable, return empty response
+        return Ok((Response::new(), deps));
+    } else {
+        // Is updatable, cycle fee
+        FEE_DENOM.save(deps.storage, &new)?;
+        return Ok((Response::new().add_attribute("Cycled Fee", new.value()), deps));
+    }
 
-    // Ready to cycle
-    FEE_DENOM.save(deps.storage, &new)?;
+    // if current block is <= updatable Error (Cycle every week)
+    // if env.block.time.seconds() <= updatable {
+    //     return Err(ContractError::GenericError("FeeDenom not yet ready to cycle".to_string()));
+    // };
 
-    Ok(Response::new().add_attribute("Cycle", "Fee"))
+    // // Ready to cycle
+    // FEE_DENOM.save(deps.storage, &new)?;
+
+    // Ok(Response::new().add_attribute("Cycle", "Fee"))
 }
 
 // CW20 Filter
