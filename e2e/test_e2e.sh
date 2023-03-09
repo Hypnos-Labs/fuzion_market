@@ -33,7 +33,7 @@ function stop_docker {
 }
 
 function start_docker {
-    IMAGE_TAG=${2:-"v13.0.0"}
+    IMAGE_TAG=${2:-"13.0.0"}
     BLOCK_GAS_LIMIT=${GAS_LIMIT:-100000000} # mirrors mainnet
 
     echo "Building $IMAGE_TAG"
