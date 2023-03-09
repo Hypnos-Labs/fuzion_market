@@ -432,7 +432,12 @@ impl GenericBalance {
             .map(|nft| (nft.contract_address.to_string(), nft.token_id.clone()))
             .collect::<BTreeMap<String, String>>();
         if nft_bt.len() != self.nfts.len() {
-            return Err(ContractError::GenericError("Cannot contain duplicate NFTs".to_string()));
+            let x = format!(
+                "Cannot contain duplicate NFTs | nft_bt.len: {}  self.nfts.len: {}",
+                nft_bt.len(),
+                self.nfts.len()
+            );
+            return Err(ContractError::GenericError(x));
         }
 
         Ok(())

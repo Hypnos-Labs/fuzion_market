@@ -45,6 +45,7 @@ function start_docker {
     docker run --rm -d --name $CONTAINER_NAME \
         -e STAKE_TOKEN=$DENOM \
         -e GAS_LIMIT="$GAS_LIMIT" \
+        -e TIMEOUT_COMMIT=500ms \
         -e UNSAFE_CORS=true \
         -p 1317:1317 -p 26656:26656 -p 26657:26657 \
         --mount type=volume,source=junod_data,target=/root \
