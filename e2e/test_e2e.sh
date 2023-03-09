@@ -33,7 +33,7 @@ function stop_docker {
 }
 
 function start_docker {
-    IMAGE_TAG=${2:-"v11.0.3"}
+    IMAGE_TAG=${2:-"v12.0.0"}
     BLOCK_GAS_LIMIT=${GAS_LIMIT:-100000000} # mirrors mainnet
 
     echo "Building $IMAGE_TAG"
@@ -419,7 +419,7 @@ function both_have_fee_denom {
 
     # printing ujunox balances cause ? gas calcs
     TEST_USER_BAL_POST=$($BINARY q bank balances $KEY_ADDR --output json | jq -r '.balances | map(select(.denom == "ujunox")) | .[0].amount')
-    echoe "test-user ujunox balance before withdraw: $TEST_USER_BAL ||| and after: $TEST_USER_BAL_POST ||| These should be the same!"
+    echoe "test-user ujunox balance before withdraw: $TEST_USER_BAL ||| and after: $TEST_USER_BAL_POST"
 
     CHECK_FEE $TEST_USER_BAL $TEST_USER_BAL_POST 200
 
@@ -451,7 +451,7 @@ function both_have_fee_denom {
     OTHER_USER_BAL_POST=$($BINARY q bank balances $KEY_ADDR_TWO --output json | jq -r '.balances | map(select(.denom == "ujunox")) | .[0].amount')
 
     # print ujunox balances
-    echoe "other-user ujunox balance before withdraw: $OTHER_USER_BAL ||| and after: $OTHER_USER_BAL_POST ||| These should be the same!"
+    echoe "other-user ujunox balance before withdraw: $OTHER_USER_BAL ||| and after: $OTHER_USER_BAL_POST"
     
     CHECK_FEE $OTHER_USER_BAL $OTHER_USER_BAL_POST 200
 
@@ -541,7 +541,7 @@ function big_sale {
     echoe "asserting test-user now has sale proceeds"
 
     TEST_USER_BAL_POST=$($BINARY q bank balances $KEY_ADDR --output json | jq -r '.balances | map(select(.denom == "ujunox")) | .[0].amount')
-    echoe "test-user ujunox balance before withdraw: $TEST_USER_BAL ||| and after: $TEST_USER_BAL_POST ||| These should be the same!"
+    echoe "test-user ujunox balance before withdraw: $TEST_USER_BAL ||| and after: $TEST_USER_BAL_POST"
 
     CHECK_FEE $TEST_USER_BAL $TEST_USER_BAL_POST 200
 
@@ -570,7 +570,7 @@ function big_sale {
     OTHER_USER_BAL_POST=$($BINARY q bank balances $KEY_ADDR_TWO --output json | jq -r '.balances | map(select(.denom == "ujunox")) | .[0].amount')
 
     # print ujunox balances
-    echoe "other-user ujunox balance before withdraw: $OTHER_USER_BAL ||| and after: $OTHER_USER_BAL_POST ||| These should be the same!"
+    echoe "other-user ujunox balance before withdraw: $OTHER_USER_BAL ||| and after: $OTHER_USER_BAL_POST"
     
     CHECK_FEE $OTHER_USER_BAL $OTHER_USER_BAL_POST 200
 
