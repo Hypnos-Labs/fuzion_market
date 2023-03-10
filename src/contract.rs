@@ -42,7 +42,7 @@ pub fn execute(
     msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
     match msg {
-        ExecuteMsg::FeeCycle => execute_cycle_fee(deps, env),
+        ExecuteMsg::FeeCycle {} => execute_cycle_fee(deps, env),
 
         // ~~~~ Receive Wrappers ~~~~ //
         ExecuteMsg::Receive(receive_msg) => execute_receive(deps, &env, &info, &receive_msg),

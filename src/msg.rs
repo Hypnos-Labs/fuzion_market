@@ -10,7 +10,7 @@ pub enum ExecuteMsg {
     /// This can be called by anyone, but can only be called once
     /// every 100,800 blocks
     /// </br> (approx. 1 week assuming 6 sec blocks)
-    FeeCycle,
+    FeeCycle {},
     // Receive Filters
     Receive(Cw20ReceiveMsg),
     ReceiveNft(Cw721ReceiveMsg),
