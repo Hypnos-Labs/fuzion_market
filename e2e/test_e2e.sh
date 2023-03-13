@@ -595,6 +595,14 @@ function check_prev_ids {
     echoe "Creating bucket with prev used id #1"
     wasm_cmd $MARKET_CONTRACT '{"create_bucket":{"bucket_id":1}}' "5ujunox"
     ASSERT_CONTAINS "$CMD_LOG" 'Error Message:'
+
+    echoe "Creating Listing with prev used id #2"
+    wasm_cmd $MARKET_CONTRACT '{"create_listing":{"listing_id":2,"create_msg":{"ask":{"native":[{"denom":"uosmo","amount":"1"}],"cw20":[],"nfts":[]}}}}' "5ujunox"
+    ASSERT_CONTAINS "$CMD_LOG" 'Error Message:'
+
+    echoe "Creating bucket with prev used id #2"
+    wasm_cmd $MARKET_CONTRACT '{"create_bucket":{"bucket_id":2}}' "5ujunox"
+    ASSERT_CONTAINS "$CMD_LOG" 'Error Message:'
 }
 
 

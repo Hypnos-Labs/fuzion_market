@@ -100,10 +100,6 @@ pub fn execute(
 /// Anyone can call this, but it will only take effect
 /// if WEEK_IN_SECS has passed since last cycle
 pub fn execute_cycle_fee(deps: DepsMut, env: Env) -> Result<Response, ContractError> {
-    // updatable = "last updated" + 1 week, used to check if it's been 1 week since the last time this was
-    //             called successfully
-    // new = current time // if the check passes, this is saved as the new "last updated" to check against
-    //        the next time this is called
     let (updatable, new) = match FEE_DENOM.load(deps.storage)? {
         FeeDenom::JUNO(last) => {
             (last.saturating_add(WEEK_IN_SECS), FeeDenom::USDC(env.block.time.seconds()))
