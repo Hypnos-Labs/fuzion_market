@@ -16,6 +16,7 @@ pub enum ExecuteMsg {
     ReceiveNft(Cw721ReceiveMsg),
     /// Create Listing with Native/cw20
     CreateListing {
+        listing_id: u64,
         create_msg: CreateListingMsg,
     },
     /// Adding native/cw20 tokens to listing
@@ -38,7 +39,9 @@ pub enum ExecuteMsg {
         listing_id: u64,
     },
     /// Create Bucket with native/cw20
-    CreateBucket {},
+    CreateBucket {
+        bucket_id: u64,
+    },
     /// Add Native/cw20 to bucket
     AddToBucket {
         bucket_id: u64,
@@ -61,12 +64,15 @@ pub enum ExecuteMsg {
 #[cw_serde]
 pub enum ReceiveMsg {
     CreateListingCw20 {
+        listing_id: u64,
         create_msg: CreateListingMsg,
     },
     AddToListingCw20 {
         listing_id: u64,
     },
-    CreateBucketCw20 {},
+    CreateBucketCw20 {
+        bucket_id: u64,
+    },
     AddToBucketCw20 {
         bucket_id: u64,
     },
@@ -75,12 +81,15 @@ pub enum ReceiveMsg {
 #[cw_serde]
 pub enum ReceiveNftMsg {
     CreateListingCw721 {
+        listing_id: u64,
         create_msg: CreateListingMsg,
     },
     AddToListingCw721 {
         listing_id: u64,
     },
-    CreateBucketCw721 {},
+    CreateBucketCw721 {
+        bucket_id: u64,
+    },
     AddToBucketCw721 {
         bucket_id: u64,
     },

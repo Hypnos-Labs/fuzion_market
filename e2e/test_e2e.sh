@@ -243,19 +243,19 @@ function test_ask_failure {
     # make a listing with 2 unique but duplicate denoms, ensure the denoms are merged correctly on ask
     # failure to do this = the user can not purchase the listing, even if they sent 2ujunox
     echoe "Trying to create a Listing with duplicate Native Denoms in Ask"
-    wasm_cmd $MARKET_CONTRACT '{"create_listing":{"create_msg":{"ask":{"native":[{"denom":"ujunox","amount":"1"},{"denom":"ujunox","amount":"1"}],"cw20":[],"nfts":[]}}}}' "1ujunox"
+    wasm_cmd $MARKET_CONTRACT '{"create_listing":{"listing_id":1,"create_msg":{"ask":{"native":[{"denom":"ujunox","amount":"1"},{"denom":"ujunox","amount":"1"}],"cw20":[],"nfts":[]}}}}' "1ujunox"
     ASSERT_CONTAINS "$CMD_LOG" 'Error Message: Cannot contain duplicate Native Tokens'
 
     echoe "Trying to create a Listing with duplicate Cw20 Denoms in Ask"
-    wasm_cmd $MARKET_CONTRACT '{"create_listing":{"create_msg":{"ask":{"native":[],"cw20":[{"address":"juno1rws84uz7969aaa7pej303udhlkt3j9ca0l3egpcae98jwak9quzq8szn2l","amount":"1"},{"address":"juno1rws84uz7969aaa7pej303udhlkt3j9ca0l3egpcae98jwak9quzq8szn2l","amount":"4"}],"nfts":[]}}}}' "1ujunox"
+    wasm_cmd $MARKET_CONTRACT '{"create_listing":{"listing_id":2,"create_msg":{"ask":{"native":[],"cw20":[{"address":"juno1rws84uz7969aaa7pej303udhlkt3j9ca0l3egpcae98jwak9quzq8szn2l","amount":"1"},{"address":"juno1rws84uz7969aaa7pej303udhlkt3j9ca0l3egpcae98jwak9quzq8szn2l","amount":"4"}],"nfts":[]}}}}' "1ujunox"
     ASSERT_CONTAINS "$CMD_LOG" 'Error Message: Cannot contain duplicate CW20 Tokens'
 
     echoe "Trying to create a Listing with 0 amount Native in Ask"
-    wasm_cmd $MARKET_CONTRACT '{"create_listing":{"create_msg":{"ask":{"native":[{"denom":"ujunox","amount":"0"},{"denom":"ucosm","amount":"1"}],"cw20":[],"nfts":[]}}}}' "1ujunox"
+    wasm_cmd $MARKET_CONTRACT '{"create_listing":{"listing_id":3,"create_msg":{"ask":{"native":[{"denom":"ujunox","amount":"0"},{"denom":"ucosm","amount":"1"}],"cw20":[],"nfts":[]}}}}' "1ujunox"
     ASSERT_CONTAINS "$CMD_LOG" 'Error Message: Cannot contain 0 value amounts'
 
     echoe "Trying to create a Listing with 0 amount Cw20 in Ask"
-    wasm_cmd $MARKET_CONTRACT '{"create_listing":{"create_msg":{"ask":{"native":[],"cw20":[{"address":"juno1u45shlp0q4gcckvsj06ss4xuvsu0z24a0d0vr9ce6r24pht4e5xq7q995n","amount":"1"},{"address":"juno1rws84uz7969aaa7pej303udhlkt3j9ca0l3egpcae98jwak9quzq8szn2l","amount":"0"}],"nfts":[]}}}}' "1ujunox"
+    wasm_cmd $MARKET_CONTRACT '{"create_listing":{"listing_id":4,"create_msg":{"ask":{"native":[],"cw20":[{"address":"juno1u45shlp0q4gcckvsj06ss4xuvsu0z24a0d0vr9ce6r24pht4e5xq7q995n","amount":"1"},{"address":"juno1rws84uz7969aaa7pej303udhlkt3j9ca0l3egpcae98jwak9quzq8szn2l","amount":"0"}],"nfts":[]}}}}' "1ujunox"
     ASSERT_CONTAINS "$CMD_LOG" 'Error Message: Cannot contain 0 value amounts'
 
     # # finalize
@@ -281,25 +281,25 @@ function test_dupes_zeros_funds_sent {
 
     # Create Natives with 0
     echoe "Creating listing with 0 amount Native"
-    wasm_cmd $MARKET_CONTRACT '{"create_listing":{"create_msg":{"ask":{"native":[{"denom":"uosmo","amount":"1"}],"cw20":[],"nfts":[]}}}}' "0ujunox"
+    wasm_cmd $MARKET_CONTRACT '{"create_listing":{"listing_id":5,"create_msg":{"ask":{"native":[{"denom":"uosmo","amount":"1"}],"cw20":[],"nfts":[]}}}}' "0ujunox"
     ASSERT_CONTAINS "$CMD_LOG" 'Error Message:'
 
     echoe "Creating bucket with 0 amount Native"
-    wasm_cmd $MARKET_CONTRACT '{"create_bucket":{}}' "0ujunox"
+    wasm_cmd $MARKET_CONTRACT '{"create_bucket":{"bucket_id":1}}' "0ujunox"
     ASSERT_CONTAINS "$CMD_LOG" 'Error Message:'
 
     # Create cw20s with 0
     echoe "Creating listing with 0 amount Cw20"
-    create_listing_cw20 $MARKET_CONTRACT $CWONE_CONTRACT "0"
+    create_listing_cw20 $MARKET_CONTRACT $CWONE_CONTRACT "0" 6
     ASSERT_CONTAINS "$CMD_LOG" 'Invalid zero amount'
 
     echoe "Creating bucket with 0 amount Cw20"
-    create_bucket_cw20 $MARKET_CONTRACT $CWONE_CONTRACT "0"
+    create_bucket_cw20 $MARKET_CONTRACT $CWONE_CONTRACT "0" 7
     ASSERT_CONTAINS "$CMD_LOG" 'Invalid zero amount'
 
     # Creating a test listing
     echoe "Creating a listing for testing"
-    wasm_cmd $MARKET_CONTRACT '{"create_listing":{"create_msg":{"ask":{"native":[{"denom":"ujunox","amount":"1"}],"cw20":[],"nfts":[]}}}}' "1ujunox"
+    wasm_cmd $MARKET_CONTRACT '{"create_listing":{"listing_id":1,"create_msg":{"ask":{"native":[{"denom":"ujunox","amount":"1"}],"cw20":[],"nfts":[]}}}}' "1ujunox"
 
     # Add to Listing fail
     echoe "Adding 0 Native to Listing"
@@ -312,7 +312,7 @@ function test_dupes_zeros_funds_sent {
 
     # Create test bucket
     echoe "Creating a bucket for testing"
-    wasm_cmd $MARKET_CONTRACT '{"create_bucket":{}}' "1ujunox"
+    wasm_cmd $MARKET_CONTRACT '{"create_bucket":{"bucket_id":1}}' "1ujunox"
 
     # Add to Bucket fail
     echoe "Adding 0 Native to bucket"
@@ -321,7 +321,7 @@ function test_dupes_zeros_funds_sent {
 
     # Don't need to test cw20 again since error is at cw20_base level for any send of 0
 
-    # Listing & Bucket ID from here after will be 2..., because of state incrementors
+    # Listing & Bucket ID from here after will be 2
 
 }
 
@@ -341,7 +341,7 @@ function both_have_fee_denom {
 
     # test-user / KEY_ADDR creates Listing 2
     echoe "test-user creating Listing 2"
-    wasm_cmd $MARKET_CONTRACT "$(printf '{"create_listing":{"create_msg":{"ask":{"native":[{"denom":"ujunox","amount":"200"}],"cw20":[{"address":"%s","amount":"20"}],"nfts":[{"contract_address":"%s","token_id":"2"}]}}}}' $CWTWO_CONTRACT $CW721_CONTRACTCAT)" "200ujunox" show_log
+    wasm_cmd $MARKET_CONTRACT "$(printf '{"create_listing":{"listing_id":2,"create_msg":{"ask":{"native":[{"denom":"ujunox","amount":"200"}],"cw20":[{"address":"%s","amount":"20"}],"nfts":[{"contract_address":"%s","token_id":"2"}]}}}}' $CWTWO_CONTRACT $CW721_CONTRACTCAT)" "200ujunox" show_log
 
     # test-user adds 10 cwone to Listing 2
     echoe "test-user adding 10 cwone to listing 2"
@@ -366,7 +366,7 @@ function both_have_fee_denom {
 
     # other-user / KEY_ADDR_TWO creates Bucket 2
     echoe "other-user creating a bucket with correct assets"
-    wasm_cmd_other $MARKET_CONTRACT '{"create_bucket":{}}' "200ujunox"
+    wasm_cmd_other $MARKET_CONTRACT '{"create_bucket":{"bucket_id":2}}' "200ujunox"
 
     # other-user adds 20 cwtwo to Bucket 2
     echoe "other-user adding 20 cwtwo to bucket 2"
@@ -493,10 +493,10 @@ function big_sale {
 
     # test-user creates listing 3 with 200 ujunox and Dog #3 - #103 in ask
     # will be selling 200ujunox and Cat NFT #3 - 103
-    wasm_cmd $MARKET_CONTRACT "$(printf '{"create_listing":{"create_msg":{"ask":{"native":[{"denom":"ujunox","amount":"200"}],"cw20":[],"nfts":[%s]}}}}' "$nfts")" "200ujunox" show_log
+    wasm_cmd $MARKET_CONTRACT "$(printf '{"create_listing":{"listing_id":3,"create_msg":{"ask":{"native":[{"denom":"ujunox","amount":"200"}],"cw20":[],"nfts":[%s]}}}}' "$nfts")" "200ujunox" show_log
 
     # other-user creates bucket 3 with 200 ujunox
-    wasm_cmd_other $MARKET_CONTRACT '{"create_bucket":{}}' "200ujunox" show_log
+    wasm_cmd_other $MARKET_CONTRACT '{"create_bucket":{"bucket_id":3}}' "200ujunox" show_log
 
     # test-user adds Cat #3 - 103 to listing 3
     # other-user adds Dog #3 - 103 to bucket 3
@@ -585,12 +585,33 @@ function big_sale {
 
 }
 
+# Checking that previously used ID's (even ones that have been removed & deleted)
+# cannot be used again
+function check_prev_ids {
+    echoe "Creating Listing with prev used id #1 "
+    wasm_cmd $MARKET_CONTRACT '{"create_listing":{"listing_id":1,"create_msg":{"ask":{"native":[{"denom":"uosmo","amount":"1"}],"cw20":[],"nfts":[]}}}}' "5ujunox"
+    ASSERT_CONTAINS "$CMD_LOG" 'Error Message:'
+
+    echoe "Creating bucket with prev used id #1"
+    wasm_cmd $MARKET_CONTRACT '{"create_bucket":{"bucket_id":1}}' "5ujunox"
+    ASSERT_CONTAINS "$CMD_LOG" 'Error Message:'
+
+    echoe "Creating Listing with prev used id #2"
+    wasm_cmd $MARKET_CONTRACT '{"create_listing":{"listing_id":2,"create_msg":{"ask":{"native":[{"denom":"uosmo","amount":"1"}],"cw20":[],"nfts":[]}}}}' "5ujunox"
+    ASSERT_CONTAINS "$CMD_LOG" 'Error Message:'
+
+    echoe "Creating bucket with prev used id #2"
+    wasm_cmd $MARKET_CONTRACT '{"create_bucket":{"bucket_id":2}}' "5ujunox"
+    ASSERT_CONTAINS "$CMD_LOG" 'Error Message:'
+}
+
 
 # running tests
 test_ask_failure
 test_dupes_zeros_funds_sent
 both_have_fee_denom
 big_sale
+check_prev_ids
 
 # 1 if any of the above test failed, this way it will ensure to X the github
 exit $FINAL_STATUS_CODE

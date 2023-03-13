@@ -27,16 +27,26 @@ mod contract_imports {
     };
     pub use crate::msg::{ExecuteMsg, InstantiateMsg, QueryMsg, ReceiveMsg, ReceiveNftMsg};
     pub use crate::query::*;
-    pub use crate::state::{FeeDenom, Nft, BUCKET_COUNT, FEE_DENOM, LISTING_COUNT};
-    // FUZION_DAO
+    pub use crate::state::{FeeDenom, Nft, FEE_DENOM};
 }
 
 mod execute_imports {
     pub use crate::error::ContractError;
     pub use crate::msg::CreateListingMsg;
     pub use crate::state::{
-        genbal_cmp, listingz, BalanceUtil, Bucket, FeeDenom, GenericBalance, Listing, Nft, Status,
-        BUCKETS, BUCKET_COUNT, FEE_DENOM, LISTING_COUNT,
+        genbal_cmp,
+        listingz,
+        BalanceUtil,
+        Bucket,
+        FeeDenom,
+        GenericBalance,
+        Listing,
+        Nft,
+        Status,
+        BUCKETS,
+        BUCKET_ID_USED,
+        FEE_DENOM,
+        LISTING_ID_USED, //BUCKET_COUNT, LISTING_COUNT
     };
     pub use crate::utils::{calc_fee_coin, proto_encode, send_tokens_cosmos};
     pub use cosmwasm_std::{Addr, DepsMut, Env, Response, StdError};
@@ -62,8 +72,13 @@ mod msg_imports {
 
 mod query_imports {
     pub use crate::state::{
-        listingz, Bucket, FeeDenom, Listing, Status, BUCKETS, BUCKET_COUNT, FEE_DENOM,
-        LISTING_COUNT,
+        listingz,
+        Bucket,
+        FeeDenom,
+        Listing,
+        Status,
+        BUCKETS,
+        FEE_DENOM, //LISTING_COUNT, BUCKET_COUNT
     };
     pub use cosmwasm_schema::cw_serde;
     pub use cosmwasm_std::{Addr, Deps, Env, Order, StdError, StdResult};

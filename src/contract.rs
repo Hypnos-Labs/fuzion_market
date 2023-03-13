@@ -1,5 +1,6 @@
 #[cfg(not(feature = "library"))]
 use crate::contract_imports::*;
+use crate::state::{BUCKET_ID_USED, LISTING_ID_USED};
 use cw20::{Cw20QueryMsg, TokenInfoResponse};
 use cw721::Cw721QueryMsg;
 
@@ -21,9 +22,9 @@ pub fn instantiate(
 ) -> Result<Response, ContractError> {
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
 
-    LISTING_COUNT.save(deps.storage, &1)?;
+    LISTING_ID_USED.save(deps.storage, 0, &true)?;
 
-    BUCKET_COUNT.save(deps.storage, &1)?;
+    BUCKET_ID_USED.save(deps.storage, 0, &true)?;
 
     FEE_DENOM.save(deps.storage, &FeeDenom::JUNO(env.block.time.seconds()))?;
 
@@ -50,8 +51,15 @@ pub fn execute(
 
         // ~~~~ Listing Executions ~~~~ //
         ExecuteMsg::CreateListing {
+            listing_id,
             create_msg,
-        } => execute_create_listing(deps, &info.sender, &Balance::from(info.funds), create_msg),
+        } => execute_create_listing(
+            deps,
+            &info.sender,
+            &Balance::from(info.funds),
+            create_msg,
+            listing_id,
+        ),
         ExecuteMsg::AddToListing {
             listing_id,
         } => execute_add_to_listing(deps, Balance::from(info.funds), &info.sender, listing_id),
@@ -68,9 +76,9 @@ pub fn execute(
         } => execute_delete_listing(deps, &env, info.sender, listing_id),
 
         // ~~~~ Bucket Executions ~~~~ //
-        ExecuteMsg::CreateBucket {} => {
-            execute_create_bucket(deps, &Balance::from(info.funds), &info.sender)
-        }
+        ExecuteMsg::CreateBucket {
+            bucket_id,
+        } => execute_create_bucket(deps, &Balance::from(info.funds), &info.sender, bucket_id),
         ExecuteMsg::AddToBucket {
             bucket_id,
         } => execute_add_to_bucket(deps, Balance::from(info.funds), &info.sender, bucket_id),
@@ -92,10 +100,6 @@ pub fn execute(
 /// Anyone can call this, but it will only take effect
 /// if WEEK_IN_SECS has passed since last cycle
 pub fn execute_cycle_fee(deps: DepsMut, env: Env) -> Result<Response, ContractError> {
-    // updatable = "last updated" + 1 week, used to check if it's been 1 week since the last time this was
-    //             called successfully
-    // new = current time // if the check passes, this is saved as the new "last updated" to check against
-    //        the next time this is called
     let (updatable, new) = match FEE_DENOM.load(deps.storage)? {
         FeeDenom::JUNO(last) => {
             (last.saturating_add(WEEK_IN_SECS), FeeDenom::USDC(env.block.time.seconds()))
@@ -144,12 +148,15 @@ pub fn execute_receive(
 
     match msg {
         ReceiveMsg::CreateListingCw20 {
+            listing_id,
             create_msg,
-        } => execute_create_listing(deps, &user_wallet, &balance, create_msg),
+        } => execute_create_listing(deps, &user_wallet, &balance, create_msg, listing_id),
         ReceiveMsg::AddToListingCw20 {
             listing_id,
         } => execute_add_to_listing(deps, balance, &user_wallet, listing_id),
-        ReceiveMsg::CreateBucketCw20 {} => execute_create_bucket(deps, &balance, &user_wallet),
+        ReceiveMsg::CreateBucketCw20 {
+            bucket_id,
+        } => execute_create_bucket(deps, &balance, &user_wallet, bucket_id),
         ReceiveMsg::AddToBucketCw20 {
             bucket_id,
         } => execute_add_to_bucket(deps, balance, &user_wallet, bucket_id),
@@ -183,14 +190,15 @@ pub fn execute_receive_nft(
 
     match msg {
         ReceiveNftMsg::CreateListingCw721 {
+            listing_id,
             create_msg,
-        } => execute_create_listing_cw721(deps, &user_wallet, incoming_nft, create_msg),
+        } => execute_create_listing_cw721(deps, &user_wallet, incoming_nft, create_msg, listing_id),
         ReceiveNftMsg::AddToListingCw721 {
             listing_id,
         } => execute_add_to_listing_cw721(deps, &user_wallet, incoming_nft, listing_id),
-        ReceiveNftMsg::CreateBucketCw721 {} => {
-            execute_create_bucket_cw721(deps, &user_wallet, incoming_nft)
-        }
+        ReceiveNftMsg::CreateBucketCw721 {
+            bucket_id,
+        } => execute_create_bucket_cw721(deps, &user_wallet, incoming_nft, bucket_id),
         ReceiveNftMsg::AddToBucketCw721 {
             bucket_id,
         } => execute_add_to_bucket_cw721(deps, &user_wallet, incoming_nft, bucket_id),
