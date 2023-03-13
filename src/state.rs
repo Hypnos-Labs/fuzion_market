@@ -5,9 +5,15 @@ use crate::state_imports::*;
 // Core State
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-pub const LISTING_COUNT: Item<u64> = Item::new("listing_count");
+// pub const LISTING_COUNT: Item<u64> = Item::new("listing_count");
 
-pub const BUCKET_COUNT: Item<u64> = Item::new("bucket_count");
+// pub const BUCKET_COUNT: Item<u64> = Item::new("bucket_count");
+
+/// Keeps track of previously used lisitng IDs
+pub const LISTING_ID_USED: Map<u64, bool> = Map::new("listing_id_used");
+
+/// Keeps track of previously used bucket IDs
+pub const BUCKET_ID_USED: Map<u64, bool> = Map::new("bucket_id_used");
 
 pub const FEE_DENOM: Item<FeeDenom> = Item::new("fee_denom");
 

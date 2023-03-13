@@ -341,13 +341,7 @@ pub mod create_valid_listing {
 
     use super::VALID_NATIVE; // REAL_JVONE, REAL_NEONPEEPZ};
 
-    pub fn valid_ask_all(
-        jvone_addr: Addr,
-        _jvtwo_addr: Addr,
-        _jvtre_addr: Addr,
-        np_addr: Addr,
-        _sk_addr: Addr,
-    ) -> ExecuteMsg {
+    pub fn valid_ask_all(jvone_addr: Addr, np_addr: Addr, listing_id: u64) -> ExecuteMsg {
         let valid_native = coin(10, VALID_NATIVE);
 
         let valid_cw20 = Cw20CoinVerified {
@@ -374,12 +368,13 @@ pub mod create_valid_listing {
         };
 
         crate::msg::ExecuteMsg::CreateListing {
+            listing_id,
             create_msg: cm,
         }
     }
 
     pub fn create_valid_ask(
-        //listing_id: u64,
+        listing_id: u64,
         juno_amt: Option<u128>,
 
         jvone_addr: Option<Addr>,
@@ -456,6 +451,7 @@ pub mod create_valid_listing {
         };
 
         crate::msg::ExecuteMsg::CreateListing {
+            listing_id,
             create_msg: cm,
         }
     }
@@ -558,7 +554,7 @@ fn create_listing_should_fail() -> Result<(), anyhow::Error> {
     //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
     let ask_price_valid = create_valid_listing::create_valid_ask(
-        //11,
+        11,
         Some(10),
         Some(jvone.addr()),
         Some(Uint128::from(25u32)),
@@ -573,25 +569,28 @@ fn create_listing_should_fail() -> Result<(), anyhow::Error> {
         None,
     );
     let one_juno = coins(1, "ujunox");
-    let res: Result<AppResponse> =
-        router.execute_contract(john.address.clone(), fuzionmarket, &ask_price_valid, &one_juno);
+    let res: Result<AppResponse> = router.execute_contract(
+        john.address.clone(),
+        fuzionmarket.clone(),
+        &ask_price_valid,
+        &one_juno,
+    );
     ensure!(res.is_ok(), here("'Testing Ask Creation' failure", line!(), column!()));
 
-    // > REMOVE because Listing ID now comes from incrementor in state <
-    // // John can't create another listing with same ID
-    // let res: Result<AppResponse> = router.execute_contract(
-    //     john.address.clone(),
-    //     fuzionmarket.clone(),
-    //     &ask_price_valid,
-    //     &one_juno,
-    // );
-    // ensure!(res.is_err(), here("Cant create with same ID failure", line!(), column!()));
+    // John can't create another listing with same ID
+    let res: Result<AppResponse> = router.execute_contract(
+        john.address.clone(),
+        fuzionmarket.clone(),
+        &ask_price_valid,
+        &one_juno,
+    );
+    ensure!(res.is_err(), here("Cant create with same ID failure", line!(), column!()));
 
-    // // Sam can't create another listing with same ID
-    // let res: Result<AppResponse> =
-    //     router.execute_contract(sam.address.clone(), fuzionmarket, &ask_price_valid, &one_juno);
+    // Sam can't create another listing with same ID
+    let res: Result<AppResponse> =
+        router.execute_contract(sam.address.clone(), fuzionmarket, &ask_price_valid, &one_juno);
 
-    // ensure!(res.is_err(), here("Cant create with same ID failure", line!(), column!()));
+    ensure!(res.is_err(), here("Cant create with same ID failure", line!(), column!()));
 
     Ok(())
 }
@@ -630,7 +629,7 @@ fn create_listing_should_pass() -> Result<(), anyhow::Error> {
     //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
     let ask_price_valid = create_valid_listing::create_valid_ask(
-        //1,
+        1,
         Some(10),
         Some(jvone.addr()),
         Some(Uint128::from(25u32)),
@@ -672,6 +671,7 @@ fn create_listing_should_pass() -> Result<(), anyhow::Error> {
         None,
     );
     let cmsg = to_binary(&crate::msg::ReceiveMsg::CreateListingCw20 {
+        listing_id: 2,
         create_msg: cm,
     })?;
     let createmsg = cw20_base::msg::ExecuteMsg::Send {
@@ -695,6 +695,7 @@ fn create_listing_should_pass() -> Result<(), anyhow::Error> {
         None,
     );
     let cmsg_nft = to_binary(&crate::msg::ReceiveNftMsg::CreateListingCw721 {
+        listing_id: 3,
         create_msg: cm,
     })?;
     let createmsg_nft: cw721_base::ExecuteMsg<Option<Empty>, Empty> =
@@ -750,7 +751,7 @@ fn add_to_listing() -> Result<(), anyhow::Error> {
     //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
     let ask_price_valid = create_valid_listing::create_valid_ask(
-        //1,
+        4,
         Some(10),
         Some(jvone.addr()),
         Some(Uint128::from(25u32)),
@@ -787,7 +788,7 @@ fn add_to_listing() -> Result<(), anyhow::Error> {
     //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
     let add_native_msg = crate::msg::ExecuteMsg::AddToListing {
-        listing_id: 1,
+        listing_id: 4,
     };
 
     // Sam cannot add
@@ -838,7 +839,7 @@ fn add_to_listing() -> Result<(), anyhow::Error> {
     //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
     let add_msg = to_binary(&crate::msg::ReceiveMsg::AddToListingCw20 {
-        listing_id: 1,
+        listing_id: 4,
     })?;
 
     let add_cw20_msg = cw20_base::msg::ExecuteMsg::Send {
@@ -901,7 +902,7 @@ fn add_to_listing() -> Result<(), anyhow::Error> {
     //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
     let add_msg = to_binary(&crate::msg::ReceiveNftMsg::AddToListingCw721 {
-        listing_id: 1,
+        listing_id: 4,
     })?;
 
     let john_add_nft_msg: cw721_base::ExecuteMsg<Option<Empty>, Empty> =
@@ -982,7 +983,7 @@ fn remove_a_listing() -> Result<(), anyhow::Error> {
     //~~~~~~~~~~
     let ask_price_valid = create_valid_listing::create_valid_ask(
         // Listing ID
-        //1,
+        5,
         // ujunox in ask
         Some(10),
         // jvone in ask
@@ -1026,7 +1027,7 @@ fn remove_a_listing() -> Result<(), anyhow::Error> {
     //~~~~~~~~~~
     let ask_price_valid = create_valid_listing::create_valid_ask(
         // Listing ID
-        //21,
+        6,
         // ujunox in ask
         Some(10),
         // jvone in ask
@@ -1071,10 +1072,10 @@ fn remove_a_listing() -> Result<(), anyhow::Error> {
     //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
     let john_msg = to_binary(&crate::msg::ReceiveMsg::AddToListingCw20 {
-        listing_id: 1,
+        listing_id: 5,
     })?;
     let sam_msg = to_binary(&crate::msg::ReceiveMsg::AddToListingCw20 {
-        listing_id: 2,
+        listing_id: 6,
     })?;
     let john_add_ten_msg = cw20_base::msg::ExecuteMsg::Send {
         contract: fuzionmarket.to_string(),
@@ -1119,7 +1120,7 @@ fn remove_a_listing() -> Result<(), anyhow::Error> {
     //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
     let john_add_msg = to_binary(&crate::msg::ReceiveNftMsg::AddToListingCw721 {
-        listing_id: 1,
+        listing_id: 5,
     })?;
     let john_add_nft_msg: cw721_base::ExecuteMsg<Option<Empty>, Empty> =
         cw721_base::msg::ExecuteMsg::SendNft {
@@ -1146,7 +1147,7 @@ fn remove_a_listing() -> Result<(), anyhow::Error> {
     // let owner = shittykittyz.owner_of(&router.wrap(), "3".to_string(), false).unwrap().owner;
     // assert_eq!(owner, sam.address.clone().to_string());
     let sam_add_msg = to_binary(&crate::msg::ReceiveNftMsg::AddToListingCw721 {
-        listing_id: 2,
+        listing_id: 6,
     })?;
     let sam_add_nft_msg: cw721_base::ExecuteMsg<Option<Empty>, Empty> =
         cw721_base::msg::ExecuteMsg::SendNft {
@@ -1174,7 +1175,7 @@ fn remove_a_listing() -> Result<(), anyhow::Error> {
     //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
     let remove_john_1 = crate::msg::ExecuteMsg::DeleteListing {
-        listing_id: 1,
+        listing_id: 5,
     };
 
     let res: Result<AppResponse> =
@@ -1286,7 +1287,7 @@ fn finalize_a_listing() -> Result<(), anyhow::Error> {
     //~~~~~~~~~~
     let ask_price_valid = create_valid_listing::create_valid_ask(
         // Listing ID
-        //1,
+        7,
         // ujunox in ask
         Some(10),
         // jvone in ask
@@ -1330,7 +1331,7 @@ fn finalize_a_listing() -> Result<(), anyhow::Error> {
     //~~~~~~~~~~
     let ask_price_valid = create_valid_listing::create_valid_ask(
         // Listing ID
-        //21,
+        8,
         // ujunox in ask
         Some(10),
         // jvone in ask
@@ -1375,10 +1376,10 @@ fn finalize_a_listing() -> Result<(), anyhow::Error> {
     //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
     let john_msg = to_binary(&crate::msg::ReceiveMsg::AddToListingCw20 {
-        listing_id: 1,
+        listing_id: 7,
     })?;
     let sam_msg = to_binary(&crate::msg::ReceiveMsg::AddToListingCw20 {
-        listing_id: 2,
+        listing_id: 8,
     })?;
     let john_add_ten_msg = cw20_base::msg::ExecuteMsg::Send {
         contract: fuzionmarket.to_string(),
@@ -1423,7 +1424,7 @@ fn finalize_a_listing() -> Result<(), anyhow::Error> {
     //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
     let john_add_msg = to_binary(&crate::msg::ReceiveNftMsg::AddToListingCw721 {
-        listing_id: 1,
+        listing_id: 7,
     })?;
     let john_add_nft_msg: cw721_base::ExecuteMsg<Option<Empty>, Empty> =
         cw721_base::msg::ExecuteMsg::SendNft {
@@ -1451,7 +1452,7 @@ fn finalize_a_listing() -> Result<(), anyhow::Error> {
     //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
     let sam_add_msg = to_binary(&crate::msg::ReceiveNftMsg::AddToListingCw721 {
-        listing_id: 2,
+        listing_id: 8,
     })?;
     let sam_add_nft_msg: cw721_base::ExecuteMsg<Option<Empty>, Empty> =
         cw721_base::msg::ExecuteMsg::SendNft {
@@ -1479,7 +1480,7 @@ fn finalize_a_listing() -> Result<(), anyhow::Error> {
     //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
     let finalize_john_1 = crate::msg::ExecuteMsg::Finalize {
-        listing_id: 1,
+        listing_id: 7,
         seconds: 259200,
     };
 
@@ -1495,7 +1496,7 @@ fn finalize_a_listing() -> Result<(), anyhow::Error> {
     //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
     let too_early = crate::msg::ExecuteMsg::Finalize {
-        listing_id: 1,
+        listing_id: 7,
         seconds: 599,
     };
     let res: Result<AppResponse> =
@@ -1503,7 +1504,7 @@ fn finalize_a_listing() -> Result<(), anyhow::Error> {
     ensure!(res.is_err(), here("Expiration too early", line!(), column!()));
 
     let too_late = crate::msg::ExecuteMsg::Finalize {
-        listing_id: 1,
+        listing_id: 7,
         seconds: 1209601,
     };
     let res: Result<AppResponse> =
@@ -1516,7 +1517,7 @@ fn finalize_a_listing() -> Result<(), anyhow::Error> {
     //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
     let just_right = crate::msg::ExecuteMsg::Finalize {
-        listing_id: 1,
+        listing_id: 7,
         seconds: 20000,
     };
     let res: Result<AppResponse> =
@@ -1528,7 +1529,7 @@ fn finalize_a_listing() -> Result<(), anyhow::Error> {
     // Can't finalize again
     //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     let finalize_again = crate::msg::ExecuteMsg::Finalize {
-        listing_id: 1,
+        listing_id: 7,
         seconds: 20000,
     };
     let res: Result<AppResponse> =
@@ -1540,7 +1541,7 @@ fn finalize_a_listing() -> Result<(), anyhow::Error> {
     // Can't remove after finalize
     //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     let cant_remove = crate::msg::ExecuteMsg::DeleteListing {
-        listing_id: 1,
+        listing_id: 7,
     };
     let res: Result<AppResponse> =
         router.execute_contract(john.address.clone(), fuzionmarket.clone(), &cant_remove, &[]);
@@ -1551,7 +1552,7 @@ fn finalize_a_listing() -> Result<(), anyhow::Error> {
     // Can't refund after finalize if not expired
     //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     let cant_refund = crate::msg::ExecuteMsg::DeleteListing {
-        listing_id: 1,
+        listing_id: 7,
     };
     let res: Result<AppResponse> =
         router.execute_contract(john.address.clone(), fuzionmarket.clone(), &cant_refund, &[]);
@@ -1563,7 +1564,7 @@ fn finalize_a_listing() -> Result<(), anyhow::Error> {
     //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     // cant add native
     let cant_add = crate::msg::ExecuteMsg::AddToListing {
-        listing_id: 1,
+        listing_id: 7,
     };
     let res: Result<AppResponse> = router.execute_contract(
         john.address.clone(),
@@ -1575,7 +1576,7 @@ fn finalize_a_listing() -> Result<(), anyhow::Error> {
 
     // cant add cw20
     let john_msg = to_binary(&crate::msg::ReceiveMsg::AddToListingCw20 {
-        listing_id: 1,
+        listing_id: 7,
     })?;
     let john_add_ten_msg = cw20_base::msg::ExecuteMsg::Send {
         contract: fuzionmarket.to_string(),
@@ -1588,7 +1589,7 @@ fn finalize_a_listing() -> Result<(), anyhow::Error> {
 
     // cant add NFT
     let john_add_msg = to_binary(&crate::msg::ReceiveNftMsg::AddToListingCw721 {
-        listing_id: 1,
+        listing_id: 7,
     })?;
     let john_add_nft_msg: cw721_base::ExecuteMsg<Option<Empty>, Empty> =
         cw721_base::msg::ExecuteMsg::SendNft {
@@ -1646,7 +1647,7 @@ fn expiration_checks() -> Result<(), anyhow::Error> {
     //~~~~~~~~~~
     let ask_price_valid = create_valid_listing::create_valid_ask(
         // Listing ID
-        //1,
+        9,
         // ujunox in ask
         Some(10),
         // jvone in ask
@@ -1691,7 +1692,7 @@ fn expiration_checks() -> Result<(), anyhow::Error> {
     //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
     let john_msg = to_binary(&crate::msg::ReceiveMsg::AddToListingCw20 {
-        listing_id: 1,
+        listing_id: 9,
     })?;
     let john_add_ten_msg = cw20_base::msg::ExecuteMsg::Send {
         contract: fuzionmarket.to_string(),
@@ -1718,7 +1719,7 @@ fn expiration_checks() -> Result<(), anyhow::Error> {
     //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
     let john_add_msg = to_binary(&crate::msg::ReceiveNftMsg::AddToListingCw721 {
-        listing_id: 1,
+        listing_id: 9,
     })?;
     let john_add_nft_msg: cw721_base::ExecuteMsg<Option<Empty>, Empty> =
         cw721_base::msg::ExecuteMsg::SendNft {
@@ -1749,7 +1750,7 @@ fn expiration_checks() -> Result<(), anyhow::Error> {
     //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
     let just_right = crate::msg::ExecuteMsg::Finalize {
-        listing_id: 1,
+        listing_id: 9,
         seconds: 20000,
     };
     let res: Result<AppResponse> =
@@ -1767,7 +1768,7 @@ fn expiration_checks() -> Result<(), anyhow::Error> {
         current_blockinfo.time = current_blockinfo.time.plus_seconds(19999);
     });
     let fail_refund = crate::msg::ExecuteMsg::DeleteListing {
-        listing_id: 1,
+        listing_id: 9,
     };
     let res: Result<AppResponse> =
         router.execute_contract(john.address.clone(), fuzionmarket.clone(), &fail_refund, &[]);
@@ -1782,7 +1783,7 @@ fn expiration_checks() -> Result<(), anyhow::Error> {
     // ~~~~~~~~~~~~
     // Cant refinalize an expired listing
     let fail_refinalize_expired = crate::msg::ExecuteMsg::Finalize {
-        listing_id: 1,
+        listing_id: 9,
         seconds: 15000,
     };
     let res: Result<AppResponse> = router.execute_contract(
@@ -1805,7 +1806,7 @@ fn expiration_checks() -> Result<(), anyhow::Error> {
     // ~~~~~~~~~
     // Can't add to expired listing
     let john_msg = to_binary(&crate::msg::ReceiveMsg::AddToListingCw20 {
-        listing_id: 1,
+        listing_id: 9,
     })?;
     let john_add_ten_msg = cw20_base::msg::ExecuteMsg::Send {
         contract: fuzionmarket.to_string(),
@@ -1821,7 +1822,7 @@ fn expiration_checks() -> Result<(), anyhow::Error> {
     // Refund success
     //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     let success_refund = crate::msg::ExecuteMsg::DeleteListing {
-        listing_id: 1,
+        listing_id: 9,
     };
     let res: Result<AppResponse> =
         router.execute_contract(john.address.clone(), fuzionmarket.clone(), &success_refund, &[]);
@@ -1882,7 +1883,9 @@ fn create_bucket() -> Result<(), anyhow::Error> {
     // Create with Native
     //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-    let create_native = crate::msg::ExecuteMsg::CreateBucket {};
+    let create_native = crate::msg::ExecuteMsg::CreateBucket {
+        bucket_id: 1,
+    };
     let res: Result<AppResponse> = router.execute_contract(
         john.address.clone(),
         fuzionmarket.clone(),
@@ -1902,7 +1905,10 @@ fn create_bucket() -> Result<(), anyhow::Error> {
     // Create with CW20
     //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-    let john_msg = to_binary(&crate::msg::ReceiveMsg::CreateBucketCw20 {}).unwrap();
+    let john_msg = to_binary(&crate::msg::ReceiveMsg::CreateBucketCw20 {
+        bucket_id: 2,
+    })
+    .unwrap();
     let john_c_msg = cw20_base::msg::ExecuteMsg::Send {
         contract: fuzionmarket.to_string(),
         amount: Uint128::from(10u32),
@@ -1920,7 +1926,10 @@ fn create_bucket() -> Result<(), anyhow::Error> {
     // Create with NFT
     //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-    let john_nft_msg = to_binary(&crate::msg::ReceiveNftMsg::CreateBucketCw721 {}).unwrap();
+    let john_nft_msg = to_binary(&crate::msg::ReceiveNftMsg::CreateBucketCw721 {
+        bucket_id: 3,
+    })
+    .unwrap();
     let john_nft_c_msg: cw721_base::ExecuteMsg<Option<Empty>, Empty> =
         cw721_base::ExecuteMsg::SendNft {
             contract: fuzionmarket.to_string(),
@@ -2744,6 +2753,7 @@ fn cant_buy_expired() -> Result<(), anyhow::Error> {
         whitelisted_buyer: None,
     };
     let clm = crate::msg::ExecuteMsg::CreateListing {
+        listing_id: 1,
         create_msg: cl,
     };
 
@@ -2824,7 +2834,10 @@ fn cant_buy_expired() -> Result<(), anyhow::Error> {
     //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
     // Create with 20 JVTWO <Listing price is 20 JVTWO>
-    let sam_msg = to_binary(&crate::msg::ReceiveMsg::CreateBucketCw20 {}).unwrap();
+    let sam_msg = to_binary(&crate::msg::ReceiveMsg::CreateBucketCw20 {
+        bucket_id: 1,
+    })
+    .unwrap();
     let sam_c_msg = cw20_base::msg::ExecuteMsg::Send {
         contract: fuzionmarket.to_string(),
         amount: Uint128::from(20u32),
@@ -2869,112 +2882,6 @@ fn cant_buy_expired() -> Result<(), anyhow::Error> {
     let res: Result<AppResponse> =
         router.execute_contract(sam.address.clone(), fuzionmarket, &buy_msg, &[]);
     ensure!(res.is_err(), here("Sam bought listing after expiration", line!(), column!()));
-
-    Ok(())
-}
-
-// < > Storage capacity
-#[test]
-fn storage_capacity() -> Result<(), anyhow::Error> {
-    use anyhow::Result;
-    use cw_multi_test::AppResponse;
-    // Setup
-    let mut router = App::default();
-    let contract_admin = create_users::fake_user("admin".to_string());
-    let john = create_users::fake_user("john".to_string());
-    let sam = create_users::fake_user("sam".to_string());
-    let max = create_users::fake_user("max".to_string());
-    let bad_actor = create_users::fake_user("badguy".to_string());
-
-    // Instantiate all contracts
-    let (_jvone, jvtwo, _jvtre, _neonpeepz, shittykittyz, fuzionmarket) =
-        init_all_contracts(&mut router, &contract_admin, &john, &sam, &max)?;
-
-    // Give native balances to all users
-    // Each user gets 100 VALID_NATIVE
-    let router = give_natives(&john, &mut router);
-    let router = give_natives(&sam, router);
-    let router = give_natives(&max, router);
-    let router = give_natives(&bad_actor, router);
-
-    //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    // Create Listing
-    //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-    //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    // Create Listing Message
-    //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    let cw20_ask = vec![Cw20CoinVerified {
-        address: jvtwo.addr(),
-        amount: Uint128::from(20u32),
-    }];
-    let nft_ask = vec![Nft {
-        contract_address: shittykittyz.addr(),
-        token_id: "3".to_string(),
-    }];
-    let ask_price = GenericBalance {
-        native: vec![],
-        cw20: cw20_ask,
-        nfts: nft_ask,
-    };
-    let cl = CreateListingMsg {
-        //id: 1,
-        ask: ask_price,
-        //whitelisted_purchasers: None,
-        whitelisted_buyer: None,
-    };
-    let clm = crate::msg::ExecuteMsg::CreateListing {
-        create_msg: cl,
-    };
-
-    //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    // Create listing w/ FOR_SALE: 5 Juno
-    //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-    let x = [1; 100];
-
-    for _num in x {
-        let res: Result<AppResponse> = router.execute_contract(
-            john.address.clone(),
-            fuzionmarket.clone(),
-            &clm,
-            &coins(1, "ujunox"),
-        );
-
-        ensure!(res.is_ok(), here("'Testing Ask Creation' failure", line!(), column!()));
-    }
-
-    for _num in x {
-        let res: Result<AppResponse> = router.execute_contract(
-            sam.address.clone(),
-            fuzionmarket.clone(),
-            &clm,
-            &coins(1, "ujunox"),
-        );
-        ensure!(res.is_ok(), here("'Testing Ask Creation' failure", line!(), column!()));
-    }
-
-    for _num in x {
-        let res: Result<AppResponse> = router.execute_contract(
-            max.address.clone(),
-            fuzionmarket.clone(),
-            &clm,
-            &coins(1, "ujunox"),
-        );
-        ensure!(res.is_ok(), here("'Testing Ask Creation' failure", line!(), column!()));
-    }
-
-    for _num in x {
-        let res: Result<AppResponse> = router.execute_contract(
-            bad_actor.address.clone(),
-            fuzionmarket.clone(),
-            &clm,
-            &coins(1, "ujunox"),
-        );
-        ensure!(res.is_ok(), here("'Testing Ask Creation' failure", line!(), column!()));
-    }
 
     Ok(())
 }

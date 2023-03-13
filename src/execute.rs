@@ -7,10 +7,15 @@ pub fn execute_create_bucket(
     deps: DepsMut,
     funds: &Balance,
     creator: &Addr,
+    bucket_id: u64,
 ) -> Result<Response, ContractError> {
-    let count = BUCKET_COUNT.load(deps.storage)?;
+    // If this bucket_id has been used before, it cannot be used again
+    if BUCKET_ID_USED.has(deps.storage, bucket_id) {
+        return Err(ContractError::IdAlreadyExists {});
+    }
+
     // Check that bucket_id isn't used (edge case)
-    if BUCKETS.has(deps.storage, (creator.clone(), count)) {
+    if BUCKETS.has(deps.storage, (creator.clone(), bucket_id)) {
         return Err(ContractError::IdAlreadyExists {});
     }
 
@@ -21,7 +26,7 @@ pub fn execute_create_bucket(
     // Save bucket
     BUCKETS.save(
         deps.storage,
-        (creator.clone(), count),
+        (creator.clone(), bucket_id),
         &Bucket {
             owner: creator.clone(),
             funds: GenericBalance::from_balance(funds),
@@ -29,34 +34,34 @@ pub fn execute_create_bucket(
         },
     )?;
 
-    // Update count
-    BUCKET_COUNT
-        .update(deps.storage, |old| -> Result<u64, StdError> {
-            Ok(old.checked_add(1).unwrap_or(1))
-        })
-        .map_err(|_| ContractError::GenericError("Error updating Bucket Count".to_string()))?;
+    // Save bucket_id as used
+    BUCKET_ID_USED.save(deps.storage, bucket_id, &true)?;
 
     Ok(Response::new()
         .add_attribute("action", "create_bucket")
-        .add_attribute("bucket_id", count.to_string()))
+        .add_attribute("bucket_id", bucket_id.to_string()))
 }
 
 pub fn execute_create_bucket_cw721(
     deps: DepsMut,
     user_wallet: &Addr,
     nft: Nft,
+    bucket_id: u64,
 ) -> Result<Response, ContractError> {
-    let count = BUCKET_COUNT.load(deps.storage)?;
+    // If this bucket_id has been used before, it cannot be used again
+    if BUCKET_ID_USED.has(deps.storage, bucket_id) {
+        return Err(ContractError::IdAlreadyExists {});
+    }
 
     // Check that bucket_id isn't used (edge case)
-    if BUCKETS.has(deps.storage, (user_wallet.clone(), count)) {
+    if BUCKETS.has(deps.storage, (user_wallet.clone(), bucket_id)) {
         return Err(ContractError::IdAlreadyExists {});
     }
 
     // NFT validation checks are handled in receiver wrapper
     BUCKETS.save(
         deps.storage,
-        (user_wallet.clone(), count),
+        (user_wallet.clone(), bucket_id),
         &Bucket {
             owner: user_wallet.clone(),
             funds: GenericBalance::from_nft(nft),
@@ -64,16 +69,12 @@ pub fn execute_create_bucket_cw721(
         },
     )?;
 
-    // Update count
-    BUCKET_COUNT
-        .update(deps.storage, |old| -> Result<u64, StdError> {
-            Ok(old.checked_add(1).unwrap_or(1))
-        })
-        .map_err(|_| ContractError::GenericError("Error updating Bucket Count".to_string()))?;
+    // Save bucket_id as used
+    BUCKET_ID_USED.save(deps.storage, bucket_id, &true)?;
 
     Ok(Response::new()
         .add_attribute("action", "create_bucket")
-        .add_attribute("bucket_id", count.to_string()))
+        .add_attribute("bucket_id", bucket_id.to_string()))
 }
 
 pub fn execute_add_to_bucket(
@@ -199,16 +200,19 @@ pub fn execute_create_listing(
     user_address: &Addr,
     funds_sent: &Balance,
     createlistingmsg: CreateListingMsg,
+    listing_id: u64,
 ) -> Result<Response, ContractError> {
     // Error if funds_sent contains duplicates or 0 balances
     // - Prefer this over normalize to abort rather than alter balance sent
     funds_sent.normalized_check()?;
 
-    // Pull incrementor ID
-    let count = LISTING_COUNT.load(deps.storage)?;
+    // If listing_id has been used, it cannot be used again
+    if LISTING_ID_USED.has(deps.storage, listing_id) {
+        return Err(ContractError::IdAlreadyExists {});
+    }
 
-    // Check edge case that incrementor ID is taken
-    if (listingz().idx.id.item(deps.storage, count)?).is_some() {
+    // Check edge case that ID is taken
+    if (listingz().idx.id.item(deps.storage, listing_id)?).is_some() {
         return Err(ContractError::IdAlreadyExists {});
     }
 
@@ -235,10 +239,10 @@ pub fn execute_create_listing(
     // Save listing
     listingz().save(
         deps.storage,
-        (user_address, count),
+        (user_address, listing_id),
         &Listing {
             creator: user_address.clone(),
-            id: count,
+            id: listing_id,
             finalized_time: None,
             expiration_time: None,
             status: Status::BeingPrepared,
@@ -250,22 +254,12 @@ pub fn execute_create_listing(
         },
     )?;
 
-    // Update count
-    // Edge case:
-    // If (18,446,744,073,709,551,615 - 2) Listings are created before a Listing has been removed,
-    // The following Listing Creation call will fail
-    // For this to occur, assuming 7 bil human on earth, every human would need to create 2,635,249,153 Listings
-    // Assuming 0.001 JUNO gas per tx, that would generate 18,446,744,073,709,551 JUNO in network fees
-    // Should handle this case anyway because safety
-    LISTING_COUNT
-        .update(deps.storage, |old| -> Result<u64, StdError> {
-            Ok(old.checked_add(1).unwrap_or(1))
-        })
-        .map_err(|_| ContractError::GenericError("Error updating Listing Count".to_string()))?;
+    // Mark this ID as used
+    LISTING_ID_USED.save(deps.storage, listing_id, &true)?;
 
     Ok(Response::new()
         .add_attribute("action", "create_listing")
-        .add_attribute("listing_id", count.to_string())
+        .add_attribute("listing_id", listing_id.to_string())
         .add_attribute("creator", user_address.to_string()))
 }
 
@@ -274,12 +268,15 @@ pub fn execute_create_listing_cw721(
     user_wallet: &Addr,
     nft: Nft,
     createlistingmsg: CreateListingMsg,
+    listing_id: u64,
 ) -> Result<Response, ContractError> {
-    // Pull ID incrementor
-    let count = LISTING_COUNT.load(deps.storage)?;
+    // If this listing_id has been used, it cannot be used again
+    if LISTING_ID_USED.has(deps.storage, listing_id) {
+        return Err(ContractError::IdAlreadyExists {});
+    }
 
     // Edge case check that ID isn't taken
-    if (listingz().idx.id.item(deps.storage, count)?).is_some() {
+    if (listingz().idx.id.item(deps.storage, listing_id)?).is_some() {
         return Err(ContractError::IdAlreadyExists {});
     }
 
@@ -305,10 +302,10 @@ pub fn execute_create_listing_cw721(
 
     listingz().save(
         deps.storage,
-        (user_wallet, count),
+        (user_wallet, listing_id),
         &Listing {
             creator: user_wallet.clone(),
-            id: count,
+            id: listing_id,
             finalized_time: None,
             expiration_time: None,
             status: Status::BeingPrepared,
@@ -320,15 +317,12 @@ pub fn execute_create_listing_cw721(
         },
     )?;
 
-    LISTING_COUNT
-        .update(deps.storage, |old| -> Result<u64, StdError> {
-            Ok(old.checked_add(1).unwrap_or(1))
-        })
-        .map_err(|_| ContractError::GenericError("Error updating Listing Count".to_string()))?;
+    // Mark this listing_id as used
+    LISTING_ID_USED.save(deps.storage, listing_id, &true)?;
 
     Ok(Response::new()
         .add_attribute("action", "create_cw721_listing")
-        .add_attribute("listing_id", count.to_string())
+        .add_attribute("listing_id", listing_id.to_string())
         .add_attribute("creator", user_wallet.to_string()))
 }
 
@@ -490,7 +484,7 @@ pub fn execute_add_to_listing_cw721(
         Some(&old_listing),
     )?;
 
-    Ok(Response::default())
+    Ok(Response::new().add_attribute("Added NFT to listing", listing_id.to_string()))
 }
 
 pub fn execute_finalize(

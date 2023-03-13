@@ -108,8 +108,9 @@ function create_listing_cw20 {
     MARKET_CONTRACT=$1
     CW20_CONTRACT_ADDR=$2
     AMOUNT=$3
+    ID=$4
 
-    LISTING_BASE64=`printf '{"create_listing_cw20":{"create_msg":{"ask":{"native":[{"denom":"ujunox","amount":"1"}],"cw20":[],"nfts":[]}}}}' | base64 -w 0`
+    LISTING_BASE64=`printf '{"create_listing_cw20":{"listing_id":%d,"create_msg":{"ask":{"native":[{"denom":"ujunox","amount":"1"}],"cw20":[],"nfts":[]}}}}' $ID | base64 -w 0`
     SEND_TOKEN_JSON=`printf '{"send":{"contract":"%s","amount":"%s","msg":"%s"}}' $MARKET_CONTRACT $AMOUNT $LISTING_BASE64`        
 
     wasm_cmd $CW20_CONTRACT_ADDR "$SEND_TOKEN_JSON" "" dont_show
@@ -119,8 +120,9 @@ function create_listing_cw20_other {
     MARKET_CONTRACT=$1
     CW20_CONTRACT_ADDR=$2
     AMOUNT=$3
+    ID=$4
 
-    LISTING_BASE64=`printf '{"create_listing_cw20":{"create_msg":{"ask":{"native":[{"denom":"ujunox","amount":"1"}],"cw20":[],"nfts":[]}}}}' | base64 -w 0`
+    LISTING_BASE64=`printf '{"create_listing_cw20":{"listing_id":%d,"create_msg":{"ask":{"native":[{"denom":"ujunox","amount":"1"}],"cw20":[],"nfts":[]}}}}' $ID | base64 -w 0`
     SEND_TOKEN_JSON=`printf '{"send":{"contract":"%s","amount":"%s","msg":"%s"}}' $MARKET_CONTRACT $AMOUNT $LISTING_BASE64`        
 
     wasm_cmd_other $CW20_CONTRACT_ADDR "$SEND_TOKEN_JSON" "" dont_show
@@ -183,8 +185,9 @@ function create_bucket_cw20 {
     MARKET_CONTRACT=$1
     CW20_CONTRACT_ADDR=$2
     AMOUNT=$3
+    ID=$4
 
-    BUCKET_BASE64=`printf '{"create_bucket_cw20":{}' | base64 -w 0` 
+    BUCKET_BASE64=`printf '{"create_bucket_cw20":{"bucket_id":%d}' $ID | base64 -w 0` 
     SEND_TOKEN_JSON=`printf '{"send":{"contract":"%s","amount":"%s","msg":"%s"}}' $MARKET_CONTRACT $AMOUNT $BUCKET_BASE64`        
 
     wasm_cmd $CW20_CONTRACT_ADDR "$SEND_TOKEN_JSON" "" dont_show
@@ -194,8 +197,9 @@ function create_bucket_cw20_other {
     MARKET_CONTRACT=$1
     CW20_CONTRACT_ADDR=$2
     AMOUNT=$3
+    ID=$4
 
-    BUCKET_BASE64=`printf '{"create_bucket_cw20":{}' | base64 -w 0` 
+    BUCKET_BASE64=`printf '{"create_bucket_cw20":{"bucket_id":%d}' $ID | base64 -w 0` 
     SEND_TOKEN_JSON=`printf '{"send":{"contract":"%s","amount":"%s","msg":"%s"}}' $MARKET_CONTRACT $AMOUNT $BUCKET_BASE64`        
 
     wasm_cmd_other $CW20_CONTRACT_ADDR "$SEND_TOKEN_JSON" "" dont_show
