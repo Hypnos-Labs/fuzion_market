@@ -605,6 +605,17 @@ function check_prev_ids {
     ASSERT_CONTAINS "$CMD_LOG" 'Error Message:'
 }
 
+function check_max_id {
+    echoe "Creating Listing with too high ID (9007199254740990)"
+    wasm_cmd $MARKET_CONTRACT '{"create_listing":{"listing_id":9007199254740990,"create_msg":{"ask":{"native":[{"denom":"uosmo","amount":"1"}],"cw20":[],"nfts":[]}}}}' "5ujunox"
+    ASSERT_CONTAINS "$CMD_LOG" 'Error Message:'
+
+    echoe "Creating bucket with too high ID (9007199254740990)"
+    wasm_cmd $MARKET_CONTRACT '{"create_bucket":{"bucket_id":9007199254740990}}' "5ujunox"
+    ASSERT_CONTAINS "$CMD_LOG" 'Error Message:'
+
+}
+
 
 # running tests
 test_ask_failure
@@ -612,6 +623,7 @@ test_dupes_zeros_funds_sent
 both_have_fee_denom
 big_sale
 check_prev_ids
+check_max_id
 
 # 1 if any of the above test failed, this way it will ensure to X the github
 exit $FINAL_STATUS_CODE

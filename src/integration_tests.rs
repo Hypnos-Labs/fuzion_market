@@ -495,6 +495,184 @@ pub mod create_valid_listing {
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// Max ID Checks
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+#[test]
+fn max_id_check() -> Result<(), anyhow::Error> {
+    //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    // Setup
+    //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    //use std::borrow::BorrowMut;
+    use anyhow::Result;
+    use cw_multi_test::AppResponse;
+    // Setup
+    let mut router = App::default();
+    let contract_admin = create_users::fake_user("admin".to_string());
+    let john = create_users::fake_user("john".to_string());
+    let sam = create_users::fake_user("sam".to_string());
+    let max = create_users::fake_user("max".to_string());
+
+    // Instantiate all contracts
+    let (jvone, jvtwo, jvtre, neonpeepz, shittykittyz, fuzionmarket) =
+        init_all_contracts(&mut router, &contract_admin, &john, &sam, &max)?;
+
+    // Give native balances to all users
+    // Each user gets 100 VALID_NATIVE
+    let router = give_natives(&john, &mut router);
+    let router = give_natives(&sam, router);
+    let router = give_natives(&max, router);
+    //let router = give_natives(&bad_actor, &mut router);
+
+    //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    // Lisiting with too high ID
+    //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+    //~~~~~~~~~~~~~~~~~~~~~~~~~~
+    // With Native
+    //~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+    let id_equal = create_valid_listing::create_valid_ask(
+        MAX_SAFE_INT,
+        Some(10),
+        Some(jvone.addr()),
+        Some(Uint128::from(25u32)),
+        Some(jvtwo.addr()),
+        Some(Uint128::from(10u32)),
+        Some(jvtre.addr()),
+        Some(Uint128::from(15u32)),
+        Some(neonpeepz.addr()),
+        Some("3".to_string()),
+        Some(shittykittyz.addr()),
+        Some("3".to_string()),
+        None,
+    );
+
+    let id_over = create_valid_listing::create_valid_ask(
+        MAX_SAFE_INT + 1,
+        Some(10),
+        Some(jvone.addr()),
+        Some(Uint128::from(25u32)),
+        Some(jvtwo.addr()),
+        Some(Uint128::from(10u32)),
+        Some(jvtre.addr()),
+        Some(Uint128::from(15u32)),
+        Some(neonpeepz.addr()),
+        Some("3".to_string()),
+        Some(shittykittyz.addr()),
+        Some("3".to_string()),
+        None,
+    );
+    let one_juno = coins(1, "ujunox");
+    let res: Result<AppResponse> =
+        router.execute_contract(john.address.clone(), fuzionmarket.clone(), &id_equal, &one_juno);
+    ensure!(res.is_err(), here("'Testing Ask Creation' failure", line!(), column!()));
+
+    let res: Result<AppResponse> =
+        router.execute_contract(john.address.clone(), fuzionmarket.clone(), &id_over, &one_juno);
+    ensure!(res.is_err(), here("'Testing Ask Creation' failure", line!(), column!()));
+
+    //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    // Create with cw20
+    //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+    let cm = create_valid_listing::create_listing_msg(jvone.addr(), neonpeepz.addr(), None);
+    let cmsg = to_binary(&crate::msg::ReceiveMsg::CreateListingCw20 {
+        listing_id: MAX_SAFE_INT,
+        create_msg: cm,
+    })?;
+    let createmsg = cw20_base::msg::ExecuteMsg::Send {
+        contract: fuzionmarket.to_string(),
+        amount: Uint128::from(1u32),
+        msg: cmsg,
+    };
+    let res: Result<AppResponse> =
+        router.execute_contract(john.address.clone(), jvone.addr(), &createmsg, &[]);
+    ensure!(res.is_err(), here("'Testing Ask Creation with cw20' failure", line!(), column!()));
+
+    //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    // Create with NFT
+    //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    let cm = create_valid_listing::create_listing_msg(jvone.addr(), neonpeepz.addr(), None);
+    let cmsg_nft = to_binary(&crate::msg::ReceiveNftMsg::CreateListingCw721 {
+        listing_id: MAX_SAFE_INT,
+        create_msg: cm,
+    })?;
+    let createmsg_nft: cw721_base::ExecuteMsg<Option<Empty>, Empty> =
+        cw721_base::msg::ExecuteMsg::SendNft {
+            contract: fuzionmarket.to_string(),
+            token_id: "1".to_string(),
+            msg: cmsg_nft,
+        };
+    let res: Result<AppResponse> =
+        router.execute_contract(john.address.clone(), neonpeepz.addr(), &createmsg_nft, &[]);
+    ensure!(res.is_err(), here("'Testing Ask Creation with NFT' failure", line!(), column!()));
+
+    //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    // Bucket with too high ID
+    //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+    //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    // Create with Native
+    //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+    let create_native = crate::msg::ExecuteMsg::CreateBucket {
+        bucket_id: MAX_SAFE_INT,
+    };
+    let res: Result<AppResponse> = router.execute_contract(
+        john.address.clone(),
+        fuzionmarket.clone(),
+        &create_native,
+        &coins(1, "ujunox"),
+    );
+    ensure!(res.is_err(), here("Create Bucket native ID at max safe int", line!(), column!()));
+
+    //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    // Create with CW20
+    //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+    let john_msg = to_binary(&crate::msg::ReceiveMsg::CreateBucketCw20 {
+        bucket_id: MAX_SAFE_INT,
+    })
+    .unwrap();
+    let john_c_msg = cw20_base::msg::ExecuteMsg::Send {
+        contract: fuzionmarket.to_string(),
+        amount: Uint128::from(10u32),
+        msg: john_msg,
+    };
+
+    let res: Result<AppResponse> =
+        router.execute_contract(john.address.clone(), jvone.addr(), &john_c_msg, &[]);
+    ensure!(res.is_err(), here("create bucket cw20 ID max safe", line!(), column!()));
+
+    //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    // Create with NFT
+    //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+    let john_nft_msg = to_binary(&crate::msg::ReceiveNftMsg::CreateBucketCw721 {
+        bucket_id: MAX_SAFE_INT,
+    })
+    .unwrap();
+    let john_nft_c_msg: cw721_base::ExecuteMsg<Option<Empty>, Empty> =
+        cw721_base::ExecuteMsg::SendNft {
+            contract: fuzionmarket.to_string(),
+            token_id: "1".to_string(),
+            msg: john_nft_msg,
+        };
+    let res: Result<AppResponse> =
+        router.execute_contract(john.address.clone(), neonpeepz.addr(), &john_nft_c_msg, &[]);
+    ensure!(res.is_err(), here("John create bucket NFT max safe int", line!(), column!()));
+
+    Ok(())
+}
+
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // Listings
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 

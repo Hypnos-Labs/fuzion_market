@@ -9,6 +9,9 @@ pub fn execute_create_bucket(
     creator: &Addr,
     bucket_id: u64,
 ) -> Result<Response, ContractError> {
+    // Check ID value
+    max(bucket_id)?;
+
     // If this bucket_id has been used before, it cannot be used again
     if BUCKET_ID_USED.has(deps.storage, bucket_id) {
         return Err(ContractError::IdAlreadyExists {});
@@ -48,6 +51,9 @@ pub fn execute_create_bucket_cw721(
     nft: Nft,
     bucket_id: u64,
 ) -> Result<Response, ContractError> {
+    // Check ID value
+    max(bucket_id)?;
+
     // If this bucket_id has been used before, it cannot be used again
     if BUCKET_ID_USED.has(deps.storage, bucket_id) {
         return Err(ContractError::IdAlreadyExists {});
@@ -202,6 +208,9 @@ pub fn execute_create_listing(
     createlistingmsg: CreateListingMsg,
     listing_id: u64,
 ) -> Result<Response, ContractError> {
+    // Check ID value
+    max(listing_id)?;
+
     // Error if funds_sent contains duplicates or 0 balances
     // - Prefer this over normalize to abort rather than alter balance sent
     funds_sent.normalized_check()?;
@@ -270,6 +279,9 @@ pub fn execute_create_listing_cw721(
     createlistingmsg: CreateListingMsg,
     listing_id: u64,
 ) -> Result<Response, ContractError> {
+    // Check ID value
+    max(listing_id)?;
+
     // If this listing_id has been used, it cannot be used again
     if LISTING_ID_USED.has(deps.storage, listing_id) {
         return Err(ContractError::IdAlreadyExists {});

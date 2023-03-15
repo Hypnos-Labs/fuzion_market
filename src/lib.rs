@@ -48,7 +48,7 @@ mod execute_imports {
         FEE_DENOM,
         LISTING_ID_USED, //BUCKET_COUNT, LISTING_COUNT
     };
-    pub use crate::utils::{calc_fee_coin, proto_encode, send_tokens_cosmos};
+    pub use crate::utils::{calc_fee_coin, max, proto_encode, send_tokens_cosmos};
     pub use cosmwasm_std::{Addr, DepsMut, Env, Response, StdError};
     pub use cw20::Balance;
 }
@@ -57,7 +57,7 @@ mod integration_tests_imports {
     pub use anyhow::ensure;
     pub use core::fmt::Display;
 
-    pub use crate::{msg::*, state::*};
+    pub use crate::{msg::*, state::*, utils::MAX_SAFE_INT};
     pub use cosmwasm_std::{coins, to_binary, Addr, Coin, Empty, Uint128};
     pub use cw20::{Cw20Coin, Cw20CoinVerified, Cw20Contract};
 }
