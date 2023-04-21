@@ -471,15 +471,18 @@ function both_have_fee_denom {
 # Testing what happens if a Listing/bucket has a large amount of
 # different assets when withdrawing for out of gas errors
 # for out of gas issues
+# NOTE: Currently there is a hardcoded limit of 35 different assets (nfts + cw20s + natives)
+# So as long as 35 NFTs & 35 CW20s succeeds
 # [X] 100 NFTs failure <===
 # [X]  75 NFTs failure <===
 # [X]  50 NFTs success 
+# [x]  Hardcoded 35 Asset limit
 function big_sale {
     # State incrementor is 3 now, so ID's will be 3
 
     # Create super long ask price and minting 100 NFTs for each user
     nfts=""
-    for ((i=3;i<=53;i++))
+    for ((i=3;i<=38;i++))
     do
         if [[ $i -eq 3 ]]; then
             nfts="{\"contract_address\":\"$CW721_CONTRACTDOG\",\"token_id\":\"$i\"}"
@@ -491,17 +494,17 @@ function big_sale {
         mint_cw721 $CW721_CONTRACTDOG "$i" $KEY_ADDR_TWO "https://google.com"
     done
 
-    # test-user creates listing 3 with 200 ujunox and Dog #3 - #103 in ask
-    # will be selling 200ujunox and Cat NFT #3 - 103
+    # test-user creates listing 3 with 200 ujunox and Dog #3 - #38 in ask
+    # will be selling 200ujunox and Cat NFT #3 - 38
     wasm_cmd $MARKET_CONTRACT "$(printf '{"create_listing":{"listing_id":3,"create_msg":{"ask":{"native":[{"denom":"ujunox","amount":"200"}],"cw20":[],"nfts":[%s]}}}}' "$nfts")" "200ujunox" show_log
 
     # other-user creates bucket 3 with 200 ujunox
     wasm_cmd_other $MARKET_CONTRACT '{"create_bucket":{"bucket_id":3}}' "200ujunox" show_log
 
-    # test-user adds Cat #3 - 103 to listing 3
-    # other-user adds Dog #3 - 103 to bucket 3
-    echoe "adding 100 NFTs to listing 3 and bucket 3"
-    for ((i=3;i<=53;i++))
+    # test-user adds Cat #3 - 38 to listing 3
+    # other-user adds Dog #3 - 38 to bucket 3
+    echoe "adding 34 NFTs to listing 3 and bucket 3"
+    for ((i=3;i<=38;i++))
     do
         # test-user adds cat $i to listing 3
         add_nft_to_listing $MARKET_CONTRACT $CW721_CONTRACTCAT "$i" 3
@@ -547,11 +550,11 @@ function big_sale {
 
     CHECK_FEE $TEST_USER_BAL $TEST_USER_BAL_POST 200
 
-    echoe "test-user should own dog NFT 3 - 53"
-    DOG_X_OWNER=$(query_contract $CW721_CONTRACTDOG '{"owner_of":{"token_id":"30"}}' | jq -r '.data.owner')
+    echoe "test-user should own dog NFT 3 - 37"
+    DOG_X_OWNER=$(query_contract $CW721_CONTRACTDOG '{"owner_of":{"token_id":"3"}}' | jq -r '.data.owner')
     ASSERT_EQUAL "$DOG_X_OWNER" $KEY_ADDR
 
-    DOG_XX_OWNER=$(query_contract $CW721_CONTRACTDOG '{"owner_of":{"token_id":"50"}}' | jq -r '.data.owner')
+    DOG_XX_OWNER=$(query_contract $CW721_CONTRACTDOG '{"owner_of":{"token_id":"37"}}' | jq -r '.data.owner')
     ASSERT_EQUAL "$DOG_XX_OWNER" $KEY_ADDR
 
 
@@ -576,14 +579,15 @@ function big_sale {
     
     CHECK_FEE $OTHER_USER_BAL $OTHER_USER_BAL_POST 200
 
-    echoe "other-user should own cat NFT 3 - 53"
-    CAT_X_OWNER=$(query_contract $CW721_CONTRACTCAT '{"owner_of":{"token_id":"30"}}' | jq -r '.data.owner')
+    echoe "other-user should own cat NFT 3 - 37"
+    CAT_X_OWNER=$(query_contract $CW721_CONTRACTCAT '{"owner_of":{"token_id":"3"}}' | jq -r '.data.owner')
     ASSERT_EQUAL "$CAT_X_OWNER" $KEY_ADDR_TWO
 
-    CAT_XX_OWNER=$(query_contract $CW721_CONTRACTCAT '{"owner_of":{"token_id":"50"}}' | jq -r '.data.owner')
+    CAT_XX_OWNER=$(query_contract $CW721_CONTRACTCAT '{"owner_of":{"token_id":"37"}}' | jq -r '.data.owner')
     ASSERT_EQUAL "$CAT_XX_OWNER" $KEY_ADDR_TWO
 
 }
+
 
 # Checking that previously used ID's (even ones that have been removed & deleted)
 # cannot be used again

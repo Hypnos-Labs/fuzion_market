@@ -104,7 +104,7 @@ pub fn execute_add_to_bucket(
     }
 
     // Add tokens
-    let new_bucket = {
+    let new_bucket: Bucket = {
         let old_funds = the_bucket.funds.clone();
         let mut new_bucket = the_bucket;
         new_bucket.funds.add_tokens(funds);
@@ -114,6 +114,9 @@ pub fn execute_add_to_bucket(
             Ok(new_bucket)
         }
     }?;
+
+    // Check that bucket funds are valid (specifically not over 35)
+    new_bucket.funds.check_valid()?;
 
     // Save the updated bucket
     //BUCKETS.save(deps.storage, (sender.clone(), &bucket_id), &new_bucket)?;
@@ -146,7 +149,7 @@ pub fn execute_add_to_bucket_cw721(
     }
 
     // Create updated bucket
-    let new_bucket = {
+    let new_bucket: Bucket = {
         let old_funds = the_bucket.funds.clone();
         let mut new_bucket = the_bucket;
         new_bucket.funds.add_nft(nft);
@@ -156,6 +159,9 @@ pub fn execute_add_to_bucket_cw721(
             Ok(new_bucket)
         }
     }?;
+
+    // Check that bucket funds are valid (specifically not over 35)
+    new_bucket.funds.check_valid()?;
 
     // Save updated bucket
     BUCKETS.update(deps.storage, (user_wallet.clone(), bucket_id), {
@@ -423,7 +429,7 @@ pub fn execute_add_to_listing(
     }
 
     // Update old listing by adding tokens
-    let new_listing = {
+    let new_listing: Listing = {
         let old_listing = listing.for_sale.clone();
         let mut new = listing.clone();
         new.for_sale.add_tokens(balance);
@@ -434,6 +440,9 @@ pub fn execute_add_to_listing(
             Ok(new)
         }
     }?;
+
+    // Check that new_listings for_sale is valid (specifically over 35 values);
+    new_listing.for_sale.check_valid()?;
 
     listingz().replace(
         deps.storage,
@@ -477,7 +486,7 @@ pub fn execute_add_to_listing_cw721(
     }
 
     // Create updated listing
-    let new_listing = {
+    let new_listing: Listing = {
         let old = old_listing.for_sale.clone();
         let mut new = old_listing.clone();
         new.for_sale.add_nft(nft);
@@ -487,6 +496,9 @@ pub fn execute_add_to_listing_cw721(
             Ok(new)
         }
     }?;
+
+    // Check that new_listings for_sale is valid (specifically over 35 values);
+    new_listing.for_sale.check_valid()?;
 
     // Replace old listing with new listing
     listingz().replace(

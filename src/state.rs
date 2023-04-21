@@ -387,11 +387,17 @@ impl GenericBalance {
     /// - Any Cw20 token amount == 0
     /// - Any duplicate Native Denom
     /// - Any duplicate Cw20 Contract addresses
+    /// - Number of Natives, CW20's, and NFTs are over 35
     pub fn check_valid(&self) -> Result<(), ContractError> {
         // Check that it isn't completely empty
         let length = self.native.len() + self.cw20.len() + self.nfts.len();
         if length == 0 {
             return Err(ContractError::GenericError("Cannot be empty".to_string()));
+        }
+
+        // Check that length is not over 35 to avoid out of gas issues
+        if length >= 35 {
+            return Err(ContractError::GenericError("35 asset maximum exceeded".to_string()));
         }
 
         // Check Natives for 0's
