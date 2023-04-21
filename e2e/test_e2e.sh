@@ -482,7 +482,7 @@ function big_sale {
 
     # Create super long ask price and minting 100 NFTs for each user
     nfts=""
-    for ((i=3;i<=38;i++))
+    for ((i=3;i<=37;i++))
     do
         if [[ $i -eq 3 ]]; then
             nfts="{\"contract_address\":\"$CW721_CONTRACTDOG\",\"token_id\":\"$i\"}"
@@ -504,7 +504,7 @@ function big_sale {
     # test-user adds Cat #3 - 38 to listing 3
     # other-user adds Dog #3 - 38 to bucket 3
     echoe "adding 34 NFTs to listing 3 and bucket 3"
-    for ((i=3;i<=38;i++))
+    for ((i=3;i<=37;i++))
     do
         # test-user adds cat $i to listing 3
         add_nft_to_listing $MARKET_CONTRACT $CW721_CONTRACTCAT "$i" 3
