@@ -396,7 +396,7 @@ impl GenericBalance {
         }
 
         // Check that length is not over 35 to avoid out of gas issues
-        if length >= 35 {
+        if length > 35 {
             return Err(ContractError::GenericError("35 asset maximum exceeded".to_string()));
         }
 

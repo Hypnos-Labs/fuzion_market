@@ -482,7 +482,7 @@ function big_sale {
 
     # Create super long ask price and minting 100 NFTs for each user
     nfts=""
-    for ((i=3;i<=37;i++))
+    for ((i=3;i<=36;i++))
     do
         if [[ $i -eq 3 ]]; then
             nfts="{\"contract_address\":\"$CW721_CONTRACTDOG\",\"token_id\":\"$i\"}"
@@ -504,7 +504,7 @@ function big_sale {
     # test-user adds Cat #3 - 38 to listing 3
     # other-user adds Dog #3 - 38 to bucket 3
     echoe "adding 34 NFTs to listing 3 and bucket 3"
-    for ((i=3;i<=37;i++))
+    for ((i=3;i<=36;i++))
     do
         # test-user adds cat $i to listing 3
         add_nft_to_listing $MARKET_CONTRACT $CW721_CONTRACTCAT "$i" 3
@@ -550,11 +550,11 @@ function big_sale {
 
     CHECK_FEE $TEST_USER_BAL $TEST_USER_BAL_POST 200
 
-    echoe "test-user should own dog NFT 3 - 37"
+    echoe "test-user should own dog NFT 3 - 35"
     DOG_X_OWNER=$(query_contract $CW721_CONTRACTDOG '{"owner_of":{"token_id":"3"}}' | jq -r '.data.owner')
     ASSERT_EQUAL "$DOG_X_OWNER" $KEY_ADDR
 
-    DOG_XX_OWNER=$(query_contract $CW721_CONTRACTDOG '{"owner_of":{"token_id":"37"}}' | jq -r '.data.owner')
+    DOG_XX_OWNER=$(query_contract $CW721_CONTRACTDOG '{"owner_of":{"token_id":"35"}}' | jq -r '.data.owner')
     ASSERT_EQUAL "$DOG_XX_OWNER" $KEY_ADDR
 
 
@@ -579,11 +579,11 @@ function big_sale {
     
     CHECK_FEE $OTHER_USER_BAL $OTHER_USER_BAL_POST 200
 
-    echoe "other-user should own cat NFT 3 - 37"
+    echoe "other-user should own cat NFT 3 - 35"
     CAT_X_OWNER=$(query_contract $CW721_CONTRACTCAT '{"owner_of":{"token_id":"3"}}' | jq -r '.data.owner')
     ASSERT_EQUAL "$CAT_X_OWNER" $KEY_ADDR_TWO
 
-    CAT_XX_OWNER=$(query_contract $CW721_CONTRACTCAT '{"owner_of":{"token_id":"37"}}' | jq -r '.data.owner')
+    CAT_XX_OWNER=$(query_contract $CW721_CONTRACTCAT '{"owner_of":{"token_id":"35"}}' | jq -r '.data.owner')
     ASSERT_EQUAL "$CAT_XX_OWNER" $KEY_ADDR_TWO
 
 }
