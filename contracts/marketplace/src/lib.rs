@@ -14,8 +14,8 @@ mod contract_imports {
         Response, StdResult,
     };
     pub use cw2::set_contract_version;
-    pub use cw20::{Balance, Cw20CoinVerified, Cw20ReceiveMsg};
-    pub use cw721::Cw721ReceiveMsg;
+    pub use cw20::{Balance, Cw20CoinVerified, Cw20ReceiveMsg, Cw20QueryMsg, TokenInfoResponse};
+    pub use cw721::{Cw721ReceiveMsg, Cw721QueryMsg};
 
     pub use crate::error::ContractError;
     pub use crate::execute::{
@@ -27,7 +27,8 @@ mod contract_imports {
     };
     pub use crate::msg::{ExecuteMsg, InstantiateMsg, QueryMsg, ReceiveMsg, ReceiveNftMsg};
     pub use crate::query::*;
-    pub use crate::state::{FeeDenom, Nft, FEE_DENOM};
+    pub use crate::state::{FeeDenom, Nft, FEE_DENOM, BUCKET_ID_USED, LISTING_ID_USED};
+    pub use royalties::msg::InstantiateMsg as RoyaltyInstantiateMsg;
 }
 
 mod execute_imports {
@@ -47,10 +48,17 @@ mod execute_imports {
         BUCKET_ID_USED,
         FEE_DENOM,
         LISTING_ID_USED, //BUCKET_COUNT, LISTING_COUNT
+        ROYALTY_REGISTRY
     };
     pub use crate::utils::{calc_fee_coin, max, send_tokens_cosmos};
-    pub use cosmwasm_std::{Addr, DepsMut, Env, Response, StdError};
+    pub use cosmwasm_std::{Addr, DepsMut, Env, Response, StdError, CosmosMsg};
     pub use cw20::Balance;
+    pub use std::collections::BTreeSet;
+    
+    pub use royalties::{
+        RoyaltyInfo,
+        msg::QueryMsg as RoyaltyQueryMsg,
+    };
 }
 
 mod integration_tests_imports {
@@ -97,6 +105,8 @@ mod state_imports {
     pub use cw_storage_plus::{Index, IndexList, IndexedMap, Item, Map, MultiIndex, UniqueIndex};
     pub use std::collections::BTreeMap;
     pub use anybuf::Anybuf;
+    pub use cosmwasm_std::{Empty, coin, StdError};
+    pub use royalties::RoyaltyInfo;
 }
 
 mod utils_imports {

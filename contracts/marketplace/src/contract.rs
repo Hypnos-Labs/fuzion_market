@@ -1,8 +1,9 @@
+use cosmwasm_std::{Reply, CosmosMsg, SubMsg, ReplyOn, WasmMsg, Empty};
+use cw_utils::parse_reply_instantiate_data;
+
 #[cfg(not(feature = "library"))]
 use crate::contract_imports::*;
-use crate::state::{BUCKET_ID_USED, LISTING_ID_USED};
-use cw20::{Cw20QueryMsg, TokenInfoResponse};
-use cw721::Cw721QueryMsg;
+use crate::state::ROYALTY_REGISTRY;
 
 const CONTRACT_NAME: &str = "crates.io:fuzion_market";
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -18,7 +19,7 @@ pub fn instantiate(
     deps: DepsMut,
     env: Env,
     _info: MessageInfo,
-    _msg: InstantiateMsg,
+    msg: InstantiateMsg,
 ) -> Result<Response, ContractError> {
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
 
@@ -28,7 +29,31 @@ pub fn instantiate(
 
     FEE_DENOM.save(deps.storage, &FeeDenom::JUNO(env.block.time.seconds()))?;
 
-    Ok(Response::new().add_attribute("action", "instantiate"))
+    // Instantiate Royalty Registry
+    let init_msg = to_binary(&RoyaltyInstantiateMsg {})?;
+
+    let cosmos_msg: CosmosMsg<Empty> = CosmosMsg::from(WasmMsg::Instantiate {
+        admin: None,
+        code_id: msg.royalty_code_id,
+        msg: init_msg,
+        funds: vec![],
+        label: "Fuzion Market Royalty Registry".to_string()
+    });
+
+
+    let sub_msg = SubMsg {
+        id: 1,
+        msg: cosmos_msg,
+        gas_limit: None,
+        reply_on: ReplyOn::Success,
+    };
+
+
+
+    Ok(Response::new()
+        .add_attribute("action", "instantiate")
+        .add_submessage(sub_msg)
+    )
 }
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -204,6 +229,36 @@ pub fn execute_receive_nft(
         } => execute_add_to_bucket_cw721(deps, &user_wallet, incoming_nft, bucket_id),
     }
 }
+
+
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// Reply
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+#[cfg_attr(not(feature = "library"), entry_point)]
+pub fn reply(
+    deps: DepsMut,
+    _env: Env,
+    msg: Reply
+) -> Result<Response, ContractError> {
+
+    match msg.id {
+        1 => {
+            let res = parse_reply_instantiate_data(msg.clone())
+                .map_err(|_e| ContractError::GenericError("Parse reply instantiate error".to_string()))?;
+
+            let royalty_addr = deps.api.addr_validate(&res.contract_address)?;
+
+            ROYALTY_REGISTRY.save(deps.storage, &Some(royalty_addr.clone()))?;
+
+            Ok(Response::new().add_attribute("Royalty Address:", format!("{royalty_addr}")))
+
+        },
+        _ => Err(ContractError::GenericError("Invalid SubMsg ID".to_string()))
+    }
+
+}
+
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // Query

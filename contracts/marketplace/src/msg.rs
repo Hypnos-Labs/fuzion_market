@@ -1,7 +1,9 @@
 use crate::msg_imports::*;
 
 #[cw_serde]
-pub struct InstantiateMsg {}
+pub struct InstantiateMsg {
+    pub royalty_code_id: u64
+}
 
 #[cw_serde]
 pub enum ExecuteMsg {

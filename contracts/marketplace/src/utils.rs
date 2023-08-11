@@ -1,8 +1,4 @@
-use cosmwasm_std::Response;
-
 use crate::utils_imports::*;
-
-//const COMMUNITY_POOL: &str = "juno1jv65s3grqf6v6jl3dp4t6c9t9rk99cd83d88wr";
 
 /// ID's are manually kept under the JS MAX_SAFE_INTEGER value (9007199254740991)
 /// to avoid deserialization bugs on JS clients that cause rounding of values above this

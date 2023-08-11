@@ -33,7 +33,7 @@ function stop_docker {
 }
 
 function start_docker {
-    IMAGE_TAG=${2:-"13.0.0"}
+    IMAGE_TAG=${2:-"16.0.0"}
     BLOCK_GAS_LIMIT=${GAS_LIMIT:-100000000} # mirrors mainnet
 
     echo "Building $IMAGE_TAG"
@@ -57,11 +57,13 @@ function compile_and_copy {
     docker run --rm -v "$(pwd)":/code \
       --mount type=volume,source="$(basename "$(pwd)")_cache",target=/code/target \
       --mount type=volume,source=registry_cache,target=/usr/local/cargo/registry \
-      cosmwasm/rust-optimizer:0.12.11
+      cosmwasm/workspace-optimizer:0.14.0
 
-    # copy wasm to docker container
-    docker cp ./artifacts/fuzion_market.wasm $CONTAINER_NAME:/fuzion_market.wasm
+    # copy market contract to docker container
+    docker cp ./artifacts/marketplace.wasm $CONTAINER_NAME:/marketplace.wasm
     # docker cp e2e/fuzion_market.wasm $CONTAINER_NAME:/fuzion_market.wasm
+
+    # copy royalty registry to docker container
 
     # copy helper contracts to container
     docker cp e2e/cw20_base.wasm $CONTAINER_NAME:/cw20_base.wasm
@@ -85,7 +87,7 @@ function health_status {
 function upload_market {
     # == UPLOAD market ==
     echo "Storing Market contract..."
-    MARKET_UPLOAD=$($BINARY tx wasm store /fuzion_market.wasm $JUNOD_COMMAND_ARGS | jq -r '.txhash') && echo $MARKET_UPLOAD
+    MARKET_UPLOAD=$($BINARY tx wasm store /marketplace.wasm $JUNOD_COMMAND_ARGS | jq -r '.txhash') && echo $MARKET_UPLOAD
     MARKET_BASE_CODE_ID=$($BINARY q tx $MARKET_UPLOAD --output json | jq -r '.logs[0].events[] | select(.type == "store_code").attributes[] | select(.key == "code_id").value') && echo "Code Id: $MARKET_BASE_CODE_ID"
 
     # == INSTANTIATE ==
@@ -471,18 +473,18 @@ function both_have_fee_denom {
 # Testing what happens if a Listing/bucket has a large amount of
 # different assets when withdrawing for out of gas errors
 # for out of gas issues
-# NOTE: Currently there is a hardcoded limit of 35 different assets (nfts + cw20s + natives)
-# So as long as 35 NFTs & 35 CW20s succeeds
+# NOTE: Currently there is a hardcoded limit of 25 different assets (nfts + cw20s + natives)
+# So as long as 25 NFTs & 25 CW20s succeeds
 # [X] 100 NFTs failure <===
 # [X]  75 NFTs failure <===
 # [X]  50 NFTs success 
-# [x]  Hardcoded 35 Asset limit
+# [x]  Hardcoded 25 Asset limit
 function big_sale {
     # State incrementor is 3 now, so ID's will be 3
 
     # Create super long ask price and minting 100 NFTs for each user
     nfts=""
-    for ((i=3;i<=36;i++))
+    for ((i=3;i<=27;i++))
     do
         if [[ $i -eq 3 ]]; then
             nfts="{\"contract_address\":\"$CW721_CONTRACTDOG\",\"token_id\":\"$i\"}"
@@ -503,8 +505,8 @@ function big_sale {
 
     # test-user adds Cat #3 - 38 to listing 3
     # other-user adds Dog #3 - 38 to bucket 3
-    echoe "adding 34 NFTs to listing 3 and bucket 3"
-    for ((i=3;i<=36;i++))
+    echoe "adding 25 NFTs to listing 3 and bucket 3"
+    for ((i=3;i<=27;i++))
     do
         # test-user adds cat $i to listing 3
         add_nft_to_listing $MARKET_CONTRACT $CW721_CONTRACTCAT "$i" 3

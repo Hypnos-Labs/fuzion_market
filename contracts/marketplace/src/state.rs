@@ -1,6 +1,3 @@
-use cosmwasm_std::{Empty, coin, StdError};
-use royalties::RoyaltyInfo;
-
 use crate::state_imports::*;
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -15,6 +12,8 @@ pub const LISTING_ID_USED: Map<u64, bool> = Map::new("listing_id_used");
 pub const BUCKET_ID_USED: Map<u64, bool> = Map::new("bucket_id_used");
 
 pub const FEE_DENOM: Item<FeeDenom> = Item::new("fee_denom");
+
+pub const ROYALTY_REGISTRY: Item<Option<Addr>> = Item::new("royalty_regsitry");
 
 #[cw_serde]
 pub enum FeeDenom {
@@ -459,9 +458,9 @@ impl GenericBalance {
         // - Remove collections without royalties
         let (sum_royalties, all_royalties): (u64, Vec<RoyaltyInfo>) = royalty_responses.into_iter()
             .filter_map(|r| r)
-            .fold((0, vec![]), |(acc, mut vec), item_thing| {
-                (acc + item_thing.bps, {
-                    vec.push(item_thing);
+            .fold((0, vec![]), |(acc, mut vec), royalty| {
+                (acc + royalty.bps, {
+                    vec.push(royalty);
                     vec
                 })
             });
@@ -529,7 +528,7 @@ impl GenericBalance {
         Ok((cosmos_msgs, sum_royalties))
 
     }
-    
+
 }
 
 

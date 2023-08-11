@@ -17,6 +17,11 @@ pub fn here(ctx: impl Display, line: impl Display, col: impl Display) -> String 
 
 pub mod create_contract {
     use crate::integration_tests::{Contract, ContractWrapper, Empty};
+    use royalties::msg::{
+        InstantiateMsg as RoyaltyInstantiateMsg,
+        ExecuteMsg as RoyaltyExecuteMsg,
+        QueryMsg as RoyaltyQuerymsg
+    };
 
     pub fn cw20_contract() -> Box<dyn Contract<Empty>> {
         let contract = ContractWrapper::new(
@@ -41,6 +46,16 @@ pub mod create_contract {
             crate::contract::execute,
             crate::contract::instantiate,
             crate::contract::query,
+        );
+
+        Box::new(contract)
+    }
+
+    pub fn royalty_contract() -> Box<dyn Contract<Empty>> {
+        let contract = ContractWrapper::new(
+            royalty::contract::execute,
+            royalty::contract::instantiate,
+            royalty::contract::query
         );
 
         Box::new(contract)
@@ -145,7 +160,10 @@ pub mod init_contracts {
 
     pub fn init_jv_contract(router: &mut App, admin: &Addr) -> Addr {
         let jv_id = router.store_code(fuzionmarket_contract());
-        let msg = InstantiateMsg {};
+        let royalty_id = router.store_code(royalty_contract());
+        let msg = InstantiateMsg {
+            royalty_code_id: royalty_id
+        };
 
         let addr =
             router.instantiate_contract(jv_id, admin.clone(), &msg, &[], "jv", None).unwrap();

@@ -1,17 +1,4 @@
-use std::collections::BTreeSet;
-
 use crate::execute_imports::*;
-
-const ROYALTY_REGISTRY_ADDR: &str = "j";
-use cosmwasm_std::CosmosMsg;
-use royalties::{
-    RoyaltyInfo,
-    msg::{
-        QueryMsg as RoyaltyQueryMsg,
-    }
-};
-
-//use royalty::ExecuteMsg;
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // Buckets
@@ -716,6 +703,12 @@ pub fn execute_buy_listing(
     // Mutable response
     let mut res = Response::<cosmwasm_std::Empty>::new();
 
+    // Royalty Registry address
+    let Some(royalty_reg): Option<Addr> = ROYALTY_REGISTRY.load(deps.storage)? else {
+        // probably assert here
+        return Err(ContractError::GenericError("No royalty registry".to_string()));
+    };
+
     // Listing Seller is getting the Bucket, therefore the Listing Seller
     // should pay royalties out of their proceeds which is the Bucket
     // (NFTs being sold are paid royalties from the purchase price)
@@ -724,7 +717,7 @@ pub fn execute_buy_listing(
         _ => {
             // Query contract to get royalty responses
             let royalty_responses: Vec<Option<RoyaltyInfo>> = deps.querier.query_wasm_smart(
-                ROYALTY_REGISTRY_ADDR, &RoyaltyQueryMsg::RoyaltyInfoMulti { nft_contracts: seller_nft_contracts }
+                royalty_reg.clone(), &RoyaltyQueryMsg::RoyaltyInfoMulti { nft_contracts: seller_nft_contracts }
             )?;
 
             // Get Royalty Cosmos Msgs & subtract royalty amounts from bucket
@@ -746,7 +739,7 @@ pub fn execute_buy_listing(
         0 => l_balance,
         _ => {
             let royalty_responses: Vec<Option<RoyaltyInfo>> = deps.querier.query_wasm_smart(
-                ROYALTY_REGISTRY_ADDR, &RoyaltyQueryMsg::RoyaltyInfoMulti { nft_contracts: buyer_nft_contracts }
+                royalty_reg, &RoyaltyQueryMsg::RoyaltyInfoMulti { nft_contracts: buyer_nft_contracts }
             )?;
 
             // Get Royalty CosmosMSgs & subtract royalty amounts from Listing
