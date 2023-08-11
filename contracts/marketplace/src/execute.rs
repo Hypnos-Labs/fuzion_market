@@ -1,4 +1,17 @@
+use std::collections::BTreeSet;
+
 use crate::execute_imports::*;
+
+const ROYALTY_REGISTRY_ADDR: &str = "j";
+use cosmwasm_std::CosmosMsg;
+use royalties::{
+    RoyaltyInfo,
+    msg::{
+        QueryMsg as RoyaltyQueryMsg,
+    }
+};
+
+//use royalty::ExecuteMsg;
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // Buckets
@@ -192,7 +205,7 @@ pub fn execute_withdraw_bucket(
 
     // Create Send Msgs
     // (fee_amount is added when Bucket is used to buy a Listing)
-    let msgs = the_bucket.withdraw_msgs(&env.contract.address)?;
+    let msgs = the_bucket.withdraw_msgs(env.contract.address.clone())?;
 
     // Remove Bucket
     BUCKETS.remove(deps.storage, (user.clone(), bucket_id));
@@ -497,7 +510,7 @@ pub fn execute_add_to_listing_cw721(
         }
     }?;
 
-    // Check that new_listings for_sale is valid (specifically over 35 values);
+    // Check that new_listings for_sale is valid (specifically over 25 values);
     new_listing.for_sale.check_valid()?;
 
     // Replace old listing with new listing
@@ -629,10 +642,10 @@ pub fn execute_buy_listing(
     bucket_id: u64,
 ) -> Result<Response, ContractError> {
     // Get bucket (will error if no bucket found)
-    let the_bucket = match BUCKETS.load(deps.storage, (buyer.clone(), bucket_id)) {
-        Ok(buck) => buck,
-        Err(_) => return Err(ContractError::LoadBucketError {}),
-    };
+    let the_bucket: Bucket = match BUCKETS.load(deps.storage, (buyer.clone(), bucket_id)) {
+        Ok(buck) => Ok(buck),
+        Err(_) => Err(ContractError::LoadBucketError {}),
+    }?;
 
     // Check listing exists & get the_listing
     let Some((_pk, the_listing)): Option<(_, Listing)> = listingz().idx.id.item(deps.storage, listing_id)? else {
@@ -673,10 +686,87 @@ pub fn execute_buy_listing(
     let fee_denom: FeeDenom = FEE_DENOM.load(deps.storage)?;
 
     // Calculate Fee amount for Listing (paid by Listing Buyer on withdraw)
-    let (l_fee_coin, l_balance) = calc_fee_coin(&fee_denom, &the_listing.for_sale)?;
+    let (l_fee_coin, mut l_balance) = calc_fee_coin(&fee_denom, &the_listing.for_sale)?;
 
-    // Delete Old Listing -> Save new listing with listing_buyer in key / creator && Fee
+    // Calculate Fee amount for Bucket (paid by Listing Seller on withdraw)
+    let (b_fee_coin, mut b_balance) = calc_fee_coin(&fee_denom, &the_bucket.funds)?;
+
+    // On the NFTs that the seller is selling, the Seller should pay royalties
+    // out of the proceeds they get from the sale
+
+    // On the NFTs that the buyer is paying with, the Buyer should pay royalties
+    // on the assets they're purchasing
+
+    // NFT contracts that seller is selling (duplicates removed)
+    let seller_nft_contracts = the_listing.for_sale.nfts
+        .iter()
+        .map(|nft| nft.contract_address.to_string())
+        .collect::<BTreeSet<_>>()
+        .into_iter()
+        .collect::<Vec<String>>();
+
+    // NFT contracts that buyer is paying with (duplicates removed)
+    let buyer_nft_contracts = the_bucket.funds.nfts
+        .iter()
+        .map(|nft| nft.contract_address.to_string())
+        .collect::<BTreeSet<_>>()
+        .into_iter()
+        .collect::<Vec<String>>();
+
+    // Mutable response
+    let mut res = Response::<cosmwasm_std::Empty>::new();
+
+    // Listing Seller is getting the Bucket, therefore the Listing Seller
+    // should pay royalties out of their proceeds which is the Bucket
+    // (NFTs being sold are paid royalties from the purchase price)
+    let final_bucket_balance = match seller_nft_contracts.len() {
+        0 => b_balance,
+        _ => {
+            // Query contract to get royalty responses
+            let royalty_responses: Vec<Option<RoyaltyInfo>> = deps.querier.query_wasm_smart(
+                ROYALTY_REGISTRY_ADDR, &RoyaltyQueryMsg::RoyaltyInfoMulti { nft_contracts: seller_nft_contracts }
+            )?;
+
+            // Get Royalty Cosmos Msgs & subtract royalty amounts from bucket
+            let (royalty_msgs, bips_paid) = b_balance.royalties(royalty_responses)?;
+
+            res = res.add_attribute("Total bips paid by seller from sale proceeds", bips_paid.to_string());
+
+            res = res.add_messages(royalty_msgs);
+
+            // Return updated GenericBalance (the Listing Seller's proceeds)
+            b_balance
+        }
+    };
+
+    // Listing Buyer is getting the Listing, therefore the Listing Buyer
+    // should pay royalties out of their purchase which is the Listing
+    // (NFTs used to purchase are paid royalties from the assets they're used to purchase)
+    let final_listing_balance = match buyer_nft_contracts.len() {
+        0 => l_balance,
+        _ => {
+            let royalty_responses: Vec<Option<RoyaltyInfo>> = deps.querier.query_wasm_smart(
+                ROYALTY_REGISTRY_ADDR, &RoyaltyQueryMsg::RoyaltyInfoMulti { nft_contracts: buyer_nft_contracts }
+            )?;
+
+            // Get Royalty CosmosMSgs & subtract royalty amounts from Listing
+            let (royalty_msgs, bips_paid) = l_balance.royalties(royalty_responses)?;
+
+            res = res.add_attribute("Total bips paid by buyer from purchased assets", bips_paid.to_string());
+
+            res = res.add_messages(royalty_msgs);
+
+            // Updated GenericBalance (the Buyer's purchased Listing)
+            l_balance
+        }
+    };
+
+    // Delete Old Listing
     listingz().remove(deps.storage, (&the_listing.creator, listing_id))?;
+    // Save new Listing with
+    // - Listing Buyer in key & creator
+    // - Community Pool fee added
+    // - Any NFT royalty payments removed
     listingz().save(
         deps.storage,
         (buyer, listing_id),
@@ -685,30 +775,33 @@ pub fn execute_buy_listing(
             claimant: Some(buyer.clone()),
             status: Status::Closed,
             fee_amount: l_fee_coin,
-            for_sale: l_balance,
+            for_sale: final_listing_balance,
             ..the_listing
         },
     )?;
 
-    // Calculate Fee amount for Bucket (paid by Listing Seller on withdraw)
-    let (b_fee_coin, b_balance) = calc_fee_coin(&fee_denom, &the_bucket.funds)?;
-
-    // Delete Old Bucket -> Save new Bucket with listing_seller in key / owner && Fee
+    // Delete Old Bucket
     BUCKETS.remove(deps.storage, (buyer.clone(), bucket_id));
+    // Save new Bucket with
+    // - Listing Seller in key & owner
+    // - Community Pool fee added
+    // - Any NFT royalty payments removed
     BUCKETS.save(
         deps.storage,
         (the_listing.creator.clone(), bucket_id),
         &Bucket {
             owner: the_listing.creator,
-            funds: b_balance,
+            funds: final_bucket_balance,
             fee_amount: b_fee_coin,
         },
     )?;
 
-    Ok(Response::new()
+    res = res
         .add_attribute("action", "buy_listing")
         .add_attribute("bucket_used", bucket_id.to_string())
-        .add_attribute("listing_purchased:", listing_id.to_string()))
+        .add_attribute("listing_purchased:", listing_id.to_string());
+
+    Ok(res)
 }
 
 pub fn execute_withdraw_purchased(
@@ -738,7 +831,7 @@ pub fn execute_withdraw_purchased(
     // Delete Listing
     listingz().remove(deps.storage, (&listing_claimant, listing_id))?;
 
-    let withdraw_msgs = the_listing.withdraw_msgs(&env.contract.address)?;
+    let withdraw_msgs = the_listing.withdraw_msgs(env.contract.address.clone())?;
 
     Ok(Response::new()
         .add_attribute("Action", "withdraw_purchased")

@@ -1,10 +1,10 @@
 use cosmwasm_schema::write_api;
-use fuzion_market::msg::{ExecuteMsg, InstantiateMsg, QueryMsg};
+use royalties::msg::{InstantiateMsg, QueryMsg, ExecuteMsg};
 
 fn main() {
     write_api! {
         instantiate: InstantiateMsg,
-        query: QueryMsg,
         execute: ExecuteMsg,
+        query: QueryMsg,
     }
 }

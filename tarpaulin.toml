@@ -1,7 +1,7 @@
 [all]
 exclude-files=[
-    "src/msg.rs",
-    "src/query.rs",
-    "src/lib.rs",
-    "src/error.rs"
+    "contracts/marketplace/src/msg.rs",
+    "contracts/marketplace/src/query.rs",
+    "contracts/marketplace/src/lib.rs",
+    "contracts/marketplace/src/error.rs"
 ]

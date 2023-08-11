@@ -1,0 +1,39 @@
+[package]
+name = "marketplace"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+publish.workspace = true
+keywords.workspace = true
+exclude = [
+    "artifacts/*",
+]
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+doctest = false
+
+[features]
+backtraces = ["cosmwasm-std/backtraces"]
+# library = []
+
+[dependencies]
+anyhow.workspace = true
+thiserror.workspace = true
+cosmwasm-std.workspace = true
+cosmwasm-schema.workspace = true
+cw-storage-plus.workspace = true
+schemars.workspace = true
+serde.workspace = true
+cw2 = "1.0.1"
+cw20 = "1.1.0"
+cw721 = "0.16.0"
+serde_json = "1.0.93"
+anybuf = "0.1.0"
+royalties = { path = "../../packages/royalties" }
+
+
+[dev-dependencies]
+cw-multi-test = "0.16.2"
+cw20-base = { version = "1.0.1", features = ["library"] }
+cw721-base = "0.16.0"

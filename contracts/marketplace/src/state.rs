@@ -1,3 +1,6 @@
+use cosmwasm_std::{Empty, coin, StdError};
+use royalties::RoyaltyInfo;
+
 use crate::state_imports::*;
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -109,7 +112,7 @@ impl Listing {
     /// **If `Listing.fee_amount.is_none()`**
     /// - Returns `Vec<CosmosMsg>` sending `Listing.for_sale` to `Listing.claimant`
     #[cfg(not(tarpaulin_include))]
-    pub fn withdraw_msgs(&self, contract_address: &Addr) -> Result<Vec<CosmosMsg>, ContractError> {
+    pub fn withdraw_msgs(&self, contract_addr: Addr) -> Result<Vec<CosmosMsg>, ContractError> {
         // Get claimant (This will not called when Listing does not have claimant)
         let user = self.claimant.as_ref().ok_or_else(|| {
             ContractError::GenericError("Listing has not been purchased".to_string())
@@ -125,7 +128,7 @@ impl Listing {
                 let mut user_msgs = send_tokens_cosmos(user, &self.for_sale).map_err(|_e| {
                     ContractError::GenericError("Error creating withdraw messages".to_string())
                 })?;
-                let fee_msg = fee.get_cp_msg(contract_address)?;
+                let fee_msg = fee.get_cp_msg(contract_addr)?;
                 user_msgs.push(fee_msg);
                 Ok(user_msgs)
             }
@@ -161,7 +164,7 @@ impl Bucket {
     /// **If `Bucket.fee_amount.is_none()`**
     /// - Returns `Vec<CosmosMsg>` sending `Bucket.funds` to `Bucket.owner`
     #[cfg(not(tarpaulin_include))]
-    pub fn withdraw_msgs(&self, contract_address: &Addr) -> Result<Vec<CosmosMsg>, ContractError> {
+    pub fn withdraw_msgs(&self, contract_addr: Addr) -> Result<Vec<CosmosMsg>, ContractError> {
         match &self.fee_amount {
             None => send_tokens_cosmos(&self.owner, &self.funds).map_err(|_e| {
                 ContractError::GenericError("Error creating withdraw messages".to_string())
@@ -170,7 +173,7 @@ impl Bucket {
                 let mut user_msgs = send_tokens_cosmos(&self.owner, &self.funds).map_err(|_e| {
                     ContractError::GenericError("Error creating withdraw messages".to_string())
                 })?;
-                let fee_msg = fee.get_cp_msg(contract_address)?;
+                let fee_msg = fee.get_cp_msg(contract_addr)?;
                 user_msgs.push(fee_msg);
                 Ok(user_msgs)
             }
@@ -387,7 +390,7 @@ impl GenericBalance {
     /// - Any Cw20 token amount == 0
     /// - Any duplicate Native Denom
     /// - Any duplicate Cw20 Contract addresses
-    /// - Number of Natives, CW20's, and NFTs are over 35
+    /// - Number of Natives, CW20's, and NFTs are over 25
     pub fn check_valid(&self) -> Result<(), ContractError> {
         // Check that it isn't completely empty
         let length = self.native.len() + self.cw20.len() + self.nfts.len();
@@ -396,7 +399,7 @@ impl GenericBalance {
         }
 
         // Check that length is not over 35 to avoid out of gas issues
-        if length > 35 {
+        if length > 25 {
             return Err(ContractError::GenericError("35 asset maximum exceeded".to_string()));
         }
 
@@ -446,22 +449,90 @@ impl GenericBalance {
         Ok(())
     }
 
-    // fn is_equal(&self, other: &GenericBalance) -> Result<(), ContractError> {
-    //     // Compare Natives
-    //     if self.native.iter().any(|c| !other.native.contains(c)) || self.native.len() != other.native.len() {
-    //         return Err(ContractError::GenericError("Native balances not equal".to_string()));
-    //     }
-    //     // Compare cw20s
-    //     if self.cw20.iter().any(|cw| !other.cw20.contains(cw)) || self.cw20.len() != other.cw20.len() {
-    //         return Err(ContractError::GenericError("Cw20 balances not equal".to_string()));
-    //     }
-    //     // Compare NFTs
-    //     if self.nfts.iter().any(|nft| !other.nfts.contains(nft)) || self.nfts.len() != other.nfts.len() {
-    //         return Err(ContractError::GenericError("NFTs not equal".to_string()));
-    //     }
-    //     Ok(())
-    // }
+    /// Get royalty messages for a GenericBalance and update balances
+    /// 
+    /// - Returns `Vec<CosmosMsg>` of Royalty Payments to be sent
+    /// - Mutates GenericBalnce in place by subtracting all royalty payments
+    pub fn royalties(&mut self, royalty_responses: Vec<Option<RoyaltyInfo>>) -> Result<(Vec<CosmosMsg>, u64), ContractError> {
+
+        // - Sum the BPS of all royalties contained in the generic balance (1 = 0.01%)
+        // - Remove collections without royalties
+        let (sum_royalties, all_royalties): (u64, Vec<RoyaltyInfo>) = royalty_responses.into_iter()
+            .filter_map(|r| r)
+            .fold((0, vec![]), |(acc, mut vec), item_thing| {
+                (acc + item_thing.bps, {
+                    vec.push(item_thing);
+                    vec
+                })
+            });
+
+        // 100 = 1%  |  5_000 = 50%
+        // If royalties are greater than 50% (at 3% cap would require min. 17 different NFT collections), 
+        // fail transaction & provide helpful error message. this seems like an acceptable solution for now
+        if sum_royalties > 5000 {
+            return Err(ContractError::GenericError("50% Royalty Max hit, try a Listing with fewer NFTs".to_string()));
+        }
+
+        let mut cosmos_msgs: Vec<CosmosMsg> = vec![];
+
+        // Create Royalty Payment messages & update token balances inside GenericBalance
+        for royalty in all_royalties {
+
+            for native_balance in self.native.iter_mut() {
+                // Calculate royalty amount to be sent (1 bip = 0.01%)
+                let amt_to_send = native_balance.amount.checked_multiply_ratio(royalty.bps as u128, 10_000u128).unwrap_or_else(|_| Uint128::zero());
+
+                if !amt_to_send.is_zero() {
+
+                    // Create CosmosMsg to send tokens to Royalty Payout Addr
+                    let bank_msg = CosmosMsg::Bank(BankMsg::Send {
+                        to_address: royalty.payout_addr.clone().to_string(),
+                        amount: vec![coin(amt_to_send.u128(), &native_balance.denom)]
+                    });
+
+                    // Subtract the royalty amount from the native_balance
+                    native_balance.amount = native_balance.amount.checked_sub(amt_to_send).map_err(|_e| ContractError::GenericError("Invalid Royalty amount | native".to_string()))?;
+
+                    // Add the message 
+                    cosmos_msgs.push(bank_msg);
+
+                }
+            }
+
+            for cw20_balance in self.cw20.iter_mut() {
+
+                // Calculate royalty amt (1 bip = 0.01%)
+                let amt_to_send = cw20_balance.amount.checked_multiply_ratio(royalty.bps as u128, 10_000u128).unwrap_or_else(|_| Uint128::zero());
+
+                if !amt_to_send.is_zero() {
+
+                    let cw20_msg = Cw20ExecuteMsg::Transfer { 
+                        recipient: royalty.payout_addr.to_string(), 
+                        amount: amt_to_send
+                    };
+                    let exc_msg = CosmosMsg::from(WasmMsg::Execute {
+                        contract_addr: cw20_balance.address.to_string(),
+                        msg: to_binary(&cw20_msg)?,
+                        funds: vec![]
+                    });
+
+                    // Subtract royalty amount from cw20 balance
+                    cw20_balance.amount = cw20_balance.amount.checked_sub(amt_to_send).map_err(|_e| ContractError::GenericError("Invalid Royalty amount | cw20".to_string()))?;
+
+                    // push msg
+                    cosmos_msgs.push(exc_msg);
+                }
+            }
+        }
+
+
+        Ok((cosmos_msgs, sum_royalties))
+
+    }
+    
 }
+
+
 
 /// Accepts 2 x `&GenericBalance` and checks all fields for equality
 /// - Fields do not need to be sorted
@@ -543,21 +614,28 @@ impl BalanceUtil for Balance {
 }
 
 pub trait GetComPoolMsg {
-    fn get_cp_msg(&self, depositor: &Addr) -> Result<CosmosMsg, ContractError>;
+    fn get_cp_msg(&self, contract_addr: Addr) -> Result<CosmosMsg, ContractError>;
 }
 
 impl GetComPoolMsg for Coin {
-    fn get_cp_msg(&self, depositor: &Addr) -> Result<CosmosMsg, ContractError> {
-        Ok(proto_encode(
-            MsgFundCommunityPool {
-                amount: vec![SdkCoin {
-                    denom: self.denom.to_string(),
-                    amount: self.amount.to_string(),
-                }],
-                depositor: depositor.to_string(),
-            },
-            "/cosmos.distribution.v1beta1.MsgFundCommunityPool".to_string(),
-        )?)
+    fn get_cp_msg(&self, contract_addr: Addr) -> Result<CosmosMsg, ContractError> {
+        // Can replace when cosmwasm_1_3 is live
+        //Ok(CosmosMsg::Distribution(cosmwasm_std::DistributionMsg::FundCommunityPool { amount: vec![self.clone()] }))
+        let coin = Anybuf::new()
+            .append_string(1, self.denom.clone())
+            .append_string(2, self.amount.to_string());
+        let buf = Anybuf::new()
+            .append_message(1, &coin)
+            .append_string(2, contract_addr.as_str())
+            .into_vec();
+
+        let msg = CosmosMsg::Stargate {
+            type_url: "/cosmos.distribution.v1beta1.MsgFundCommunityPool".to_string(),
+            value: buf.into(),
+        };
+
+        Ok(msg)
+
     }
 }
 

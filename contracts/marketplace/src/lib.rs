@@ -48,7 +48,7 @@ mod execute_imports {
         FEE_DENOM,
         LISTING_ID_USED, //BUCKET_COUNT, LISTING_COUNT
     };
-    pub use crate::utils::{calc_fee_coin, max, proto_encode, send_tokens_cosmos};
+    pub use crate::utils::{calc_fee_coin, max, send_tokens_cosmos};
     pub use cosmwasm_std::{Addr, DepsMut, Env, Response, StdError};
     pub use cw20::Balance;
 }
@@ -87,9 +87,7 @@ mod query_imports {
 
 mod state_imports {
     pub use crate::error::ContractError;
-    pub use crate::utils::{proto_encode, send_tokens_cosmos};
-    pub use cosmos_sdk_proto::cosmos::base::v1beta1::Coin as SdkCoin;
-    pub use cosmos_sdk_proto::cosmos::distribution::v1beta1::MsgFundCommunityPool;
+    pub use crate::utils::send_tokens_cosmos;
     pub use cosmwasm_schema::cw_serde;
     pub use cosmwasm_std::{
         to_binary, Addr, BankMsg, Binary, Coin, CosmosMsg, StdResult, Timestamp, Uint128, WasmMsg,
@@ -98,6 +96,7 @@ mod state_imports {
     pub use cw721::Cw721ExecuteMsg;
     pub use cw_storage_plus::{Index, IndexList, IndexedMap, Item, Map, MultiIndex, UniqueIndex};
     pub use std::collections::BTreeMap;
+    pub use anybuf::Anybuf;
 }
 
 mod utils_imports {

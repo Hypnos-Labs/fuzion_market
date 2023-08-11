@@ -1,3 +1,5 @@
+use cosmwasm_std::Response;
+
 use crate::utils_imports::*;
 
 //const COMMUNITY_POOL: &str = "juno1jv65s3grqf6v6jl3dp4t6c9t9rk99cd83d88wr";
@@ -138,19 +140,6 @@ pub fn calc_fee_coin(
             Ok((Some(fee_coin), balance_with_fee_removed))
         }
     }
-}
-
-// Encode a protobuf into a cosmos message
-// Inspired by https://github.com/alice-ltd/smart-contracts/blob/master/contracts/alice_terra_token/src/execute.rs#L73-L76
-// Written by @Pupmos
-pub fn proto_encode<M: prost::Message>(msg: M, type_url: String) -> StdResult<CosmosMsg> {
-    let mut bytes = Vec::new();
-    prost::Message::encode(&msg, &mut bytes)
-        .map_err(|_e| StdError::generic_err("Message encoding must be infallible"))?;
-    Ok(cosmwasm_std::CosmosMsg::<cosmwasm_std::Empty>::Stargate {
-        type_url,
-        value: cosmwasm_std::Binary(bytes),
-    })
 }
 
 #[cfg(test)]
