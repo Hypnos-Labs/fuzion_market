@@ -14,9 +14,10 @@ use royalties::{
 use royalties::msg::{ExecuteMsg, InstantiateMsg, QueryMsg};
 
 // Registration can only be updated every 100 blocks
-const COOLDOWN_BLOCKS: u64 = 100u64;
-// Max royalty bps is 300 (3%)
+pub const COOLDOWN_BLOCKS: u64 = 100u64;
+// Max royalty bps is 300 (3%) | Min royalty bps is 10 (0.1%)
 const MAX_BPS: u64 = 300u64;
+const MIN_BPS: u64 = 10u64;
 
 const CONTRACT_NAME: &str = "crates.io:royalty";
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -67,8 +68,8 @@ pub fn register_royalties(
 ) -> Result<Response, ContractError> {
 
     // Validate bps amount
-    if bps > MAX_BPS {
-        return Err(ContractError::GenericError("Max royalty amount is 300 bps (3%)".to_string()));
+    if bps > MAX_BPS || bps < MIN_BPS {
+        return Err(ContractError::GenericError("Max royalty amount is 300 bps (3%) | Min royalty amount is 10 bps (0.1%)".to_string()));
     }
 
     // Validate addresses
@@ -79,8 +80,9 @@ pub fn register_royalties(
     let z = deps.querier.query_wasm_contract_info(valid_nft_contract.as_str())?;
 
     // If sender is not nft_contract admin or there is no admin, action is unauthorized
-    if !z.admin.map_or(false, |admin| admin == info.sender.to_string()) {
-        return Err(ContractError::GenericError("Unauthorized".to_string()));
+    if !z.admin.clone().map_or(false, |admin| admin == info.sender.to_string()) {
+        let msg = format!("Unauthorized | Sender ({:#?}) isn't admin ({:#?})", info.sender.to_string(), z.admin);
+        return Err(ContractError::GenericError(msg));
     }
 
     // Error if entry exists
@@ -121,8 +123,9 @@ pub fn update_royalties(
     let z = deps.querier.query_wasm_contract_info(valid_nft_contract.as_str())?;
 
     // If sender is not nft_contract admin or there is no admin, action is unauthorized
-    if !z.admin.map_or(false, |admin| admin == info.sender.to_string()) {
-        return Err(ContractError::GenericError("Unauthorized".to_string()));
+    if !z.admin.clone().map_or(false, |admin| admin == info.sender.to_string()) {
+        let msg = format!("Unauthorized | Sender ({:#?}) isn't admin ({:#?})", info.sender.to_string(), z.admin);
+        return Err(ContractError::GenericError(msg));
     }
 
     // Load existing entry from storage, error if non existent
@@ -137,8 +140,8 @@ pub fn update_royalties(
     // Validate new BPS
     let bps = match new_bps {
         Some(b) => {
-            if b > MAX_BPS {
-                Err(ContractError::GenericError("Max royalty amount is 300 bps (3%)".to_string()))
+            if b > MAX_BPS || b < MIN_BPS {
+                Err(ContractError::GenericError("Max royalty amount is 300 bps (3%) | Min royalty amount is 10 bps (0.1%)".to_string()))
             } else {
                 Ok(b)
             }

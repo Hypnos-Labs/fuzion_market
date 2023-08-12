@@ -1,4 +1,4 @@
-use crate::query_imports::*;
+use crate::{query_imports::*, state::ROYALTY_REGISTRY};
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // Queries
@@ -159,6 +159,13 @@ pub fn get_single_listing(deps: Deps, listing_id: u64) -> StdResult<SingleListin
         listing,
     })
 }
+
+
+pub fn get_royalty_contract(deps: Deps) -> StdResult<Option<Addr>> {
+    let z: Option<Addr> = ROYALTY_REGISTRY.load(deps.storage)?;
+    Ok(z)
+}
+
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // Responses
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

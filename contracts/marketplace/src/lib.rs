@@ -2,7 +2,10 @@ pub mod contract;
 pub mod error;
 pub use crate::error::ContractError;
 pub mod execute;
+
+#[cfg(test)]
 pub mod integration_tests;
+
 pub mod msg;
 pub mod query;
 pub mod state;

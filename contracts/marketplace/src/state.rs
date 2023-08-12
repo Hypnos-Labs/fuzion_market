@@ -474,12 +474,15 @@ impl GenericBalance {
 
         let mut cosmos_msgs: Vec<CosmosMsg> = vec![];
 
-        // Create Royalty Payment messages & update token balances inside GenericBalance
-        for royalty in all_royalties {
+        for native_balance in self.native.iter_mut() {
 
-            for native_balance in self.native.iter_mut() {
-                // Calculate royalty amount to be sent (1 bip = 0.01%)
-                let amt_to_send = native_balance.amount.checked_multiply_ratio(royalty.bps as u128, 10_000u128).unwrap_or_else(|_| Uint128::zero());
+            let original_balance = native_balance.amount.clone();
+
+            let mut new_balance = native_balance.amount.clone();
+
+            for royalty in all_royalties.iter() {
+                // Calculate royalty amount (1 bip = 0.01%)
+                let amt_to_send = original_balance.checked_multiply_ratio(royalty.bps as u128, 10_000u128).unwrap_or_else(|_| Uint128::zero());
 
                 if !amt_to_send.is_zero() {
 
@@ -489,19 +492,29 @@ impl GenericBalance {
                         amount: vec![coin(amt_to_send.u128(), &native_balance.denom)]
                     });
 
-                    // Subtract the royalty amount from the native_balance
-                    native_balance.amount = native_balance.amount.checked_sub(amt_to_send).map_err(|_e| ContractError::GenericError("Invalid Royalty amount | native".to_string()))?;
+                    // Subtract the royalty amount from balance tracker
+                    new_balance = new_balance.checked_sub(amt_to_send).map_err(|_e| ContractError::GenericError("Invalid Royalty amount | native".to_string()))?;
 
                     // Add the message 
                     cosmos_msgs.push(bank_msg);
 
                 }
+
             }
+        
+            native_balance.amount = new_balance;
+        
+        }
 
-            for cw20_balance in self.cw20.iter_mut() {
+        for cw20_balance in self.cw20.iter_mut() {
 
+            let original_balance = cw20_balance.amount.clone();
+
+            let mut new_balance = cw20_balance.amount.clone();
+
+            for royalty in all_royalties.iter() {
                 // Calculate royalty amt (1 bip = 0.01%)
-                let amt_to_send = cw20_balance.amount.checked_multiply_ratio(royalty.bps as u128, 10_000u128).unwrap_or_else(|_| Uint128::zero());
+                let amt_to_send = original_balance.checked_multiply_ratio(royalty.bps as u128, 10_000u128).unwrap_or_else(|_| Uint128::zero());
 
                 if !amt_to_send.is_zero() {
 
@@ -515,15 +528,19 @@ impl GenericBalance {
                         funds: vec![]
                     });
 
-                    // Subtract royalty amount from cw20 balance
-                    cw20_balance.amount = cw20_balance.amount.checked_sub(amt_to_send).map_err(|_e| ContractError::GenericError("Invalid Royalty amount | cw20".to_string()))?;
+                    // Subtract royalty amount from balance tracker
+                    new_balance = new_balance.checked_sub(amt_to_send).map_err(|_e| ContractError::GenericError("Invalid Royalty amount | cw20".to_string()))?;
 
                     // push msg
                     cosmos_msgs.push(exc_msg);
                 }
-            }
-        }
+            
+            
 
+            }
+        
+            cw20_balance.amount = new_balance;
+        }
 
         Ok((cosmos_msgs, sum_royalties))
 

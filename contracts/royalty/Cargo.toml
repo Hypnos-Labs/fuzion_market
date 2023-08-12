@@ -15,7 +15,7 @@ doctest = false
 
 [features]
 backtraces = ["cosmwasm-std/backtraces"]
-library = []
+# library = []
 
 [dependencies]
 anyhow.workspace = true

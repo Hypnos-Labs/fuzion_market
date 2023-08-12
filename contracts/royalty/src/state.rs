@@ -1,4 +1,4 @@
-use cosmwasm_std::{Addr};
+use cosmwasm_std::Addr;
 use cw_storage_plus::Map;
 use royalties::RoyaltyInfo;
 

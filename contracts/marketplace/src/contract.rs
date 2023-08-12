@@ -285,5 +285,6 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
         // QueryMsg::GetListingInfo {
         //     listing_id,
         // } => to_binary(&get_single_listing(deps, listing_id)?),
+        QueryMsg::GetRoyaltyAddr {} => to_binary(&get_royalty_contract(deps)?)
     }
 }

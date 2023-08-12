@@ -133,6 +133,8 @@ pub enum QueryMsg {
     // GetListingInfo {
     //     listing_id: u64,
     // },
+    #[returns(Option<cosmwasm_std::Addr>)]
+    GetRoyaltyAddr {}
 }
 
 /// Must be sent along with message when creating a Listing
