@@ -545,7 +545,6 @@ impl GenericBalance {
         Ok((cosmos_msgs, sum_royalties))
 
     }
-
 }
 
 
