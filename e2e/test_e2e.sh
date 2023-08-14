@@ -663,12 +663,12 @@ function royalties_are_paid {
     # ================================================ #
     #   Selling: 200 JUNO, 100 CWONE, fox NFT 1
     #   Price  : 200 JUNO, 100 CWTWO, fox NFT 2
-    #   Royalties: fox payout address should get 2 ujunox && 1 cwone
+    #   Royalties: fox payout address should get 2 ujunox && 1 cwone && 2 cwtwo
     # ================================================ #
 
     # test-user / KEY_ADDR creates Listing 4
     echoe "test-user creating listing 4"
-    wasm_cmd $MARKET_CONTRACT "$(printf '{"create_listing":{"listing_id":4,"create_msg":{"ask":{"native":[{"denom":"ujunox","amount":"200"}],"cw20":[{"address":"%s","amount":"200"}],"nfts":[{"contract_address":"%s","token_id":"2"}]}}}}' $CWTWO_CONTRACT $CW721_CONTRACTFOX)" "200ujunox"
+    wasm_cmd $MARKET_CONTRACT "$(printf '{"create_listing":{"listing_id":4,"create_msg":{"ask":{"native":[{"denom":"ujunox","amount":"200"}],"cw20":[{"address":"%s","amount":"100"}],"nfts":[{"contract_address":"%s","token_id":"2"}]}}}}' $CWTWO_CONTRACT $CW721_CONTRACTFOX)" "200ujunox"
 
     # test-user adds 100 cwone to Listing 4
     echoe "test-user adding 100 cwone to listing 4"
