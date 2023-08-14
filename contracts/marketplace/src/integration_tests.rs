@@ -3,6 +3,7 @@ pub use self::create_contract::*;
 pub use self::create_users::*;
 pub use self::init_contracts::init_all_contracts;
 pub use crate::integration_tests_imports::*;
+pub use cw721_base::helpers::Cw721Contract;
 pub use cw_multi_test::{App, Contract, ContractWrapper, Executor};
 use royalties::RoyaltyInfo;
 use royalties::msg::{
@@ -4069,7 +4070,6 @@ fn royalty_nft_both_sides() -> Result<(), anyhow::Error> {
 }
 
 // Multiple NFTs with royalties
-
 #[test]
 fn multiple_collections_with_royalties() -> Result<(), anyhow::Error> {
     use cw_multi_test::AppResponse;
@@ -4285,4 +4285,406 @@ fn multiple_collections_with_royalties() -> Result<(), anyhow::Error> {
 
     Ok(())
 }
+
+
+// Over 50% royalties fails
+#[test]
+fn over_fifty_percent_listing() -> Result<(), anyhow::Error> {
+    use cw_multi_test::AppResponse;
+    use anyhow::Result;
+
+    // Setup
+    let mut router = App::default();
+    let contract_admin = create_users::fake_user("admin".to_string());
+    let john = create_users::fake_user("john".to_string());
+    let sam = create_users::fake_user("sam".to_string());
+    let max = create_users::fake_user("max".to_string());
+    let payout_addr = create_users::fake_user("payout".to_string());
+    // Instantiate all contracts
+    let (jvone, jvtwo, _jvtre, _neonpeepz, _shittykittyz, fuzionmarket) =
+        init_all_contracts(&mut router, &contract_admin, &john, &sam, &max)?;
+    // Give native balances to all users
+    // Each user gets 100 VALID_NATIVE
+    let router = give_natives(&john, &mut router);
+    let router = give_natives(&sam, router);
+    let router = give_natives(&max, router);
+
+    let royalty: Option<Addr> = router
+        .wrap()
+        .query_wasm_smart(fuzionmarket.clone(), &QueryMsg::GetRoyaltyAddr {}).unwrap();
+    let royalty_addr = royalty.unwrap();
+
+    //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    // Create 17 NFT contracts
+    //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    let nft_contracts = (1..=17).map(|n| {
+        let contract = init_contracts::init_cw721_contract(
+            router, 
+            &contract_admin.address, 
+            n.to_string(), 
+            n.to_string()
+        );
+        contract.addr()
+    }).collect::<Vec<Addr>>();
+
+    //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    // - Register all 17 contracts for 3% royalties
+    // - Mint NFT to john
+    //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    for nft_contract in nft_contracts.iter() {
+        let register_msg = RoyaltyExecuteMsg::Register { 
+            nft_contract: nft_contract.clone().to_string(), 
+            payout_addr: payout_addr.address.clone().to_string(),
+            bps: 300,
+        };
+
+        let _res: AppResponse = 
+            router.execute_contract(contract_admin.address.clone(), royalty_addr.clone(), &register_msg, &[]).unwrap();
+
+        let mint_msg = cw721_base::ExecuteMsg::<Option<Empty>, Empty>::Mint(cw721_base::MintMsg {
+                token_id: "1".to_string(),
+                owner: john.address.clone().to_string(),
+                token_uri: Some("sdlkj".to_string()),
+                extension: None,
+            });
+
+        let _res: AppResponse =
+            router.execute_contract(contract_admin.address.clone(), nft_contract.clone(), &mint_msg, &[]).unwrap();
+    }
+
+
+    //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    // Create Listing with 1 NFT from each collection 
+    //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    // Selling: NFT #1 .. #17
+    // Asking : 100 ujunox, 100 jvtwo
+    //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+    //~~~~~~~~~~~~~~~~~~~~~~~~
+    // Creating & Finalizing Listing
+    //~~~~~~~~~~~~~~~~~~~~~~~~
+
+    let cm = CreateListingMsg {
+        ask: GenericBalance {
+            native: cosmwasm_std::coins(100, "ujunox"),
+            cw20: vec![Cw20CoinVerified {
+                address: jvtwo.addr(),
+                amount: Uint128::from(100u128)
+            }],
+            nfts: vec![]
+        },
+        whitelisted_buyer: None,
+    };
+
+    let cmsg_nft = to_binary(&crate::msg::ReceiveNftMsg::CreateListingCw721 {
+        listing_id: 1,
+        create_msg: cm,
+    })?;
+
+    let createmsg_nft: cw721_base::ExecuteMsg<Option<Empty>, Empty> =
+        cw721_base::msg::ExecuteMsg::SendNft {
+            contract: fuzionmarket.clone().to_string(),
+            token_id: "1".to_string(),
+            msg: cmsg_nft,
+        };
+    let _res: AppResponse =
+        router.execute_contract(john.address.clone(), nft_contracts[0].clone(), &createmsg_nft, &[]).unwrap();
+
+
+    for nft_contract in nft_contracts.iter().skip(1) {
+        let addnft_msg: cw721_base::ExecuteMsg<Option<Empty>, Empty> =
+            cw721_base::msg::ExecuteMsg::SendNft {
+                contract: fuzionmarket.clone().to_string(),
+                token_id: "1".to_string(),
+                msg: to_binary(&ReceiveNftMsg::AddToListingCw721 { listing_id: 1 }).unwrap(),
+            };
+        let _res: AppResponse =
+            router.execute_contract(john.address.clone(), nft_contract.clone(), &addnft_msg, &[]).unwrap();
+
+    }
+    
+    let finalize_msg = ExecuteMsg::Finalize { 
+        listing_id: 1, 
+        seconds: 10_000
+    };
+
+    let _res: AppResponse = 
+        router.execute_contract(john.address.clone(), fuzionmarket.clone(), &finalize_msg, &[]).unwrap();
+
+
+    //~~~~~~~~~~~~~~~~~~~~~~~~~
+    // Creating Bucket with 100 ujunox, 100 jvtwo
+    //~~~~~~~~~~~~~~~~~~~~~~~~~
+
+    let cbucket_msg = cw20_base::msg::ExecuteMsg::Send {
+        contract: fuzionmarket.clone().to_string(),
+        amount: Uint128::from(100u128),
+        msg: to_binary(&crate::msg::ReceiveMsg::CreateBucketCw20 { bucket_id: 1 }).unwrap()
+    };
+
+    let _res: AppResponse =
+        router.execute_contract(sam.address.clone(), jvtwo.addr(), &cbucket_msg, &[]).unwrap();
+
+    let addbucket = ExecuteMsg::AddToBucket { bucket_id: 1 };
+
+    let _res: AppResponse = 
+        router.execute_contract(sam.address.clone(), fuzionmarket.clone(), &addbucket, &cosmwasm_std::coins(100u128, "ujunox")).unwrap();
+
+    
+    //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    // Verify that trade fails
+    //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+    //~~~~~~~~~~~~~~~~~~~~~~~~~
+    // Verify empty payout addrs before trade
+    //~~~~~~~~~~~~~~~~~~~~~~~~~
+    let payout_bal_pre: Coin =
+        router.wrap().query_balance(payout_addr.address.clone().to_string(), "ujunox").unwrap();
+    ensure!(payout_bal_pre.amount.is_zero(), here("Pre balance wrong", line!(), column!()));
+    assert_eq!(jvone.balance(&router.wrap(), payout_addr.address.clone()), Ok(Uint128::zero()));
+    assert_eq!(jvtwo.balance(&router.wrap(), payout_addr.address.clone()), Ok(Uint128::zero()));
+    //~~~~~~~~~~~~~~~~~~~~~~~~~
+    // Try execute trade
+    //~~~~~~~~~~~~~~~~~~~~~~~~~
+    let buy_msg = ExecuteMsg::BuyListing { listing_id: 1, bucket_id: 1 };
+    let res: Result<AppResponse> = 
+        router.execute_contract(sam.address.clone(), fuzionmarket.clone(), &buy_msg, &[]);
+
+    ensure!(res.is_err(), here("Over 50% royalty in listing should fail", line!(), column!()));
+
+    //~~~~~~~~~~~~~~~~~~~~~~~~~
+    // Verify no payout sent
+    //~~~~~~~~~~~~~~~~~~~~~~~~~
+    let payout_bal_post: Coin =
+        router.wrap().query_balance(payout_addr.address.clone().to_string(), "ujunox").unwrap();
+    ensure!(payout_bal_post.amount == Uint128::zero(), here("Post balance wrong", line!(), column!()));
+    assert_eq!(jvone.balance(&router.wrap(), payout_addr.address.clone()), Ok(Uint128::zero()));
+    assert_eq!(jvtwo.balance(&router.wrap(), payout_addr.address.clone()), Ok(Uint128::zero()));
+
+    //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    // Ensure both can withdraw refund 
+    //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+    let refund_bucket = crate::msg::ExecuteMsg::RemoveBucket { bucket_id: 1 };
+    let _res: AppResponse =
+        router.execute_contract(sam.address.clone(), fuzionmarket.clone(), &refund_bucket, &[]).unwrap();
+
+    router.update_block(|current_blockinfo| {
+        current_blockinfo.height += 4000;
+        current_blockinfo.time = current_blockinfo.time.plus_seconds(10_000);
+    });
+
+    let refund_listing = crate::msg::ExecuteMsg::DeleteListing { listing_id: 1 };
+    let _res: AppResponse =
+        router.execute_contract(john.address.clone(), fuzionmarket.clone(), &refund_listing, &[]).unwrap();
+
+
+    Ok(())
+}
+
+
+#[test]
+fn over_fifty_percent_bucket() -> Result<(), anyhow::Error> {
+    use cw_multi_test::AppResponse;
+    use anyhow::Result;
+
+    // Setup
+    let mut router = App::default();
+    let contract_admin = create_users::fake_user("admin".to_string());
+    let john = create_users::fake_user("john".to_string());
+    let sam = create_users::fake_user("sam".to_string());
+    let max = create_users::fake_user("max".to_string());
+    let payout_addr = create_users::fake_user("payout".to_string());
+    // Instantiate all contracts
+    let (jvone, jvtwo, _jvtre, _neonpeepz, _shittykittyz, fuzionmarket) =
+        init_all_contracts(&mut router, &contract_admin, &john, &sam, &max)?;
+    // Give native balances to all users
+    // Each user gets 100 VALID_NATIVE
+    let router = give_natives(&john, &mut router);
+    let router = give_natives(&sam, router);
+    let router = give_natives(&max, router);
+
+    let royalty: Option<Addr> = router
+        .wrap()
+        .query_wasm_smart(fuzionmarket.clone(), &QueryMsg::GetRoyaltyAddr {}).unwrap();
+    let royalty_addr = royalty.unwrap();
+
+    //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    // Create 17 NFT contracts
+    //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    let nft_contracts = (1..=17).map(|n| {
+        let contract = init_contracts::init_cw721_contract(
+            router, 
+            &contract_admin.address, 
+            n.to_string(), 
+            n.to_string()
+        );
+        contract.addr()
+    }).collect::<Vec<Addr>>();
+
+    //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    // - Register all 17 contracts for 3% royalties
+    // - Mint NFT to john
+    //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    for nft_contract in nft_contracts.iter() {
+        let register_msg = RoyaltyExecuteMsg::Register { 
+            nft_contract: nft_contract.clone().to_string(), 
+            payout_addr: payout_addr.address.clone().to_string(),
+            bps: 300,
+        };
+
+        let _res: AppResponse = 
+            router.execute_contract(contract_admin.address.clone(), royalty_addr.clone(), &register_msg, &[]).unwrap();
+
+        let mint_msg = cw721_base::ExecuteMsg::<Option<Empty>, Empty>::Mint(cw721_base::MintMsg {
+                token_id: "1".to_string(),
+                owner: john.address.clone().to_string(),
+                token_uri: Some("sdlkj".to_string()),
+                extension: None,
+            });
+
+        let _res: AppResponse =
+            router.execute_contract(contract_admin.address.clone(), nft_contract.clone(), &mint_msg, &[]).unwrap();
+    }
+
+
+    //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    // Create Listing with tokens
+    //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    // Selling: 100ujunox, 100 jvtwo
+    // Asking : NFT #1 .. #17
+    //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+    //~~~~~~~~~~~~~~~~~~~~~~~~
+    // Creating & Finalizing Listing
+    //~~~~~~~~~~~~~~~~~~~~~~~~
+
+    let ask_nfts = nft_contracts.iter().map(|n| {
+        Nft {
+            contract_address: n.clone(),
+            token_id: "1".to_string()
+        }
+    }).collect::<Vec<Nft>>();
+
+    let cm = CreateListingMsg {
+        ask: GenericBalance {
+            native: vec![],
+            cw20: vec![],
+            nfts: ask_nfts
+        },
+        whitelisted_buyer: None,
+    };
+
+    let cmsg = cw20_base::msg::ExecuteMsg::Send {
+        contract: fuzionmarket.clone().to_string(),
+        amount: Uint128::from(100u128),
+        msg: to_binary(&crate::msg::ReceiveMsg::CreateListingCw20 { listing_id: 1, create_msg: cm }).unwrap()
+    };
+
+    let _res: AppResponse =
+        router.execute_contract(sam.address.clone(), jvtwo.addr(), &cmsg, &[]).unwrap();
+
+    let addlisting = ExecuteMsg::AddToListing { listing_id: 1 };
+
+    let _res: AppResponse = 
+        router.execute_contract(sam.address.clone(), fuzionmarket.clone(), &addlisting, &cosmwasm_std::coins(100u128, "ujunox")).unwrap();
+
+    let finalize_msg = ExecuteMsg::Finalize { 
+        listing_id: 1, 
+        seconds: 10_000
+    };
+
+    let _res: AppResponse = 
+        router.execute_contract(sam.address.clone(), fuzionmarket.clone(), &finalize_msg, &[]).unwrap();
+
+
+    //~~~~~~~~~~~~~~~~~~~~~~~~~
+    // Creating Bucket with NFTs #1..17
+    //~~~~~~~~~~~~~~~~~~~~~~~~~
+
+    let cmsg_nft = to_binary(&crate::msg::ReceiveNftMsg::CreateBucketCw721 {
+        bucket_id: 1,
+    })?;
+
+    let createmsg_nft: cw721_base::ExecuteMsg<Option<Empty>, Empty> =
+        cw721_base::msg::ExecuteMsg::SendNft {
+            contract: fuzionmarket.clone().to_string(),
+            token_id: "1".to_string(),
+            msg: cmsg_nft,
+        };
+    let _res: AppResponse =
+        router.execute_contract(john.address.clone(), nft_contracts[0].clone(), &createmsg_nft, &[]).unwrap();
+
+
+    for nft_contract in nft_contracts.iter().skip(1) {
+        let addnft_msg: cw721_base::ExecuteMsg<Option<Empty>, Empty> =
+            cw721_base::msg::ExecuteMsg::SendNft {
+                contract: fuzionmarket.clone().to_string(),
+                token_id: "1".to_string(),
+                msg: to_binary(&ReceiveNftMsg::AddToBucketCw721 { bucket_id: 1 }).unwrap(),
+            };
+        let _res: AppResponse =
+            router.execute_contract(john.address.clone(), nft_contract.clone(), &addnft_msg, &[]).unwrap();
+
+    }
+    
+    
+    //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    // Verify that trade fails
+    //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+    //~~~~~~~~~~~~~~~~~~~~~~~~~
+    // Verify empty payout addrs before trade
+    //~~~~~~~~~~~~~~~~~~~~~~~~~
+    let payout_bal_pre: Coin =
+        router.wrap().query_balance(payout_addr.address.clone().to_string(), "ujunox").unwrap();
+    ensure!(payout_bal_pre.amount.is_zero(), here("Pre balance wrong", line!(), column!()));
+    assert_eq!(jvone.balance(&router.wrap(), payout_addr.address.clone()), Ok(Uint128::zero()));
+    assert_eq!(jvtwo.balance(&router.wrap(), payout_addr.address.clone()), Ok(Uint128::zero()));
+    //~~~~~~~~~~~~~~~~~~~~~~~~~
+    // Try execute trade
+    //~~~~~~~~~~~~~~~~~~~~~~~~~
+    let buy_msg = ExecuteMsg::BuyListing { listing_id: 1, bucket_id: 1 };
+    let res: Result<AppResponse> = 
+        router.execute_contract(john.address.clone(), fuzionmarket.clone(), &buy_msg, &[]);
+
+    ensure!(res.is_err(), here("Over 50% royalty in listing should fail", line!(), column!()));
+
+    //~~~~~~~~~~~~~~~~~~~~~~~~~
+    // Verify no payout sent
+    //~~~~~~~~~~~~~~~~~~~~~~~~~
+    let payout_bal_post: Coin =
+        router.wrap().query_balance(payout_addr.address.clone().to_string(), "ujunox").unwrap();
+    ensure!(payout_bal_post.amount == Uint128::zero(), here("Post balance wrong", line!(), column!()));
+    assert_eq!(jvone.balance(&router.wrap(), payout_addr.address.clone()), Ok(Uint128::zero()));
+    assert_eq!(jvtwo.balance(&router.wrap(), payout_addr.address.clone()), Ok(Uint128::zero()));
+
+    //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    // Ensure both can withdraw refund 
+    //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+    let refund_bucket = crate::msg::ExecuteMsg::RemoveBucket { bucket_id: 1 };
+    let _res: AppResponse =
+        router.execute_contract(john.address.clone(), fuzionmarket.clone(), &refund_bucket, &[]).unwrap();
+
+    router.update_block(|current_blockinfo| {
+        current_blockinfo.height += 4000;
+        current_blockinfo.time = current_blockinfo.time.plus_seconds(10_000);
+    });
+
+    let refund_listing = crate::msg::ExecuteMsg::DeleteListing { listing_id: 1 };
+    let _res: AppResponse =
+        router.execute_contract(sam.address.clone(), fuzionmarket.clone(), &refund_listing, &[]).unwrap();
+
+
+
+    Ok(())
+}
+
+
+
 

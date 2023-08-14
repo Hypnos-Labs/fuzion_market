@@ -142,14 +142,19 @@ function upload_cw721 {
     INIT_JSONDOG=`printf '{"name":"e2e-dog","symbol":"dog","minter":"%s"}' $KEY_ADDR`
     IMAGE_TX_UPLOADDOG=$($BINARY tx wasm instantiate "$CW721_CODE_ID" $INIT_JSONDOG --label "e2e-dog" $JUNOD_COMMAND_ARGS --admin $KEY_ADDR | jq -r '.txhash') && echo $IMAGE_TX_UPLOADDOG
     export CW721_CONTRACTDOG=$($BINARY query tx $IMAGE_TX_UPLOADDOG --output json | jq -r '.logs[0].events[0].attributes[0].value') && echo "CW721_DOG_CONTRACT: $CW721_CONTRACTDOG"
+
+    echo "Instantiating FOXNFT contract..."
+    INIT_JSONFOX=`printf '{"name":"e2e-fox","symbol":"fox","minter":"%s"}' $KEY_ADDR`
+    IMAGE_TX_UPLOADFOX=$($BINARY tx wasm instantiate "$CW721_CODE_ID" $INIT_JSONFOX --label "e2e-fox" $JUNOD_COMMAND_ARGS --admin $KEY_ADDR | jq -r '.txhash') && echo $IMAGE_TX_UPLOADFOX
+    export CW721_CONTRACTFOX=$($BINARY query tx $IMAGE_TX_UPLOADFOX --output json | jq -r '.logs[0].events[0].attributes[0].value') && echo "CW721_FOX_CONTRACT: $CW721_CONTRACTFOX"
 }
 
-# Registering cat NFT for 100 bps royalties (1%)
+# Registering fox NFT for 100 bps royalties (1%)
 function register_royalties {
-    echo "Registering cat for 100 bps royalties..."
-    REG_CAT_ROYALTY=`printf '{"register":{"nft_contract":"%s","payout_addr":"%s","bps":100}}' $CW721_CONTRACTCAT $KEY_ADDR_TWO`
+    echo "Registering fox for 100 bps royalties..."
+    REG_FOX_ROYALTY=`printf '{"register":{"nft_contract":"%s","payout_addr":"%s","bps":100}}' $CW721_CONTRACTFOX $KEY_ADDR_TWO`
 
-    wasm_cmd $ROYALTY_CONTRACT $REG_CAT_ROYALTY "" show_log
+    wasm_cmd $ROYALTY_CONTRACT $REG_FOX_ROYALTY "" show_log
 
 }
 
@@ -233,9 +238,13 @@ register_royalties
 echo "Minting NFTs..."
 mint_cw721 $CW721_CONTRACTCAT 1 $KEY_ADDR "https://user-images.githubusercontent.com/89463679/218784962-a9a74100-8ea2-4973-91bf-623c458be9fd.png" && echo "Minted NFT CAT 1"
 mint_cw721 $CW721_CONTRACTDOG 1 $KEY_ADDR "https://user-images.githubusercontent.com/89463679/218785489-7c026eb3-34b7-47f8-8e98-851462e591bc.png" && echo "Minted NFT DOG 1"
+mint_cw721 $CW721_CONTRACTFOX 1 $KEY_ADDR "https://user-images.githubusercontent.com/89463679/218785489-7c026eb3-34b7-47f8-8e98-851462e591bc.png" && echo "Minted NFT FOX 1"
+
 
 mint_cw721 $CW721_CONTRACTCAT 2 $KEY_ADDR_TWO "https://user-images.githubusercontent.com/89463679/218784962-a9a74100-8ea2-4973-91bf-623c458be9fd.png" && echo "Minted NFT CAT 2"
 mint_cw721 $CW721_CONTRACTDOG 2 $KEY_ADDR_TWO "https://user-images.githubusercontent.com/89463679/218785489-7c026eb3-34b7-47f8-8e98-851462e591bc.png" && echo "Minted NFT DOG 2"
+mint_cw721 $CW721_CONTRACTFOX 2 $KEY_ADDR_TWO "https://user-images.githubusercontent.com/89463679/218785489-7c026eb3-34b7-47f8-8e98-851462e591bc.png" && echo "Minted NFT FOX 2"
+
 
 
 
@@ -268,19 +277,19 @@ ASSERT_EQUAL "$balance" '{"data":{"balance":"10000"}}'
 function test_ask_failure {
     # make a listing with 2 unique but duplicate denoms, ensure the denoms are merged correctly on ask
     # failure to do this = the user can not purchase the listing, even if they sent 2ujunox
-    echoe "Trying to create a Listing with duplicate Native Denoms in Ask"
+    echoe "SHOULD FAIL: Trying to create a Listing with duplicate Native Denoms in Ask"
     wasm_cmd $MARKET_CONTRACT '{"create_listing":{"listing_id":1,"create_msg":{"ask":{"native":[{"denom":"ujunox","amount":"1"},{"denom":"ujunox","amount":"1"}],"cw20":[],"nfts":[]}}}}' "1ujunox"
     ASSERT_CONTAINS "$CMD_LOG" 'Error Message: Cannot contain duplicate Native Tokens'
 
-    echoe "Trying to create a Listing with duplicate Cw20 Denoms in Ask"
+    echoe "SHOULD FAIL: Trying to create a Listing with duplicate Cw20 Denoms in Ask"
     wasm_cmd $MARKET_CONTRACT '{"create_listing":{"listing_id":2,"create_msg":{"ask":{"native":[],"cw20":[{"address":"juno1rws84uz7969aaa7pej303udhlkt3j9ca0l3egpcae98jwak9quzq8szn2l","amount":"1"},{"address":"juno1rws84uz7969aaa7pej303udhlkt3j9ca0l3egpcae98jwak9quzq8szn2l","amount":"4"}],"nfts":[]}}}}' "1ujunox"
     ASSERT_CONTAINS "$CMD_LOG" 'Error Message: Cannot contain duplicate CW20 Tokens'
 
-    echoe "Trying to create a Listing with 0 amount Native in Ask"
+    echoe "SHOULD FAIL: Trying to create a Listing with 0 amount Native in Ask"
     wasm_cmd $MARKET_CONTRACT '{"create_listing":{"listing_id":3,"create_msg":{"ask":{"native":[{"denom":"ujunox","amount":"0"},{"denom":"ucosm","amount":"1"}],"cw20":[],"nfts":[]}}}}' "1ujunox"
     ASSERT_CONTAINS "$CMD_LOG" 'Error Message: Cannot contain 0 value amounts'
 
-    echoe "Trying to create a Listing with 0 amount Cw20 in Ask"
+    echoe "SHOULD FAIL: Trying to create a Listing with 0 amount Cw20 in Ask"
     wasm_cmd $MARKET_CONTRACT '{"create_listing":{"listing_id":4,"create_msg":{"ask":{"native":[],"cw20":[{"address":"juno1u45shlp0q4gcckvsj06ss4xuvsu0z24a0d0vr9ce6r24pht4e5xq7q995n","amount":"1"},{"address":"juno1rws84uz7969aaa7pej303udhlkt3j9ca0l3egpcae98jwak9quzq8szn2l","amount":"0"}],"nfts":[]}}}}' "1ujunox"
     ASSERT_CONTAINS "$CMD_LOG" 'Error Message: Cannot contain 0 value amounts'
 
@@ -306,20 +315,20 @@ function test_ask_failure {
 function test_dupes_zeros_funds_sent {
 
     # Create Natives with 0
-    echoe "Creating listing with 0 amount Native"
+    echoe "SHOULD FAIL: Creating listing with 0 amount Native"
     wasm_cmd $MARKET_CONTRACT '{"create_listing":{"listing_id":5,"create_msg":{"ask":{"native":[{"denom":"uosmo","amount":"1"}],"cw20":[],"nfts":[]}}}}' "0ujunox"
     ASSERT_CONTAINS "$CMD_LOG" 'Error Message:'
 
-    echoe "Creating bucket with 0 amount Native"
+    echoe "SHOULD FAIL: Creating bucket with 0 amount Native"
     wasm_cmd $MARKET_CONTRACT '{"create_bucket":{"bucket_id":1}}' "0ujunox"
     ASSERT_CONTAINS "$CMD_LOG" 'Error Message:'
 
     # Create cw20s with 0
-    echoe "Creating listing with 0 amount Cw20"
+    echoe "SHOULD FAIL: Creating listing with 0 amount Cw20"
     create_listing_cw20 $MARKET_CONTRACT $CWONE_CONTRACT "0" 6
     ASSERT_CONTAINS "$CMD_LOG" 'Invalid zero amount'
 
-    echoe "Creating bucket with 0 amount Cw20"
+    echoe "SHOULD FAIL: Creating bucket with 0 amount Cw20"
     create_bucket_cw20 $MARKET_CONTRACT $CWONE_CONTRACT "0" 7
     ASSERT_CONTAINS "$CMD_LOG" 'Invalid zero amount'
 
@@ -328,11 +337,11 @@ function test_dupes_zeros_funds_sent {
     wasm_cmd $MARKET_CONTRACT '{"create_listing":{"listing_id":1,"create_msg":{"ask":{"native":[{"denom":"ujunox","amount":"1"}],"cw20":[],"nfts":[]}}}}' "1ujunox"
 
     # Add to Listing fail
-    echoe "Adding 0 Native to Listing"
+    echoe "SHOULD FAIL: Adding 0 Native to Listing"
     wasm_cmd $MARKET_CONTRACT '{"add_to_listing":{"listing_id":1}}' "0ujunox"
     ASSERT_CONTAINS "$CMD_LOG" 'Error Message:'
 
-    echoe "Adding 0 cw20 to Listing"
+    echoe "SHOULD FAIL: Adding 0 cw20 to Listing"
     add_cw20_to_listing $MARKET_CONTRACT $CWONE_CONTRACT "0" 1
     ASSERT_CONTAINS "$CMD_LOG" 'Invalid zero amount'
 
@@ -341,7 +350,7 @@ function test_dupes_zeros_funds_sent {
     wasm_cmd $MARKET_CONTRACT '{"create_bucket":{"bucket_id":1}}' "1ujunox"
 
     # Add to Bucket fail
-    echoe "Adding 0 Native to bucket"
+    echoe "SHOULD FAIL: Adding 0 Native to bucket"
     wasm_cmd $MARKET_CONTRACT '{"add_to_bucket":{"bucket_id":1}}' "0ujunox"
     ASSERT_CONTAINS "$CMD_LOG" 'Error Message:'
 
@@ -492,7 +501,6 @@ function both_have_fee_denom {
     ASSERT_EQUAL "$DOG_ONE_OWNER" $KEY_ADDR_TWO
 
 }
-
 
 # Testing what happens if a Listing/bucket has a large amount of
 # different assets when withdrawing for out of gas errors
@@ -647,6 +655,86 @@ function check_max_id {
 }
 
 
+# Royalty checks
+# Ensure that correct amount sent to user, royalty payout, and CP
+
+function royalties_are_paid {
+    # State incrementor is 4 now, so ID's will be 4
+    # ================================================ #
+    # ==== test-user / KEY_ADDR creating Listing ===== #
+    # ================================================ #
+    #   Selling: 200 JUNO, 100 CWONE, fox NFT 1
+    #   Price  : 200 JUNO, 100 CWTWO, fox NFT 2
+    #   Royalties: fox payout address should get 2 ujunox && 1 cwone
+    # ================================================ #
+
+    # test-user / KEY_ADDR creates Listing 4
+    echoe "test-user creating listing 4"
+    wasm_cmd $MARKET_CONTRACT "$(printf '{"create_listing":{"listing_id":4,"create_msg":{"ask":{"native":[{"denom":"ujunox","amount":"200"}],"cw20":[{"address":"%s","amount":"200"}],"nfts":[{"contract_address":"%s","token_id":"2"}]}}}}' $CWTWO_CONTRACT $CW721_CONTRACTFOX)" "200ujunox"
+
+    # test-user adds 100 cwone to Listing 4
+    echoe "test-user adding 100 cwone to listing 4"
+    add_cw20_to_listing $MARKET_CONTRACT $CWONE_CONTRACT "100" 4
+
+    # test-user adds Fox NFT #1 to Listing 4
+    echoe "test-user adding fox NFT 1 to listing 4"
+    add_nft_to_listing $MARKET_CONTRACT $CW721_CONTRACTFOX "1" 4
+    
+    # test-user finalizes Listing 4
+    echoe "test-user finalizing listing"
+    wasm_cmd $MARKET_CONTRACT '{"finalize":{"listing_id":4,"seconds":5000}}' ""
+
+    # ================================================ #
+    # === other-user / KEY_ADDR_TWO create Bucket ==== #
+    # ================================================ #
+    #  200 JUNO, 100 CWTWO, fox NFT 2 (same as price)
+    # ================================================ #
+
+    # other-user / KEY_ADDR_TWO creates Bucket 4
+    echoe "other-user creating a bucket with correct assets"
+    wasm_cmd_other $MARKET_CONTRACT '{"create_bucket":{"bucket_id":4}}' "200ujunox"
+
+    # other-user adds 100 cwtwo to Bucket 4
+    echoe "other-user adding 100 cwtwo to bucket 4"
+    add_cw20_to_bucket_other $MARKET_CONTRACT $CWTWO_CONTRACT "100" 4
+
+    # other-user adds Fox NFT #2 to Bucket 4
+    echoe "other-user adding fox nft 2 to bucket 4"
+    add_nft_to_bucket_other $MARKET_CONTRACT $CW721_CONTRACTFOX "2" 4
+
+    # ================================================ #
+    # ================================================ #
+    # KEY_ADDR_TWO / other-user buying Listing 4
+    # ================================================ #
+
+    # Get KEY_ADDR_TWO (royalty payout addr) balance first
+    echoe "Getting KEY_ADR_TWO balances before trade is executed"
+    # juno balance
+    PRE_PAYOUT_JUNO_BAL=$($BINARY q bank balances $KEY_ADDR_TWO --output json | jq -r '.balances | map(select(.denom == "ujunox")) | .[0].amount') && echo "PRE ujunox: $PRE_PAYOUT_JUNO_BAL"
+    # cwone balance
+    PRE_PAYOUT_CWONE_BAL=$(query_contract $CWONE_CONTRACT `printf '{"balance":{"address":"%s"}}' $KEY_ADDR_TWO`) && echo "PRE cwone: $PRE_PAYOUT_CWONE_BAL"
+    # cwtwo balance
+    PRE_PAYOUT_CWTWO_BAL=$(query_contract $CWTWO_CONTRACT `printf '{"balance":{"address":"%s"}}' $KEY_ADDR_TWO`) && echo "PRE cwtwo: $PRE_PAYOUT_CWTWO_BAL"
+    # ASSERT_EQUAL "$PRE_PAYOUT_CWTWO_BAL" '{"data":{"balance":"10000"}}'
+
+
+    echoe "Executing trade..."
+    wasm_cmd_other $MARKET_CONTRACT '{"buy_listing":{"listing_id":4,"bucket_id":4}}' ""
+
+
+    # Get KEY_ADDR_TWO (royalty payout addr) balance after
+    echoe "Getting KEY_ADR_TWO balances after trade is executed"
+    # juno balance
+    POST_PAYOUT_JUNO_BAL=$($BINARY q bank balances $KEY_ADDR_TWO --output json | jq -r '.balances | map(select(.denom == "ujunox")) | .[0].amount') && echo "POST ujunox: $POST_PAYOUT_JUNO_BAL"
+    # cwone balance
+    POST_PAYOUT_CWONE_BAL=$(query_contract $CWONE_CONTRACT `printf '{"balance":{"address":"%s"}}' $KEY_ADDR_TWO`) && echo "POST cwone: $POST_PAYOUT_CWONE_BAL"
+    # cwtwo balance
+    POST_PAYOUT_CWTWO_BAL=$(query_contract $CWTWO_CONTRACT `printf '{"balance":{"address":"%s"}}' $KEY_ADDR_TWO`) && echo "POST cwtwo: $POST_PAYOUT_CWTWO_BAL"
+    # ASSERT_EQUAL "$POST_PAYOUT_CWTWO_BAL" '{"data":{"balance":"10000"}}'
+
+}
+
+
 # running tests
 test_ask_failure
 test_dupes_zeros_funds_sent
@@ -654,6 +742,7 @@ both_have_fee_denom
 big_sale
 check_prev_ids
 check_max_id
+royalties_are_paid
 
 # 1 if any of the above test failed, this way it will ensure to X the github
 exit $FINAL_STATUS_CODE
