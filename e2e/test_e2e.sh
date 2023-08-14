@@ -16,7 +16,7 @@ DENOM='ujunox'
 JUNOD_CHAIN_ID='testing'
 JUNOD_NODE='http://localhost:26657/'
 # globalfee will break this in the future
-TX_FLAGS="--gas-prices 0.1$DENOM --gas auto -y -b sync --chain-id $JUNOD_CHAIN_ID --node $JUNOD_NODE --output json"
+TX_FLAGS="--gas-prices=0.1$DENOM --gas=auto --gas-adjustment=1.5 -y -b sync --chain-id $JUNOD_CHAIN_ID --node $JUNOD_NODE --output json"
 export JUNOD_COMMAND_ARGS="$TX_FLAGS --from test-user"
 export JUNOD_COMMAND_ARGS_OTHER="$TX_FLAGS --from other-user"
 export KEY_ADDR="juno1hj5fveer5cjtn4wd6wstzugjfdxzl0xps73ftl"
