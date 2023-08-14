@@ -106,7 +106,7 @@ function upload_market {
     export MARKET_CONTRACT=$($BINARY query tx $MARKET_TX --output json | jq -r '.logs[0].events[0].attributes[0].value') && echo "Market Addr: $MARKET_CONTRACT"
 
     # == Get Royalty Contract address ==
-    export ROYALTY_CONTRACT=$(query_contract $MARKET_CONTRACT '{"get_royalty_addr":{}}') && echo "Royalty Addr: $ROYALTY_CONTRACT"
+    export ROYALTY_CONTRACT=$(query_contract $MARKET_CONTRACT '{"get_royalty_addr":{}}' | jq -r '.data') && echo "Royalty Addr: $ROYALTY_CONTRACT"
 
 }
 
