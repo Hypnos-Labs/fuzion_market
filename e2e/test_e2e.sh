@@ -63,7 +63,8 @@ function compile_and_copy {
     docker cp ./artifacts/marketplace.wasm $CONTAINER_NAME:/marketplace.wasm
     # docker cp e2e/fuzion_market.wasm $CONTAINER_NAME:/fuzion_market.wasm
 
-    # copy royalty registry to docker container
+    # copy royalty contract to docker container
+    docker cp ./artifacts/royalty.wasm $CONTAINER_NAME:/royalty.wasm
 
     # copy helper contracts to container
     docker cp e2e/cw20_base.wasm $CONTAINER_NAME:/cw20_base.wasm
@@ -88,15 +89,25 @@ function upload_market {
     # == UPLOAD market ==
     echo "Storing Market contract..."
     MARKET_UPLOAD=$($BINARY tx wasm store /marketplace.wasm $JUNOD_COMMAND_ARGS | jq -r '.txhash') && echo $MARKET_UPLOAD
-    MARKET_BASE_CODE_ID=$($BINARY q tx $MARKET_UPLOAD --output json | jq -r '.logs[0].events[] | select(.type == "store_code").attributes[] | select(.key == "code_id").value') && echo "Code Id: $MARKET_BASE_CODE_ID"
+    MARKET_BASE_CODE_ID=$($BINARY q tx $MARKET_UPLOAD --output json | jq -r '.logs[0].events[] | select(.type == "store_code").attributes[] | select(.key == "code_id").value') && echo "Market Code Id: $MARKET_BASE_CODE_ID"
+
+    # == UPLOAD Royalty ==
+    echo "Storing Royalty contract..."
+    ROYALTY_UPLOAD=$($BINARY tx wasm store /royalty.wasm $JUNOD_COMMAND_ARGS | jq -r '.txhash') && echo $ROYALTY_UPLOAD
+    ROYALTY_CODE_ID=$($BINARY q tx $ROYALTY_UPLOAD --output json | jq -r '.logs[0].events[] | select(.type == "store_code").attributes[] | select(.key == "code_id").value') && echo "Royalty Code Id: $ROYALTY_CODE_ID"
 
     # == INSTANTIATE ==
     ADMIN="$KEY_ADDR"
+    MARKET_INIT=`printf '{"royalty_code_id":%d}' $ROYALTY_CODE_ID`
     # Do this after cw721 upload for testing cw721
-    MARKET_TX=$($BINARY tx wasm instantiate "$MARKET_BASE_CODE_ID" "{}" --label "fuzion_market" $JUNOD_COMMAND_ARGS --admin $KEY_ADDR | jq -r '.txhash') && echo $MARKET_TX
+    MARKET_TX=$($BINARY tx wasm instantiate "$MARKET_BASE_CODE_ID" "$MARKET_INIT" --label "fuzion_market" $JUNOD_COMMAND_ARGS --admin $KEY_ADDR | jq -r '.txhash') && echo $MARKET_TX
 
     # == GET MARKET_CONTRACT ==
     export MARKET_CONTRACT=$($BINARY query tx $MARKET_TX --output json | jq -r '.logs[0].events[0].attributes[0].value') && echo "Market Addr: $MARKET_CONTRACT"
+
+    # == Get Royalty Contract address ==
+    export ROYALTY_CONTRACT=$(query_contract $MARKET_CONTRACT '{"get_royalty_addr":{}}') && echo "Royalty Addr: $ROYALTY_CONTRACT"
+
 }
 
 function upload_cw20 {
@@ -131,6 +142,15 @@ function upload_cw721 {
     INIT_JSONDOG=`printf '{"name":"e2e-dog","symbol":"dog","minter":"%s"}' $KEY_ADDR`
     IMAGE_TX_UPLOADDOG=$($BINARY tx wasm instantiate "$CW721_CODE_ID" $INIT_JSONDOG --label "e2e-dog" $JUNOD_COMMAND_ARGS --admin $KEY_ADDR | jq -r '.txhash') && echo $IMAGE_TX_UPLOADDOG
     export CW721_CONTRACTDOG=$($BINARY query tx $IMAGE_TX_UPLOADDOG --output json | jq -r '.logs[0].events[0].attributes[0].value') && echo "CW721_DOG_CONTRACT: $CW721_CONTRACTDOG"
+}
+
+# Registering cat NFT for 100 bps royalties (1%)
+function register_royalties {
+    echo "Registering cat for 100 bps royalties..."
+    REG_CAT_ROYALTY=`printf '{"register":{"nft_contract":"%s","payout_addr":"%s","bps":100}}' $CW721_CONTRACTCAT $KEY_ADDR_TWO`
+
+    wasm_cmd $ROYALTY_CONTRACT $REG_CAT_ROYALTY "" show_log
+
 }
 
 # ===============
@@ -207,6 +227,7 @@ add_accounts
 upload_market
 upload_cw20
 upload_cw721
+register_royalties
 
 
 echo "Minting NFTs..."
@@ -216,10 +237,11 @@ mint_cw721 $CW721_CONTRACTDOG 1 $KEY_ADDR "https://user-images.githubusercontent
 mint_cw721 $CW721_CONTRACTCAT 2 $KEY_ADDR_TWO "https://user-images.githubusercontent.com/89463679/218784962-a9a74100-8ea2-4973-91bf-623c458be9fd.png" && echo "Minted NFT CAT 2"
 mint_cw721 $CW721_CONTRACTDOG 2 $KEY_ADDR_TWO "https://user-images.githubusercontent.com/89463679/218785489-7c026eb3-34b7-47f8-8e98-851462e591bc.png" && echo "Minted NFT DOG 2"
 
+
+
 # Ensures CW721 was properly minted - not needed
 # token_uri=$(query_contract $CW721_CONTRACT '{"all_nft_info":{"token_id":"1"}}' | jq -r '.data.info.token_uri')
 # ASSERT_EQUAL "$token_uri" "https://user-images.githubusercontent.com/89463679/218784962-a9a74100-8ea2-4973-91bf-623c458be9fd.png"
-
 
 # Ensures we have the cw20 balance
 balance=$(query_contract $CWONE_CONTRACT `printf '{"balance":{"address":"%s"}}' $KEY_ADDR`)
@@ -237,6 +259,8 @@ ASSERT_EQUAL "$balance" '{"data":{"balance":"10000"}}'
 # ============================================================= #
 # ======================= Logic Tests ========================= #
 # ============================================================= #
+
+# 
 
 # Listings cannot have 0 amounts or duplicates in their Ask Price
 # [X] Listing with 0's in Ask should fail

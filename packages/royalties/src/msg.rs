@@ -36,9 +36,3 @@ pub enum QueryMsg {
         nft_contracts: Vec<String>
     }
 }
-
-#[cw_serde]
-pub struct RoyaltyInfoResponse {
-    payout_addr: String,
-    bps: u64,
-}
