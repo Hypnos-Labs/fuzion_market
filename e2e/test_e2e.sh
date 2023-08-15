@@ -21,6 +21,7 @@ export JUNOD_COMMAND_ARGS="$TX_FLAGS --from test-user"
 export JUNOD_COMMAND_ARGS_OTHER="$TX_FLAGS --from other-user"
 export KEY_ADDR="juno1hj5fveer5cjtn4wd6wstzugjfdxzl0xps73ftl"
 export KEY_ADDR_TWO="juno1efd63aw40lxf3n4mhf7dzhjkr453axurv2zdzk"
+export ROYALTY_ADDR="juno1wrn0l3tram70s0tfalmump4wfl7lpgrwju9h5g"
 
 
 # ===================
@@ -152,7 +153,7 @@ function upload_cw721 {
 # Registering fox NFT for 100 bps royalties (1%)
 function register_royalties {
     echo "Registering fox for 100 bps royalties..."
-    REG_FOX_ROYALTY=`printf '{"register":{"nft_contract":"%s","payout_addr":"%s","bps":100}}' $CW721_CONTRACTFOX $KEY_ADDR_TWO`
+    REG_FOX_ROYALTY=`printf '{"register":{"nft_contract":"%s","payout_addr":"%s","bps":100}}' $CW721_CONTRACTFOX $ROYALTY_ADDR`
 
     wasm_cmd $ROYALTY_CONTRACT $REG_FOX_ROYALTY "" show_log
 
@@ -205,6 +206,9 @@ function add_accounts {
     echo "decorate bright ozone fork gallery riot bus exhaust worth way bone indoor calm squirrel merry zero scheme cotton until shop any excess stage laundry" | $BINARY keys add test-user --recover --keyring-backend test
     # juno1efd63aw40lxf3n4mhf7dzhjkr453axurv2zdzk
     echo "wealth flavor believe regret funny network recall kiss grape useless pepper cram hint member few certain unveil rather brick bargain curious require crowd raise" | $BINARY keys add other-user --recover --keyring-backend test
+    # juno1wrn0l3tram70s0tfalmump4wfl7lpgrwju9h5g
+    echo "shock enemy chuckle dice neglect cinnamon replace expose fantasy glance embody hollow entry absent reason neutral used purchase wheel tortoise debate fall cinnamon spoil" | $BINARY keys add royalty-addr --recover --keyring-backend test
+
 
     # send some 10 junox funds to the user
     $BINARY tx bank send test-user juno1efd63aw40lxf3n4mhf7dzhjkr453axurv2zdzk 10000000ujunox $JUNOD_COMMAND_ARGS
@@ -624,29 +628,29 @@ function big_sale {
 # Checking that previously used ID's (even ones that have been removed & deleted)
 # cannot be used again
 function check_prev_ids {
-    echoe "Creating Listing with prev used id #1 "
+    echoe "SHOULD FAIL: Creating Listing with prev used id #1 "
     wasm_cmd $MARKET_CONTRACT '{"create_listing":{"listing_id":1,"create_msg":{"ask":{"native":[{"denom":"uosmo","amount":"1"}],"cw20":[],"nfts":[]}}}}' "5ujunox"
     ASSERT_CONTAINS "$CMD_LOG" 'Error Message:'
 
-    echoe "Creating bucket with prev used id #1"
+    echoe "SHOULD FAIL: Creating bucket with prev used id #1"
     wasm_cmd $MARKET_CONTRACT '{"create_bucket":{"bucket_id":1}}' "5ujunox"
     ASSERT_CONTAINS "$CMD_LOG" 'Error Message:'
 
-    echoe "Creating Listing with prev used id #2"
+    echoe "SHOULD FAIL: Creating Listing with prev used id #2"
     wasm_cmd $MARKET_CONTRACT '{"create_listing":{"listing_id":2,"create_msg":{"ask":{"native":[{"denom":"uosmo","amount":"1"}],"cw20":[],"nfts":[]}}}}' "5ujunox"
     ASSERT_CONTAINS "$CMD_LOG" 'Error Message:'
 
-    echoe "Creating bucket with prev used id #2"
+    echoe "SHOULD FAIL: Creating bucket with prev used id #2"
     wasm_cmd $MARKET_CONTRACT '{"create_bucket":{"bucket_id":2}}' "5ujunox"
     ASSERT_CONTAINS "$CMD_LOG" 'Error Message:'
 }
 
 function check_max_id {
-    echoe "Creating Listing with too high ID (9007199254740990)"
+    echoe "SHOULD FAIL: Creating Listing with too high ID (9007199254740990)"
     wasm_cmd $MARKET_CONTRACT '{"create_listing":{"listing_id":9007199254740990,"create_msg":{"ask":{"native":[{"denom":"uosmo","amount":"1"}],"cw20":[],"nfts":[]}}}}' "5ujunox"
     ASSERT_CONTAINS "$CMD_LOG" 'Error Message:'
 
-    echoe "Creating bucket with too high ID (9007199254740990)"
+    echoe "SHOULD FAIL: Creating bucket with too high ID (9007199254740990)"
     wasm_cmd $MARKET_CONTRACT '{"create_bucket":{"bucket_id":9007199254740990}}' "5ujunox"
     ASSERT_CONTAINS "$CMD_LOG" 'Error Message:'
 
@@ -707,14 +711,14 @@ function royalties_are_paid {
     # KEY_ADDR_TWO / other-user buying Listing 4
     # ================================================ #
 
-    # Get KEY_ADDR_TWO (royalty payout addr) balance first
+    # Get ROYALTY_ADDR (royalty payout addr) balance first
     echoe "Getting KEY_ADR_TWO balances before trade is executed"
     # juno balance
-    PRE_PAYOUT_JUNO_BAL=$($BINARY q bank balances $KEY_ADDR_TWO --output json | jq -r '.balances | map(select(.denom == "ujunox")) | .[0].amount') && echo "PRE ujunox: $PRE_PAYOUT_JUNO_BAL"
+    PRE_PAYOUT_JUNO_BAL=$($BINARY q bank balances $ROYALTY_ADDR --output json | jq -r '.balances | map(select(.denom == "ujunox")) | .[0].amount') && echo "PRE ujunox: $PRE_PAYOUT_JUNO_BAL"
     # cwone balance
-    PRE_PAYOUT_CWONE_BAL=$(query_contract $CWONE_CONTRACT `printf '{"balance":{"address":"%s"}}' $KEY_ADDR_TWO`) && echo "PRE cwone: $PRE_PAYOUT_CWONE_BAL"
+    PRE_PAYOUT_CWONE_BAL=$(query_contract $CWONE_CONTRACT `printf '{"balance":{"address":"%s"}}' $ROYALTY_ADDR`) && echo "PRE cwone: $PRE_PAYOUT_CWONE_BAL"
     # cwtwo balance
-    PRE_PAYOUT_CWTWO_BAL=$(query_contract $CWTWO_CONTRACT `printf '{"balance":{"address":"%s"}}' $KEY_ADDR_TWO`) && echo "PRE cwtwo: $PRE_PAYOUT_CWTWO_BAL"
+    PRE_PAYOUT_CWTWO_BAL=$(query_contract $CWTWO_CONTRACT `printf '{"balance":{"address":"%s"}}' $ROYALTY_ADDR`) && echo "PRE cwtwo: $PRE_PAYOUT_CWTWO_BAL"
     # ASSERT_EQUAL "$PRE_PAYOUT_CWTWO_BAL" '{"data":{"balance":"10000"}}'
 
 
@@ -722,14 +726,14 @@ function royalties_are_paid {
     wasm_cmd_other $MARKET_CONTRACT '{"buy_listing":{"listing_id":4,"bucket_id":4}}' ""
 
 
-    # Get KEY_ADDR_TWO (royalty payout addr) balance after
+    # Get ROYALTY_ADDR (royalty payout addr) balance after
     echoe "Getting KEY_ADR_TWO balances after trade is executed"
     # juno balance
-    POST_PAYOUT_JUNO_BAL=$($BINARY q bank balances $KEY_ADDR_TWO --output json | jq -r '.balances | map(select(.denom == "ujunox")) | .[0].amount') && echo "POST ujunox: $POST_PAYOUT_JUNO_BAL"
+    POST_PAYOUT_JUNO_BAL=$($BINARY q bank balances $ROYALTY_ADDR --output json | jq -r '.balances | map(select(.denom == "ujunox")) | .[0].amount') && echo "POST ujunox: $POST_PAYOUT_JUNO_BAL"
     # cwone balance
-    POST_PAYOUT_CWONE_BAL=$(query_contract $CWONE_CONTRACT `printf '{"balance":{"address":"%s"}}' $KEY_ADDR_TWO`) && echo "POST cwone: $POST_PAYOUT_CWONE_BAL"
+    POST_PAYOUT_CWONE_BAL=$(query_contract $CWONE_CONTRACT `printf '{"balance":{"address":"%s"}}' $ROYALTY_ADDR`) && echo "POST cwone: $POST_PAYOUT_CWONE_BAL"
     # cwtwo balance
-    POST_PAYOUT_CWTWO_BAL=$(query_contract $CWTWO_CONTRACT `printf '{"balance":{"address":"%s"}}' $KEY_ADDR_TWO`) && echo "POST cwtwo: $POST_PAYOUT_CWTWO_BAL"
+    POST_PAYOUT_CWTWO_BAL=$(query_contract $CWTWO_CONTRACT `printf '{"balance":{"address":"%s"}}' $ROYALTY_ADDR`) && echo "POST cwtwo: $POST_PAYOUT_CWTWO_BAL"
     # ASSERT_EQUAL "$POST_PAYOUT_CWTWO_BAL" '{"data":{"balance":"10000"}}'
 
 
