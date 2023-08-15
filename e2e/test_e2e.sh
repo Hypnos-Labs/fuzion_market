@@ -582,11 +582,11 @@ function big_sale {
 
     CHECK_FEE $TEST_USER_BAL $TEST_USER_BAL_POST 200
 
-    echoe "test-user should own dog NFT 3 - 35"
+    echoe "test-user should own dog NFT 3 - 26"
     DOG_X_OWNER=$(query_contract $CW721_CONTRACTDOG '{"owner_of":{"token_id":"3"}}' | jq -r '.data.owner')
     ASSERT_EQUAL "$DOG_X_OWNER" $KEY_ADDR
 
-    DOG_XX_OWNER=$(query_contract $CW721_CONTRACTDOG '{"owner_of":{"token_id":"35"}}' | jq -r '.data.owner')
+    DOG_XX_OWNER=$(query_contract $CW721_CONTRACTDOG '{"owner_of":{"token_id":"26"}}' | jq -r '.data.owner')
     ASSERT_EQUAL "$DOG_XX_OWNER" $KEY_ADDR
 
 
@@ -611,11 +611,11 @@ function big_sale {
     
     CHECK_FEE $OTHER_USER_BAL $OTHER_USER_BAL_POST 200
 
-    echoe "other-user should own cat NFT 3 - 35"
+    echoe "other-user should own cat NFT 3 - 26"
     CAT_X_OWNER=$(query_contract $CW721_CONTRACTCAT '{"owner_of":{"token_id":"3"}}' | jq -r '.data.owner')
     ASSERT_EQUAL "$CAT_X_OWNER" $KEY_ADDR_TWO
 
-    CAT_XX_OWNER=$(query_contract $CW721_CONTRACTCAT '{"owner_of":{"token_id":"35"}}' | jq -r '.data.owner')
+    CAT_XX_OWNER=$(query_contract $CW721_CONTRACTCAT '{"owner_of":{"token_id":"26"}}' | jq -r '.data.owner')
     ASSERT_EQUAL "$CAT_XX_OWNER" $KEY_ADDR_TWO
 
 }
@@ -655,6 +655,8 @@ function check_max_id {
 
 # Royalty checks
 # Ensure that correct amount sent to user, royalty payout, and CP
+
+# 1 hour finishing this test & fee check then ship
 
 function royalties_are_paid {
     # State incrementor is 4 now, so ID's will be 4
