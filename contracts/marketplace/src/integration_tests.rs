@@ -354,12 +354,8 @@ pub mod create_valid_listing {
 
     use crate::msg::ExecuteMsg;
     use cosmwasm_std::{coin, Addr, Uint128}; //coins
-    use cw20::Cw20CoinVerified; //, Cw20Coin};
 
-    use crate::{
-        msg::{CreateListingMsg, GenericBalanceUnvalidated, Cw20CoinUnverified, NftUnverified}, 
-        state::{GenericBalance, Nft}
-    };
+    use crate::msg::{CreateListingMsg, GenericBalanceUnvalidated, Cw20CoinUnverified, NftUnverified};
 
     use super::VALID_NATIVE; // REAL_JVONE, REAL_NEONPEEPZ};
 
