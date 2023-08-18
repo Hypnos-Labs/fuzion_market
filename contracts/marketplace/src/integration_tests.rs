@@ -356,24 +356,27 @@ pub mod create_valid_listing {
     use cosmwasm_std::{coin, Addr, Uint128}; //coins
     use cw20::Cw20CoinVerified; //, Cw20Coin};
 
-    use crate::{msg::CreateListingMsg, state::GenericBalance, state::Nft};
+    use crate::{
+        msg::{CreateListingMsg, GenericBalanceUnvalidated, Cw20CoinUnverified, NftUnverified}, 
+        state::{GenericBalance, Nft}
+    };
 
     use super::VALID_NATIVE; // REAL_JVONE, REAL_NEONPEEPZ};
 
     pub fn valid_ask_all(jvone_addr: Addr, np_addr: Addr, listing_id: u64) -> ExecuteMsg {
         let valid_native = coin(10, VALID_NATIVE);
 
-        let valid_cw20 = Cw20CoinVerified {
-            address: jvone_addr,
+        let valid_cw20 = Cw20CoinUnverified {
+            address: jvone_addr.to_string(),
             amount: Uint128::from(10u32),
         };
 
-        let valid_nft = Nft {
-            contract_address: np_addr,
+        let valid_nft = NftUnverified {
+            contract_address: np_addr.to_string(),
             token_id: "2".to_string(),
         };
 
-        let valid_ask_price = GenericBalance {
+        let valid_ask_price = GenericBalanceUnvalidated {
             native: vec![valid_native],
             cw20: vec![valid_cw20],
             nfts: vec![valid_nft],
@@ -417,55 +420,53 @@ pub mod create_valid_listing {
             Some(a) => vec![coin(a, VALID_NATIVE)],
         };
 
-        let mut cw20_ask: Vec<Cw20CoinVerified> = vec![];
+        let mut cw20_ask: Vec<Cw20CoinUnverified> = vec![];
 
         if let Some(jvoneaddr) = jvone_addr {
-            cw20_ask.push(Cw20CoinVerified {
-                address: jvoneaddr,
+            cw20_ask.push(Cw20CoinUnverified {
+                address: jvoneaddr.into(),
                 amount: jvone_amt.unwrap(),
             })
         };
 
         if let Some(jvtwoaddr) = jvtwo_addr {
-            cw20_ask.push(Cw20CoinVerified {
-                address: jvtwoaddr,
+            cw20_ask.push(Cw20CoinUnverified {
+                address: jvtwoaddr.into(),
                 amount: jvtwo_amt.unwrap(),
             })
         };
 
         if let Some(jvtreaddr) = jvtre_addr {
-            cw20_ask.push(Cw20CoinVerified {
-                address: jvtreaddr,
+            cw20_ask.push(Cw20CoinUnverified {
+                address: jvtreaddr.into(),
                 amount: jvtre_amt.unwrap(),
             })
         };
 
-        let mut nft_ask: Vec<Nft> = vec![];
+        let mut nft_ask: Vec<NftUnverified> = vec![];
 
         if let Some(npaddr) = np_addr {
-            nft_ask.push(Nft {
-                contract_address: npaddr,
+            nft_ask.push(NftUnverified {
+                contract_address: npaddr.into(),
                 token_id: np_id.unwrap(),
             })
         };
 
         if let Some(skaddr) = sk_addr {
-            nft_ask.push(Nft {
-                contract_address: skaddr,
+            nft_ask.push(NftUnverified{
+                contract_address: skaddr.into(),
                 token_id: sk_id.unwrap(),
             })
         };
 
-        let valid_ask_price = GenericBalance {
+        let valid_ask_price = GenericBalanceUnvalidated {
             native: native_ask,
             cw20: cw20_ask,
             nfts: nft_ask,
         };
 
         let cm = CreateListingMsg {
-            //id: listing_id,
             ask: valid_ask_price,
-            //whitelisted_purchasers: whitelisted_purchasers,
             whitelisted_buyer,
         };
 
@@ -479,34 +480,28 @@ pub mod create_valid_listing {
         //listing_id: u64,
         jvone_addr: Addr,
         np_addr: Addr,
-        //whitelist: Option<Vec<Addr>>,
         whitelisted_buyer: Option<String>,
     ) -> CreateListingMsg {
         let native_ask = cosmwasm_std::coins(1, "ujunox");
 
-        let cw20_ask = vec![Cw20CoinVerified {
-            address: jvone_addr,
+        let cw20_ask = vec![Cw20CoinUnverified {
+            address: jvone_addr.into(),
             amount: Uint128::from(1u32),
         }];
 
-        let nft_ask = vec![Nft {
-            contract_address: np_addr,
+        let nft_ask = vec![NftUnverified {
+            contract_address: np_addr.into(),
             token_id: "5".to_string(),
         }];
 
-        let ask_price = GenericBalance {
+        let ask_price = GenericBalanceUnvalidated {
             native: native_ask,
             cw20: cw20_ask,
             nfts: nft_ask,
         };
 
-        // let whitelist =
-        //     whitelist.map(|wl| wl.iter().map(|addr| addr.to_string()).collect::<Vec<String>>());
-
         CreateListingMsg {
-            //id: listing_id,
             ask: ask_price,
-            //whitelisted_purchasers: whitelist,
             whitelisted_buyer,
         }
     }
@@ -2325,23 +2320,21 @@ fn marketplace_sale() -> Result<(), anyhow::Error> {
     // > shittykittyz #3
     // > Sam is whitelisted
     //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    let cw20_ask = vec![Cw20CoinVerified {
-        address: jvtwo.addr(),
+    let cw20_ask = vec![Cw20CoinUnverified {
+        address: jvtwo.addr().into(),
         amount: Uint128::from(20u32),
     }];
-    let nft_ask = vec![Nft {
-        contract_address: shittykittyz.addr(),
+    let nft_ask = vec![NftUnverified {
+        contract_address: shittykittyz.addr().into(),
         token_id: "3".to_string(),
     }];
-    let ask_price = GenericBalance {
+    let ask_price = GenericBalanceUnvalidated {
         native: vec![],
         cw20: cw20_ask,
         nfts: nft_ask,
     };
     let cl = CreateListingMsg {
-        //id: 1,
         ask: ask_price,
-        //whitelisted_purchasers: Some(vec![sam.address.to_string(), john.address.to_string()]),
         whitelisted_buyer: Some(sam.address.to_string()),
     };
     let clm = crate::msg::ExecuteMsg::CreateListing {
@@ -2789,11 +2782,11 @@ fn marketplace_sale() -> Result<(), anyhow::Error> {
     //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     // John can't Edit Price
     //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    let cw20_ask = vec![Cw20CoinVerified {
-        address: jvtwo.addr(),
+    let cw20_ask = vec![Cw20CoinUnverified {
+        address: jvtwo.addr().into(),
         amount: Uint128::from(20u32),
     }];
-    let ask_price = GenericBalance {
+    let ask_price = GenericBalanceUnvalidated {
         native: vec![],
         cw20: cw20_ask,
         nfts: vec![],
@@ -2951,15 +2944,15 @@ fn cant_buy_expired() -> Result<(), anyhow::Error> {
     //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     // Create Listing Message
     //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    let cw20_ask = vec![Cw20CoinVerified {
-        address: jvtwo.addr(),
+    let cw20_ask = vec![Cw20CoinUnverified {
+        address: jvtwo.addr().into(),
         amount: Uint128::from(20u32),
     }];
-    let nft_ask = vec![Nft {
-        contract_address: shittykittyz.addr(),
+    let nft_ask = vec![NftUnverified {
+        contract_address: shittykittyz.addr().into(),
         token_id: "3".to_string(),
     }];
-    let ask_price = GenericBalance {
+    let ask_price = GenericBalanceUnvalidated {
         native: vec![],
         cw20: cw20_ask,
         nfts: nft_ask,
@@ -3385,10 +3378,10 @@ fn royalties_are_sent() -> Result<(), anyhow::Error> {
     //~~~~~~~~~~~~~~~~~~~~~~~~
 
     let cm = CreateListingMsg {
-        ask: GenericBalance {
+        ask: GenericBalanceUnvalidated {
             native: cosmwasm_std::coins(100, "ujunox"),
-            cw20: vec![Cw20CoinVerified {
-                address: jvone.addr(),
+            cw20: vec![Cw20CoinUnverified {
+                address: jvone.addr().into(),
                 amount: Uint128::from(100u128)
             }],
             nfts: vec![]
@@ -3485,11 +3478,11 @@ fn royalties_are_sent() -> Result<(), anyhow::Error> {
     //~~~~~~~~~~~~~~~~~~~~~~~~
 
     let cm = CreateListingMsg {
-        ask: GenericBalance {
+        ask: GenericBalanceUnvalidated {
             native: vec![],
             cw20: vec![],
-            nfts: vec![Nft {
-                contract_address: neonpeepz.addr(),
+            nfts: vec![NftUnverified {
+                contract_address: neonpeepz.addr().into(),
                 token_id: "2".to_string()
             }]
         },
@@ -3629,10 +3622,10 @@ fn no_duplicate_royalties_listing() -> Result<(), anyhow::Error> {
     //~~~~~~~~~~~~~~~~~~~~~~~~
 
     let cm = CreateListingMsg {
-        ask: GenericBalance {
+        ask: GenericBalanceUnvalidated {
             native: cosmwasm_std::coins(100, "ujunox"),
-            cw20: vec![Cw20CoinVerified {
-                address: jvone.addr(),
+            cw20: vec![Cw20CoinUnverified {
+                address: jvone.addr().into(),
                 amount: Uint128::from(100u128)
             }],
             nfts: vec![]
@@ -3784,16 +3777,16 @@ fn no_duplicate_royalties_ask() -> Result<(), anyhow::Error> {
     //~~~~~~~~~~~~~~~~~~~~~~~~
 
     let cm = CreateListingMsg {
-        ask: GenericBalance {
+        ask: GenericBalanceUnvalidated {
             native: vec![],
             cw20: vec![],
             nfts: vec![
-                Nft {
-                    contract_address: neonpeepz.addr(),
+                NftUnverified {
+                    contract_address: neonpeepz.addr().into(),
                     token_id: "1".to_string()
                 },
-                Nft {
-                    contract_address: neonpeepz.addr(),
+                NftUnverified {
+                    contract_address: neonpeepz.addr().into(),
                     token_id: "2".to_string()
                 }
             ]
@@ -3942,14 +3935,14 @@ fn royalty_nft_both_sides() -> Result<(), anyhow::Error> {
     //~~~~~~~~~~~~~~~~~~~~~~~~
 
     let cm = CreateListingMsg {
-        ask: GenericBalance {
+        ask: GenericBalanceUnvalidated {
             native: cosmwasm_std::coins(100, "ujunox"),
-            cw20: vec![Cw20CoinVerified {
-                address: jvtwo.addr(),
+            cw20: vec![Cw20CoinUnverified {
+                address: jvtwo.addr().into(),
                 amount: Uint128::from(100u128)
             }],
-            nfts: vec![Nft {
-                contract_address: neonpeepz.addr(),
+            nfts: vec![NftUnverified {
+                contract_address: neonpeepz.addr().into(),
                 token_id: "3".to_string()
             }]
         },
@@ -4132,17 +4125,17 @@ fn multiple_collections_with_royalties() -> Result<(), anyhow::Error> {
     //~~~~~~~~~~~~~~~~~~~~~~~~
 
     let cm = CreateListingMsg {
-        ask: GenericBalance {
+        ask: GenericBalanceUnvalidated {
             native: cosmwasm_std::coins(100, "ujunox"),
-            cw20: vec![Cw20CoinVerified {
-                address: jvtwo.addr(),
+            cw20: vec![Cw20CoinUnverified {
+                address: jvtwo.addr().into(),
                 amount: Uint128::from(100u128)
             }],
-            nfts: vec![Nft {
-                contract_address: neonpeepz.addr(),
+            nfts: vec![NftUnverified {
+                contract_address: neonpeepz.addr().into(),
                 token_id: "3".to_string()
-            }, Nft {
-                contract_address: shittykittyz.addr(),
+            }, NftUnverified {
+                contract_address: shittykittyz.addr().into(),
                 token_id: "4".to_string()
             }]
         },
@@ -4366,10 +4359,10 @@ fn over_fifty_percent_listing() -> Result<(), anyhow::Error> {
     //~~~~~~~~~~~~~~~~~~~~~~~~
 
     let cm = CreateListingMsg {
-        ask: GenericBalance {
+        ask: GenericBalanceUnvalidated {
             native: cosmwasm_std::coins(100, "ujunox"),
-            cw20: vec![Cw20CoinVerified {
-                address: jvtwo.addr(),
+            cw20: vec![Cw20CoinUnverified {
+                address: jvtwo.addr().into(),
                 amount: Uint128::from(100u128)
             }],
             nfts: vec![]
@@ -4563,14 +4556,14 @@ fn over_fifty_percent_bucket() -> Result<(), anyhow::Error> {
     //~~~~~~~~~~~~~~~~~~~~~~~~
 
     let ask_nfts = nft_contracts.iter().map(|n| {
-        Nft {
-            contract_address: n.clone(),
+        NftUnverified {
+            contract_address: n.clone().into(),
             token_id: "1".to_string()
         }
-    }).collect::<Vec<Nft>>();
+    }).collect::<Vec<NftUnverified>>();
 
     let cm = CreateListingMsg {
-        ask: GenericBalance {
+        ask: GenericBalanceUnvalidated {
             native: vec![],
             cw20: vec![],
             nfts: ask_nfts

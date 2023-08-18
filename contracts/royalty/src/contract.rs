@@ -239,13 +239,13 @@ pub fn get_multi(
     }
 
     // Shouldn't need addr_validate but verify in e2e/integration tests
-    let infos: Result<Vec<Option<RoyaltyInfo>>, cosmwasm_std::StdError> = nft_contracts
+    let infos: Vec<Option<RoyaltyInfo>> = nft_contracts
         .iter()
         .map(|contract| {
             REGISTRY.may_load(deps.storage, &Addr::unchecked(contract))
-        }).collect();
+        }).collect::<Result<Vec<Option<RoyaltyInfo>>, cosmwasm_std::StdError>>()?;
 
-    Ok(infos?)
+    Ok(infos)
 
 }
 

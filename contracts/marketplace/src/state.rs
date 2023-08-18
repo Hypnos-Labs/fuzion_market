@@ -384,23 +384,10 @@ impl GenericBalance {
     }
 
     /// Errors if any are true:
-    ///
-    /// - Any Native token amount == 0
-    /// - Any Cw20 token amount == 0
-    /// - Any duplicate Native Denom
-    /// - Any duplicate Cw20 Contract addresses
-    /// - Number of Natives, CW20's, and NFTs are over 25
+    /// - Any Native or CW20 token amount is 0
+    /// - Number of Natives, CW20's, and NFTs are over MAX_NUM_ASSETS
+    /// - Any duplicate Native Denom, Cw20 contract_addr, or NFT (contract_addr + token_id)
     pub fn check_valid(&self) -> Result<(), ContractError> {
-        // Check that it isn't completely empty
-        let length = self.native.len() + self.cw20.len() + self.nfts.len();
-        if length == 0 {
-            return Err(ContractError::GenericError("Cannot be empty".to_string()));
-        }
-
-        // Check that length is not over 35 to avoid out of gas issues
-        if length > 25 {
-            return Err(ContractError::GenericError("25 asset maximum exceeded".to_string()));
-        }
 
         // Check Natives for 0's
         if self.native.iter().any(|n| n.amount.is_zero()) {
@@ -412,36 +399,42 @@ impl GenericBalance {
             return Err(ContractError::GenericError("Cannot contain 0 value amounts".to_string()));
         }
 
-        // Do not chain the following 2 checks together, as in theory a native denom could
-        // be the same as a cw20 contract address while still being different tokens
+        // Validate number of assets (MAX_NUM_ASSETS is to avoid out of gas problems)
+        let _ = self
+            .native.len()
+            .checked_add(self.cw20.len())
+            .and_then(|v| v.checked_add(self.nfts.len()))
+            .ok_or_else(|| ContractError::GenericError(format!("Listing cannot contain over {} items", MAX_NUM_ASSETS)))
+            .and_then(|v| {
+                if v == 0 || v as u32 > MAX_NUM_ASSETS {
+                    return Err(ContractError::GenericError(format!("Number of items must be between 1 and {}", MAX_NUM_ASSETS)));
+                }
+                Ok(())
+            })?;
+
         // Check Natives for duplicates (same denom)
-        let n_bt =
-            self.native.iter().map(|n| (n.denom.clone(), 1u8)).collect::<BTreeMap<String, u8>>();
-        if n_bt.len() != self.native.len() {
+        let n_dd = self.native.iter().map(|n| n.denom.clone()).collect::<BTreeSet<String>>();
+        if n_dd.len() != self.native.len() {
             return Err(ContractError::GenericError(
                 "Cannot contain duplicate Native Tokens".to_string(),
             ));
         }
 
         // Check CW20's for duplicates (same address)
-        let cw_bt = self
-            .cw20
-            .iter()
-            .map(|cw| (cw.address.to_string(), 1u8))
-            .collect::<BTreeMap<String, u8>>();
-        if cw_bt.len() != self.cw20.len() {
+        // Do not use Addr since CHAIN1XYZ and chain1xyz are indeed different
+        let cw_dd = self.cw20.iter().map(|cw| cw.address.clone().to_string()).collect::<BTreeSet<String>>();
+        if cw_dd.len() != self.cw20.len() {
             return Err(ContractError::GenericError(
                 "Cannot contain duplicate CW20 Tokens".to_string(),
             ));
         }
 
-        // Check NFTs for duplicates (same address + same token_id)
-        let nft_bt = self
-            .nfts
+        // Check NFts for duplicates (same address & same token_id)
+        let nft_dd = self.nfts
             .iter()
-            .map(|nft| ((nft.contract_address.to_string(), nft.token_id.clone()), 1u8))
-            .collect::<BTreeMap<(String, String), u8>>();
-        if nft_bt.len() != self.nfts.len() {
+            .map(|nft| (nft.contract_address.to_string(), nft.token_id.clone()))
+            .collect::<BTreeSet<(String, String)>>();
+        if nft_dd.len() != self.nfts.len() {
             return Err(ContractError::GenericError("Cannot contain duplicate NFTs".to_string()));
         }
 
@@ -940,4 +933,7 @@ mod state_tests {
         let _res =
             genbal_cmp(&gen_bal_main, &gen_bal_mph).expect_err(&here("nft", line!(), column!()));
     }
+
+
+
 }

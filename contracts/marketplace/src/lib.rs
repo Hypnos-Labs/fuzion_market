@@ -11,6 +11,8 @@ pub mod query;
 pub mod state;
 pub mod utils;
 
+pub const MAX_NUM_ASSETS: u32 = 25u32;
+
 mod contract_imports {
     pub use cosmwasm_std::{
         entry_point, from_binary, to_binary, Addr, Binary, Deps, DepsMut, Env, MessageInfo,
@@ -36,7 +38,7 @@ mod contract_imports {
 
 mod execute_imports {
     pub use crate::error::ContractError;
-    pub use crate::msg::CreateListingMsg;
+    pub use crate::msg::{CreateListingMsg, GenericBalanceUnvalidated};
     pub use crate::state::{
         genbal_cmp,
         listingz,
@@ -62,6 +64,8 @@ mod execute_imports {
         RoyaltyInfo,
         msg::QueryMsg as RoyaltyQueryMsg,
     };
+
+    pub use super::MAX_NUM_ASSETS;
 }
 
 mod integration_tests_imports {
@@ -74,11 +78,14 @@ mod integration_tests_imports {
 }
 
 mod msg_imports {
+    pub use std::collections::BTreeSet;
     pub use crate::query::*;
     pub use crate::state::GenericBalance;
     pub use cosmwasm_schema::{cw_serde, QueryResponses};
     pub use cw20::Cw20ReceiveMsg;
     pub use cw721::Cw721ReceiveMsg;
+    pub use cosmwasm_std::{Uint128, Coin, Addr};
+    pub use super::MAX_NUM_ASSETS;
 }
 
 mod query_imports {
@@ -97,6 +104,7 @@ mod query_imports {
 }
 
 mod state_imports {
+    pub use std::collections::BTreeSet;
     pub use crate::error::ContractError;
     pub use crate::utils::send_tokens_cosmos;
     pub use cosmwasm_schema::cw_serde;
@@ -110,6 +118,7 @@ mod state_imports {
     pub use anybuf::Anybuf;
     pub use cosmwasm_std::{Empty, coin, StdError};
     pub use royalties::RoyaltyInfo;
+    pub use super::MAX_NUM_ASSETS;
 }
 
 mod utils_imports {

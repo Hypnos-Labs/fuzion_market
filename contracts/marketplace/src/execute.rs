@@ -248,8 +248,8 @@ pub fn execute_create_listing(
         }
     }
 
-    // Check the asking price, errors if invalid
-    createlistingmsg.ask.check_valid()?;
+    // Validate ask
+    let valid_ask: GenericBalance = createlistingmsg.ask.validate(&deps)?;
 
     // Save listing
     listingz().save(
@@ -264,7 +264,7 @@ pub fn execute_create_listing(
             claimant: None,
             whitelisted_buyer: wl_buyer,
             for_sale: GenericBalance::from_balance(funds_sent),
-            ask: createlistingmsg.ask,
+            ask: valid_ask,
             fee_amount: None,
         },
     )?;
@@ -315,8 +315,8 @@ pub fn execute_create_listing_cw721(
         }
     }
 
-    // Check the asking price, errors if invalid
-    createlistingmsg.ask.check_valid()?;
+    // Validate ask
+    let valid_ask: GenericBalance = createlistingmsg.ask.validate(&deps)?;
 
     listingz().save(
         deps.storage,
@@ -330,7 +330,7 @@ pub fn execute_create_listing_cw721(
             claimant: None,
             whitelisted_buyer: wl_buyer,
             for_sale: GenericBalance::from_nft(nft),
-            ask: createlistingmsg.ask,
+            ask: valid_ask,
             fee_amount: None,
         },
     )?;
@@ -348,7 +348,7 @@ pub fn execute_change_ask(
     deps: DepsMut,
     user_sender: &Addr,
     listing_id: u64,
-    new_ask: GenericBalance,
+    new_ask: GenericBalanceUnvalidated,
 ) -> Result<Response, ContractError> {
     // Ensure listing exists, sender is owner, & get listing
     let Some(listing) = listingz().may_load(deps.storage, (user_sender, listing_id))? else {
@@ -378,14 +378,14 @@ pub fn execute_change_ask(
         return Err(ContractError::Unauthorized {});
     }
 
-    // Check the asking price, errors if invalid
-    new_ask.check_valid()?;
+    // Validate ask
+    let valid_ask: GenericBalance = new_ask.validate(&deps)?;
 
     listingz().replace(
         deps.storage,
         (user_sender, listing_id),
         Some(&Listing {
-            ask: new_ask,
+            ask: valid_ask,
             ..listing.clone()
         }),
         Some(&listing),
@@ -406,7 +406,7 @@ pub fn execute_add_to_listing(
     balance.normalized_check()?;
 
     // Ensure listing exists, sender is owner, & get listing
-    let Some(listing) = listingz().may_load(deps.storage, (user_sender, listing_id))? else {
+    let Some(listing): Option<Listing> = listingz().may_load(deps.storage, (user_sender, listing_id))? else {
         return Err(ContractError::NotFound {
             typ: "Listing".to_string(),
             id: listing_id.to_string()
@@ -433,7 +433,7 @@ pub fn execute_add_to_listing(
         let old_listing = listing.for_sale.clone();
         let mut new = listing.clone();
         new.for_sale.add_tokens(balance);
-        //if old_listing == x.for_sale {
+        // Error if tokens not added
         if genbal_cmp(&old_listing, &new.for_sale).is_ok() {
             Err(ContractError::ErrorAdding("Tokens to Listing".to_string()))
         } else {
@@ -441,8 +441,19 @@ pub fn execute_add_to_listing(
         }
     }?;
 
-    // Check that new_listings for_sale is valid (specifically over 35 values);
-    new_listing.for_sale.check_valid()?;
+    // Check that new listing doesn't have over MAX_NUM_ASSETS
+    let _ = new_listing
+        .for_sale
+        .native.len()
+        .checked_add(new_listing.for_sale.cw20.len())
+        .and_then(|v| v.checked_add(new_listing.for_sale.nfts.len()))
+        .ok_or_else(|| ContractError::GenericError(format!("Listing cannot contain over {} items", MAX_NUM_ASSETS)))
+        .and_then(|v| {
+            if v as u32 > MAX_NUM_ASSETS {
+                return Err(ContractError::GenericError(format!("Listing cannot contain over {} items", MAX_NUM_ASSETS)));
+            }
+            Ok(())
+        })?;
 
     listingz().replace(
         deps.storage,
@@ -497,7 +508,7 @@ pub fn execute_add_to_listing_cw721(
         }
     }?;
 
-    // Check that new_listings for_sale is valid (specifically over 25 values);
+    // Check that new_listings for_sale is valid (over MAX_NUM_ASSETS or duplicate NFTs)
     new_listing.for_sale.check_valid()?;
 
     // Replace old listing with new listing
