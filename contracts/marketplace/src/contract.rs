@@ -200,10 +200,13 @@ pub fn execute_receive_nft(
     }
 
     // This doesn't guarantee that it's a cw721, but aids in verification
-    let _x: cw721::ContractInfoResponse = deps
-        .querier
-        .query_wasm_smart(info.sender.clone(), &Cw721QueryMsg::ContractInfo {})
-        .map_err(|_e| ContractError::GenericError("Invalid CW721 Spec".to_string()))?;
+    // let _x: cw721::ContractInfoResponse = deps
+    //     .querier
+    //     .query_wasm_smart(info.sender.clone(), &Cw721QueryMsg::ContractInfo {})
+    //     .map_err(|_e| ContractError::GenericError("Invalid CW721 Spec".to_string()))?;
+
+    // Verify it's a contract
+    let _x = deps.querier.query_wasm_contract_info(info.sender.clone())?;
 
     let msg: ReceiveNftMsg = from_binary(&wrapper.msg)?;
     let user_wallet = deps.api.addr_validate(&wrapper.sender)?;
