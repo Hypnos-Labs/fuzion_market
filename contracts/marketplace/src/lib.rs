@@ -27,7 +27,7 @@ mod contract_imports {
         execute_add_to_bucket, execute_add_to_bucket_cw721, execute_add_to_listing,
         execute_add_to_listing_cw721, execute_buy_listing, execute_change_ask,
         execute_create_bucket, execute_create_bucket_cw721, execute_create_listing,
-        execute_create_listing_cw721, execute_delete_listing, execute_finalize,
+        execute_create_listing_cw721, execute_delete_listing,
         execute_withdraw_bucket, execute_withdraw_purchased,
     };
     pub use crate::msg::{ExecuteMsg, InstantiateMsg, QueryMsg, ReceiveMsg, ReceiveNftMsg};

@@ -73,33 +73,28 @@ pub fn get_listings_by_owner(
 /// - Only returns listings that are finalized
 /// - Only returns listings that are not expired
 /// - Only returns listings that are not closed (sold)
-pub fn get_whitelisted(deps: Deps, env: Env, owner: String) -> StdResult<MultiListingResponse> {
+pub fn get_whitelisted(deps: Deps, _env: Env, owner: String) -> StdResult<MultiListingResponse> {
     let valid_owner = deps.api.addr_validate(owner.as_str())?;
 
-    let current_time = env.block.time.seconds();
-
-    let search_whitelists: Vec<_> = listingz()
+    let whitelists = listingz()
         .idx
         .whitelisted_buyer
         .prefix(valid_owner.to_string())
         .range(deps.storage, None, None, Order::Ascending)
-        .collect::<StdResult<Vec<_>>>()? // StdResult<Vec<((Addr, u64), Listing)>>
+        .collect::<StdResult<Vec<_>>>()?
         .iter()
         .filter_map(|entry| {
-            let x = entry.1.clone();
-            // Disregard entries that have no expiration, are expired, or are already closed
-            if x.expiration_time.filter(|&exp| exp.seconds() >= current_time).is_none()
-                || x.status == Status::Closed
-            {
+            let listing: Listing = entry.1.clone();
+            if listing.status != Status::Open {
                 None
             } else {
-                Some(x)
+                Some(listing)
             }
         })
-        .collect();
+        .collect::<Vec<Listing>>();
 
     Ok(MultiListingResponse {
-        listings: search_whitelists,
+        listings: whitelists,
     })
 }
 
@@ -107,44 +102,44 @@ pub fn get_whitelisted(deps: Deps, env: Env, owner: String) -> StdResult<MultiLi
 /// - Does not return listings that have not been finalized
 /// - Does not return listings that are expired
 /// - Does not return listings that are Closed (sold)
+/// 
+//
+
+// Only returns listings that are Status::Open
+// Supports pagination
 pub fn get_listings_for_market(
     deps: Deps,
-    env: Env,
-    page_num: u8,
+    _env: Env,
+    page_num: u16,
 ) -> StdResult<MultiListingResponse> {
-    let current_time = env.block.time.seconds();
-    let two_weeks_ago_in_seconds = current_time - 1_209_600;
 
-    let to_skip_usize = usize::from(page_num * 20 - 20);
+    let to_skip = usize::from(page_num * 20 - 20);
 
-    let listings_in_range: Vec<_> = listingz()
+    let listings = listingz()
         .idx
-        .finalized_date
-        .prefix_range_raw(
+        .id
+        .range_raw(
             deps.storage,
-            Some(PrefixBound::inclusive(two_weeks_ago_in_seconds)),
             None,
-            Order::Ascending,
+            None,
+            Order::Ascending
         )
         .collect::<StdResult<Vec<_>>>()?
         .iter()
-        .skip(to_skip_usize)
+        .skip(to_skip)
         .take(20)
         .filter_map(|entry| {
-            let x = entry.1.clone();
-            // Disregard entries that have no expiration, are expired, or are already Closed
-            if x.expiration_time.filter(|&exp| exp.seconds() >= current_time).is_none()
-                || x.status == Status::Closed
-            {
+            let listing: Listing = entry.1.clone();
+            if listing.status != Status::Open {
                 None
             } else {
-                Some(x)
+                Some(listing)
             }
         })
-        .collect();
+        .collect::<Vec<Listing>>();
 
     Ok(MultiListingResponse {
-        listings: listings_in_range,
+        listings
     })
 }
 

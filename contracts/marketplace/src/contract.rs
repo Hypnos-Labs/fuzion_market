@@ -48,8 +48,6 @@ pub fn instantiate(
         reply_on: ReplyOn::Success,
     };
 
-
-
     Ok(Response::new()
         .add_attribute("action", "instantiate")
         .add_submessage(sub_msg)
@@ -92,10 +90,6 @@ pub fn execute(
             listing_id,
             new_ask,
         } => execute_change_ask(deps, &info.sender, listing_id, new_ask),
-        ExecuteMsg::Finalize {
-            listing_id,
-            seconds,
-        } => execute_finalize(deps, &env, &info.sender, listing_id, seconds),
         ExecuteMsg::DeleteListing {
             listing_id,
         } => execute_delete_listing(deps, &env, info.sender, listing_id),
@@ -285,9 +279,8 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
         QueryMsg::GetListingsForMarket {
             page_num,
         } => to_binary(&get_listings_for_market(deps, env, page_num)?),
-        // QueryMsg::GetListingInfo {
-        //     listing_id,
-        // } => to_binary(&get_single_listing(deps, listing_id)?),
-        QueryMsg::GetRoyaltyAddr {} => to_binary(&get_royalty_contract(deps)?)
+        QueryMsg::GetRoyaltyAddr {} => to_binary(&get_royalty_contract(deps)?),
+        // Check if ID is used
+        // Get an unused ID?
     }
 }

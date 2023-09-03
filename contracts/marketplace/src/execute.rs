@@ -115,7 +115,7 @@ pub fn execute_add_to_bucket(
         }
     }?;
 
-    // Check that bucket funds are valid (specifically not over 35)
+    // Check that bucket funds are valid (specifically not over 25)
     new_bucket.funds.check_valid()?;
 
     // Save the updated bucket
@@ -258,9 +258,7 @@ pub fn execute_create_listing(
         &Listing {
             creator: user_address.clone(),
             id: listing_id,
-            finalized_time: None,
-            expiration_time: None,
-            status: Status::BeingPrepared,
+            status: Status::Open,
             claimant: None,
             whitelisted_buyer: wl_buyer,
             for_sale: GenericBalance::from_balance(funds_sent),
@@ -324,9 +322,7 @@ pub fn execute_create_listing_cw721(
         &Listing {
             creator: user_wallet.clone(),
             id: listing_id,
-            finalized_time: None,
-            expiration_time: None,
-            status: Status::BeingPrepared,
+            status: Status::Open,
             claimant: None,
             whitelisted_buyer: wl_buyer,
             for_sale: GenericBalance::from_nft(nft),
@@ -351,7 +347,7 @@ pub fn execute_change_ask(
     new_ask: GenericBalanceUnvalidated,
 ) -> Result<Response, ContractError> {
     // Ensure listing exists, sender is owner, & get listing
-    let Some(listing) = listingz().may_load(deps.storage, (user_sender, listing_id))? else {
+    let Some(listing): Option<Listing> = listingz().may_load(deps.storage, (user_sender, listing_id))? else {
         return Err(ContractError::NotFound {
             typ: "Listing".to_string(),
             id: listing_id.to_string()
@@ -363,17 +359,12 @@ pub fn execute_change_ask(
         return Err(ContractError::Unauthorized {});
     }
 
-    // Ensure no finalized time
-    if listing.finalized_time.is_some() {
-        return Err(ContractError::AlreadyFinalized {});
+    // Ensure listing is still open (has not been purchased)
+    if listing.status != Status::Open {
+        return Err(ContractError::Unauthorized {});
     }
 
-    // Ensure being prepared
-    if listing.status != Status::BeingPrepared {
-        return Err(ContractError::AlreadyFinalized {});
-    }
-
-    // Ensure no Claimant
+    // Ensure no Claimant (listing has been purchased)
     if listing.claimant.is_some() {
         return Err(ContractError::Unauthorized {});
     }
@@ -413,17 +404,17 @@ pub fn execute_add_to_listing(
         });
     };
 
-    // Ensure sender is Creator
+    // Ensure sender is creator
     if user_sender != &listing.creator {
         return Err(ContractError::Unauthorized {});
     }
 
-    // Ensure status is InPreperation
-    if listing.status != Status::BeingPrepared {
-        return Err(ContractError::AlreadyFinalized {});
+    // Ensure listing is still open (has not been purchased)
+    if listing.status != Status::Open {
+        return Err(ContractError::Unauthorized {});
     }
 
-    // Ensure no claimant <not already purchased>
+    // Ensure no Claimant (listing has been purchased)
     if listing.claimant.is_some() {
         return Err(ContractError::Unauthorized {});
     }
@@ -469,12 +460,12 @@ pub fn execute_add_to_listing(
 
 pub fn execute_add_to_listing_cw721(
     deps: DepsMut,
-    user_wallet: &Addr,
+    user_sender: &Addr,
     nft: Nft,
     listing_id: u64,
 ) -> Result<Response, ContractError> {
     // Ensure listing exists, sender is owner, & get listing
-    let Some(old_listing) = listingz().may_load(deps.storage, (user_wallet, listing_id))? else {
+    let Some(listing): Option<Listing> = listingz().may_load(deps.storage, (user_sender, listing_id))? else {
         return Err(ContractError::NotFound {
             typ: "Listing".to_string(),
             id: listing_id.to_string(),
@@ -482,24 +473,24 @@ pub fn execute_add_to_listing_cw721(
     };
 
     // Ensure sender is Creator
-    if user_wallet != &old_listing.creator {
+    if user_sender != &listing.creator {
         return Err(ContractError::Unauthorized {});
     }
 
-    // Ensure status is InPreperation
-    if old_listing.status != Status::BeingPrepared {
+    // Ensure listing is still open (has not been purchased)
+    if listing.status != Status::Open {
         return Err(ContractError::AlreadyFinalized {});
     }
 
-    // Ensure no claimant <not already purchased>
-    if old_listing.claimant.is_some() {
+    // Ensure no claimant (listing has already been purchased)
+    if listing.claimant.is_some() {
         return Err(ContractError::Unauthorized {});
     }
 
     // Create updated listing
     let new_listing: Listing = {
-        let old = old_listing.for_sale.clone();
-        let mut new = old_listing.clone();
+        let old = listing.for_sale.clone();
+        let mut new = listing.clone();
         new.for_sale.add_nft(nft);
         if genbal_cmp(&old, &new.for_sale).is_ok() {
             Err(ContractError::ErrorAdding("Tokens to Listing".to_string()))
@@ -514,86 +505,24 @@ pub fn execute_add_to_listing_cw721(
     // Replace old listing with new listing
     listingz().replace(
         deps.storage,
-        (user_wallet, listing_id),
+        (user_sender, listing_id),
         Some(&new_listing),
-        Some(&old_listing),
+        Some(&listing),
     )?;
 
     Ok(Response::new().add_attribute("Added NFT to listing", listing_id.to_string()))
 }
 
-pub fn execute_finalize(
-    deps: DepsMut,
-    env: &Env,
-    sender: &Addr,
-    listing_id: u64,
-    seconds: u64,
-) -> Result<Response, ContractError> {
-    // Ensure listing exists, Sender is owner & get listing
-    let Some(listing) = listingz().may_load(deps.storage, (sender, listing_id))? else {
-        return Err(ContractError::NotFound {
-            typ: "Listing".to_string(),
-            id: listing_id.to_string(),
-        });
-    };
 
-    // Ensure sender is creator
-    if sender != &listing.creator {
-        return Err(ContractError::Unauthorized {});
-    }
-
-    // Ensure no finalized time
-    if listing.finalized_time.is_some() {
-        return Err(ContractError::AlreadyFinalized {});
-    }
-
-    // Ensure being prepared
-    if listing.status != Status::BeingPrepared {
-        return Err(ContractError::AlreadyFinalized {});
-    }
-
-    // Ensure no Claimant
-    if listing.claimant.is_some() {
-        return Err(ContractError::Unauthorized {});
-    }
-
-    // max expiration is 1209600 seconds <14 days>
-    // min expiration is 600 seconds <10 minutes>
-    if !(600..=1_209_600).contains(&seconds) {
-        return Err(ContractError::InvalidExpiration {});
-    }
-
-    let finalized_at = env.block.time;
-    let expiration = env.block.time.plus_seconds(seconds);
-
-    listingz().replace(
-        deps.storage,
-        (sender, listing_id),
-        Some(&Listing {
-            finalized_time: Some(finalized_at),
-            expiration_time: Some(expiration),
-            status: Status::FinalizedReady,
-            ..listing.clone()
-        }),
-        Some(&listing),
-    )?;
-
-    Ok(Response::new()
-        .add_attribute("action", "finalize")
-        .add_attribute("listing_id", listing_id.to_string())
-        .add_attribute("expiration_seconds", expiration.to_string()))
-}
-
-/// Deletes a Listing that is either **BeingPrepared** or **Expired**,
-/// and sends funds back to creator
+/// Deletes a Listing that is `Status::Open` and sends funds back to creator
 pub fn execute_delete_listing(
     deps: DepsMut,
-    env: &Env,
+    _env: &Env,
     sender: Addr,
     listing_id: u64,
 ) -> Result<Response, ContractError> {
     // Check listing exists, sender is owner & get listing
-    let Some(listing) = listingz().may_load(deps.storage, (&sender, listing_id))? else {
+    let Some(listing): Option<Listing> = listingz().may_load(deps.storage, (&sender, listing_id))? else {
         return Err(ContractError::NotFound {
             typ: "Listing".to_string(),
             id: listing_id.to_string(),
@@ -606,22 +535,18 @@ pub fn execute_delete_listing(
     }
 
     // If listing.claimant.is_some() then listing already purchased
-    // This handles check for Status::Closed, which is why we can use
-    // send_tokens_cosmos instead of withdraw_msgs (will not be a fee)
     if listing.claimant.is_some() {
         return Err(ContractError::Unauthorized {});
     }
 
-    // Listing can only be removed if there is no expiration (meaning it's not finalized), or it's expired
-    if let Some(exp) = listing.expiration_time {
-        if env.block.time < exp {
-            return Err(ContractError::NotExpired {
-                x: exp.seconds().to_string(),
-            });
-        }
+    // If status is Closed then the listing has already been purchased
+    if listing.status == Status::Closed {
+        return Err(ContractError::Unauthorized {});
     }
 
     // Delete listing & send funds back to user
+    // Can use send_tokens_cosmos instead of withdraw_msgs because listing has not
+    // been purchased (so there won't be a fee)
     let msgs = send_tokens_cosmos(&listing.creator, &listing.for_sale)?;
 
     listingz().remove(deps.storage, (&sender, listing_id))?;
@@ -634,7 +559,7 @@ pub fn execute_delete_listing(
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 pub fn execute_buy_listing(
     deps: DepsMut,
-    env: &Env,
+    _env: &Env,
     buyer: &Addr,
     listing_id: u64,
     bucket_id: u64,
@@ -658,26 +583,14 @@ pub fn execute_buy_listing(
     // Check that bucket contains required purchase price
     genbal_cmp(&the_bucket.funds, &the_listing.ask)?;
 
-    // Check that listing is ready for purchase
-    if the_listing.status != Status::FinalizedReady {
-        return Err(ContractError::NotPurchasable {});
-    }
-
-    // Check that the user buying is whitelisted
+    // Check that the user buying is whitelisted (or there is no whitelisted buyer)
     if !the_listing.whitelisted_buyer.clone().map_or(true, |wl| wl == buyer.clone()) {
         return Err(ContractError::Unauthorized {});
     }
 
-    // Check that there's no existing claimant on listing
-    if the_listing.claimant.is_some() {
-        return Err(ContractError::NotPurchasable {});
-    }
-
-    // Check that listing isn't expired
-    if let Some(exp) = the_listing.expiration_time {
-        if env.block.time > exp {
-            return Err(ContractError::Expired {});
-        }
+    // Check that the listing has not already been purchased
+    if the_listing.status == Status::Closed || the_listing.claimant.is_some() {
+        return Err(ContractError::Unauthorized {});
     }
 
     // Load current fee denom
@@ -716,7 +629,6 @@ pub fn execute_buy_listing(
 
     // Royalty Registry address
     let Some(royalty_reg): Option<Addr> = ROYALTY_REGISTRY.load(deps.storage)? else {
-        // probably assert here
         return Err(ContractError::GenericError("No royalty registry".to_string()));
     };
 
@@ -768,7 +680,7 @@ pub fn execute_buy_listing(
     // Delete Old Listing
     listingz().remove(deps.storage, (&the_listing.creator, listing_id))?;
     // Save new Listing with
-    // - Listing Buyer in key & creator
+    // - Listing Buyer in key & creator & claimant
     // - Community Pool fee added
     // - Any NFT royalty payments removed
     listingz().save(

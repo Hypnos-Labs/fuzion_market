@@ -33,13 +33,7 @@ pub enum ExecuteMsg {
         listing_id: u64,
         new_ask: GenericBalanceUnvalidated,
     },
-    /// Makes Listing available for purchase & sets expiration time
-    Finalize {
-        listing_id: u64,
-        seconds: u64,
-    },
-    /// Callable if listing has not been finalized
-    /// or is expired
+    /// Callable if listing has not been purchased
     DeleteListing {
         listing_id: u64,
     },
@@ -130,7 +124,7 @@ pub enum QueryMsg {
     /// - Requires pagination
     #[returns(MultiListingResponse)]
     GetListingsForMarket {
-        page_num: u8,
+        page_num: u16,
     },
     // #[returns(ListingInfoResponse)]
     // GetListingInfo {

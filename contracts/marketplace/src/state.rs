@@ -15,6 +15,7 @@ pub const FEE_DENOM: Item<FeeDenom> = Item::new("fee_denom");
 
 pub const ROYALTY_REGISTRY: Item<Option<Addr>> = Item::new("royalty_regsitry");
 
+
 #[cw_serde]
 pub enum FeeDenom {
     JUNO(u64),
@@ -47,7 +48,6 @@ impl FeeDenom {
 
 pub struct ListingIndexes<'a> {
     pub id: UniqueIndex<'a, u64, Listing, (&'a Addr, u64)>,
-    pub finalized_date: MultiIndex<'a, u64, Listing, (&'a Addr, u64)>,
     // (whitelisted_buyer/default, listing_id as u64)  |
     pub whitelisted_buyer: UniqueIndex<'a, (String, u64), Listing, (&'a Addr, u64)>,
 }
@@ -55,7 +55,7 @@ pub struct ListingIndexes<'a> {
 impl IndexList<Listing> for ListingIndexes<'_> {
     fn get_indexes(&'_ self) -> Box<dyn Iterator<Item = &'_ dyn Index<Listing>> + '_> {
         let v: Vec<&dyn Index<Listing>> =
-            vec![&self.id, &self.finalized_date, &self.whitelisted_buyer];
+            vec![&self.id, &self.whitelisted_buyer];
         Box::new(v.into_iter())
     }
 }
@@ -64,11 +64,6 @@ impl IndexList<Listing> for ListingIndexes<'_> {
 pub fn listingz<'a>() -> IndexedMap<'a, (&'a Addr, u64), Listing, ListingIndexes<'a>> {
     let indexes = ListingIndexes {
         id: UniqueIndex::new(|a_listing| a_listing.id, "listing__id"),
-        finalized_date: MultiIndex::new(
-            |_pk, a_listing| a_listing.finalized_time.map_or(0_u64, |x| x.seconds()),
-            "listings_im",
-            "listing__finalized__date",
-        ),
         whitelisted_buyer: UniqueIndex::new(
             |listing| {
                 (
@@ -91,8 +86,6 @@ pub struct Listing {
     pub creator: Addr,
     pub id: u64,
 
-    pub finalized_time: Option<Timestamp>,
-    pub expiration_time: Option<Timestamp>,
     pub status: Status,
 
     pub claimant: Option<Addr>,
@@ -137,8 +130,7 @@ impl Listing {
 
 #[cw_serde]
 pub enum Status {
-    BeingPrepared,
-    FinalizedReady,
+    Open,
     Closed,
 }
 
@@ -528,8 +520,6 @@ impl GenericBalance {
                     cosmos_msgs.push(exc_msg);
                 }
             
-            
-
             }
         
             cw20_balance.amount = new_balance;
